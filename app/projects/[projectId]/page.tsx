@@ -1,0 +1,157 @@
+"use client";
+
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useEffect, useState, type FormEvent } from "react";
+import { ArrowLeft, ArrowRight, Clock3, Download, ExternalLink, FileText, Link2, Plus, Users, X } from "lucide-react";
+import { readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
+
+type ProjectTab = "Overview" | "Kanban Board" | "Staging & Links";
+const projectTabs: ProjectTab[] = ["Overview", "Kanban Board", "Staging & Links"];
+type VisibleTaskStatus = Exclude<ProjectWorkItem["status"], "UNDER_REVIEW">;
+const taskStatuses: VisibleTaskStatus[] = ["TO_DO", "IN_PROGRESS", "DONE", "BLOCKED"];
+const statusLabels: Record<VisibleTaskStatus, string> = { TO_DO: "To do", IN_PROGRESS: "In progress", DONE: "Done", BLOCKED: "Blocked" };
+
+function TaskDispatchDrawer({ project, onClose, onDispatch }: { project: Project; onClose: () => void; onDispatch: (task: ProjectWorkItem) => void }) {
+  const [error, setError] = useState("");
+  const [kind, setKind] = useState<ProjectWorkItem["kind"]>("FEATURE_DEV");
+  const assignees = [...new Set(project.team.map((member) => member.name.trim()).filter(Boolean))];
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const assignee = String(data.get("assignee") || "");
+    if (!assignee) {
+      setError("Assign this task to a team member first.");
+      return;
+    }
+    const estimatedHours = Number(data.get("estimatedHours"));
+    if (!Number.isFinite(estimatedHours) || estimatedHours <= 0) {
+      setError("Enter an estimated effort greater than zero.");
+      return;
+    }
+    onDispatch({
+      id: crypto.randomUUID(),
+      title: String(data.get("title") || "").trim(),
+      kind,
+      assignee,
+      priority: String(data.get("priority")) as ProjectWorkItem["priority"],
+      estimatedHours,
+      loggedHours: 0,
+      createdAt: new Date().toISOString(),
+      status: "TO_DO",
+    });
+  }
+
+  return <div className="task-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <aside className="task-dispatch-drawer" role="dialog" aria-modal="true" aria-labelledby="dispatch-title">
+      <header><div><span className="eyebrow">{project.id} · PM DISPATCH</span><h2 id="dispatch-title">Dispatch new action item</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="Close dispatch drawer"><X size={18}/></button></header>
+      <form onSubmit={submit}>
+        <label className="field required">Action type<select name="kind" value={kind} onChange={(event) => setKind(event.target.value as ProjectWorkItem["kind"])}><option value="FEATURE_DEV">Feature development</option><option value="CLIENT_FEEDBACK_TODO">Client feedback to-do</option><option value="QA_BUG">QA bug</option></select></label>
+        <label className="field required">Task title<input name="title" required placeholder="Describe the work to be done"/></label>
+        <label className="field required">Assignee<select name="assignee" required defaultValue=""><option value="" disabled>{assignees.length ? "Select a project team member" : "Assign project team members first"}</option>{assignees.map((name) => <option key={name} value={name}>{name}</option>)}</select><small className="field-hint">Current capacity preview is unavailable until a resource directory is connected.</small></label>
+        <label className="field required">Priority<select name="priority" defaultValue="P3"><option value="P1">P1 · Critical</option><option value="P2">P2 · High</option><option value="P3">P3 · Normal</option><option value="P4">P4 · Low</option></select></label>
+        <label className="field required">Estimated effort (hours)<input name="estimatedHours" type="number" min="0.25" step="0.25" required placeholder="e.g. 4"/></label>
+        {error && <div className="form-error" role="alert">{error}</div>}
+        <footer><button className="button button-quiet" type="button" onClick={onClose}>Cancel</button><button className="button button-primary" type="submit"><ArrowRight size={14}/>Dispatch to work queue</button></footer>
+      </form>
+    </aside>
+  </div>;
+}
+
+export default function ProjectWorkspacePage() {
+  const { projectId } = useParams<{ projectId: string }>();
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<ProjectTab>("Overview");
+  const [showDispatch, setShowDispatch] = useState(false);
+
+  useEffect(() => {
+    const refresh = () => {
+      setProject(readProjects().find((item) => item.id === projectId) ?? null);
+      setLoading(false);
+    };
+    refresh();
+    window.addEventListener("evecture:projects-updated", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("evecture:projects-updated", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, [projectId]);
+
+  function save(updates: Partial<Project>) {
+    if (!project) return;
+    updateProject(project.id, updates);
+    setProject({ ...project, ...updates });
+  }
+
+  function logKickoff(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!project) return;
+    const form = new FormData(event.currentTarget);
+    const titles = String(form.get("actionItems") || "").split("\n").map((title) => title.trim()).filter(Boolean);
+    const now = new Date().toISOString();
+    const tasks = [...project.tasks, ...titles.map((title) => ({ id: crypto.randomUUID(), title, createdAt: now, status: "TO_DO" as const, source: "KICKOFF" as const }))];
+    save({ kickoffHeldAt: now, kickoffNotes: String(form.get("kickoffNotes") || "").trim(), tasks });
+  }
+
+  function dispatchTask(task: ProjectWorkItem) {
+    save({ workItems: [task, ...(project?.workItems ?? [])] });
+    setShowDispatch(false);
+    setActiveTab("Kanban Board");
+  }
+
+  function updateWorkItem(taskId: string, updates: Partial<ProjectWorkItem>) {
+    if (!project) return;
+    save({ workItems: (project.workItems ?? []).map((task) => task.id === taskId ? { ...task, ...updates } : task) });
+  }
+
+  function setProjectLink(key: "staging" | "repository" | "design" | "other") {
+    if (!project) return;
+    const labels = { staging: "Staging URL", repository: "Repository URL", design: "Design file URL", other: "Other project link" };
+    const value = window.prompt(labels[key], project.links?.[key] || "");
+    if (value === null) return;
+    save({ links: { ...project.links, [key]: value.trim() || undefined } });
+  }
+
+  if (loading) return <div className="page-content"><div className="panel pipeline-empty"><p>Loading project workspace…</p></div></div>;
+  if (!project) return <div className="page-content"><div className="panel pipeline-empty"><h2>Project workspace not found</h2><p>This browser does not have a record for that project.</p><Link className="button button-quiet" href="/projects"><ArrowLeft size={14}/>Project portfolio</Link></div></div>;
+
+  const workItems = (project.workItems ?? []).map((task) => task.status === "UNDER_REVIEW" ? { ...task, status: "IN_PROGRESS" as const } : task);
+  const clientBlocked = workItems.some((task) => task.status === "BLOCKED");
+  const marginAlert = workItems.some((task) => task.estimatedHours > 0 && task.loggedHours / task.estimatedHours >= 0.85);
+  const health = clientBlocked ? { label: "Blocked work", className: "health-blocked" } : marginAlert ? { label: "Margin alert", className: "health-risk" } : { label: "On track", className: "health-good" };
+  const taskGroups = Object.fromEntries(taskStatuses.map((status) => [status, workItems.filter((task) => task.status === status)])) as Record<VisibleTaskStatus, ProjectWorkItem[]>;
+
+  return <div className="page-content project-detail-page">
+    <Link className="back-link" href="/projects"><ArrowLeft size={15}/>Project portfolio</Link>
+    <header className="record-heading project-room-heading"><div><div className="eyebrow">{project.id} · {project.services.join(" / ").toUpperCase()} TRACK</div><h1>{project.title}</h1><p>{project.clientCompany || project.clientName} · PM: {project.team.find((member) => member.role === "Project Manager")?.name || "Unassigned"} · Lead developer: {project.team.find((member) => member.role === "Lead Developer")?.name || "Unassigned"}</p></div><span className={`health-pill ${health.className}`}><i/>{health.label}</span></header>
+
+    <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{health.label}</strong></div><div><small>OPEN WORK ITEMS</small><strong>{workItems.filter((task) => task.status !== "DONE").length}</strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim()).length}</strong></div></section>
+
+    <nav className="project-room-tabs" aria-label="Project room sections">{projectTabs.map((tab) => { const count = tab === "Kanban Board" ? workItems.length : undefined; return <button key={tab} type="button" className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}{count ? <span>{count}</span> : null}</button>; })}<button type="button" className="button button-primary room-dispatch-button" onClick={() => setShowDispatch(true)}><Plus size={14}/>Dispatch task</button></nav>
+
+    {activeTab === "Overview" && <>
+      <section className="project-detail-grid">
+        <div className="project-detail-main">
+          <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Kickoff meeting</h2><p>{project.kickoffScheduledAt ? `Scheduled ${new Date(project.kickoffScheduledAt).toLocaleString()}` : "Not scheduled"}</p></div><span className={`stage-pill ${project.kickoffHeldAt ? "stage-strategy" : "stage-discovery"}`}><i/>{project.kickoffHeldAt ? "Logged" : "Scheduled"}</span></div>
+            {project.kickoffHeldAt ? <div className="kickoff-record"><div className="kickoff-meta"><Clock3 size={14}/>Meeting logged {new Date(project.kickoffHeldAt).toLocaleString()}</div><h3>Meeting notes</h3><p className="kickoff-notes">{project.kickoffNotes || "No meeting notes recorded."}</p><div className="kickoff-task-heading"><h3>Kickoff action items</h3><span>{project.tasks.length} tasks</span></div>{project.tasks.length === 0 ? <p className="empty-task-note">No action items were recorded.</p> : <div className="kickoff-tasks">{project.tasks.map((task) => <div className={`kickoff-task ${task.status === "DONE" ? "done" : ""}`} key={task.id}><span className="task-priority priority-mid"/><span>{task.title}</span></div>)}</div>}</div> : <form className="kickoff-form" onSubmit={logKickoff}><label className="field">Meeting notes<textarea name="kickoffNotes" rows={3} placeholder="Record decisions and expectations from kickoff."/></label><label className="field">Action items<textarea name="actionItems" rows={3} placeholder="One task per line."/><small className="field-hint">Each line becomes a kickoff action item.</small></label><button className="button button-primary" type="submit"><Plus size={14}/>Save kickoff notes & tasks</button></form>}
+          </article>
+          <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Commercial & scope</h2><p>Carried over from accepted proposal</p></div></div><div className="project-commercial-list"><div><small>Billing structure</small><strong>{project.billingStructure}</strong></div><div><small>Deposit invoice</small><strong>{project.invoice ? `${project.invoice.invoiceNumber} · ${project.invoice.status.replaceAll("_", " ")}` : "Not recorded"}</strong></div><div><small>Payment terms</small><p>{project.invoice?.paymentTerms || "No additional terms recorded."}</p></div><div><small>Included revision rounds</small><strong>{project.revisionRounds}</strong></div><div><small>Included scope</small><p>{project.scopeIncluded}</p></div><div><small>Excluded scope</small><p>{project.scopeExcluded || "None specified"}</p></div><div><small>Assumptions</small><p>{project.assumptions || "None specified"}</p></div></div></article>
+        </div>
+        <aside className="project-detail-side"><article className="panel project-data-panel"><div className="panel-heading"><div><h2>Team</h2><p>Assigned roles and allocation</p></div><Users size={16}/></div><div className="team-assignment-list">{project.team.map((member, index) => <div className="team-assignment" key={`${member.role}-${index}`}><span className="team-role-icon">{member.name ? member.name.slice(0, 1).toUpperCase() : "—"}</span><div><strong>{member.role}</strong><small>{member.name || "Unassigned"}</small></div><b>{member.name ? `${member.allocationPercent}%` : "—"}</b></div>)}</div><Link className="assignment-inline-link" href="/projects/assignments">Manage project assignments <ArrowRight size={13}/></Link></article>
+          <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Project documents</h2><p>Signed commercial records</p></div><FileText size={16}/></div><div className="document-links">{project.signedContractDataUrl && project.signedContractName ? <a href={project.signedContractDataUrl} download={project.signedContractName}><Download size={14}/>{project.signedContractName}</a> : <span className="document-pending">Signed SOW not attached</span>}{project.invoice && <Link href={`/requests/${project.leadId}`}><ExternalLink size={14}/>{project.invoice.invoiceNumber} · invoice record</Link>}</div></article></aside>
+      </section>
+    </>}
+
+    {activeTab === "Kanban Board" && <section className="project-kanban-board">{taskStatuses.map((status) => <div className="kanban-column" key={status}><header><h2>{statusLabels[status]}</h2><span>{taskGroups[status].length}</span></header>{taskGroups[status].length === 0 ? <div className="kanban-column-empty">No tasks</div> : taskGroups[status].map((task) => {
+      return <article className="work-item-card" key={task.id}><div className="work-item-card-top"><span className={`work-priority priority-${task.priority.toLowerCase()}`}>{task.priority}</span><span>{task.kind.replaceAll("_", " ")}</span></div><h3>{task.title}</h3><p>{task.assignee} · {task.estimatedHours}h estimated</p>{task.status === "BLOCKED" && <button className="button button-quiet" type="button" onClick={() => updateWorkItem(task.id, { status: "IN_PROGRESS" })}>Resolve blocker & return to work</button>}</article>;
+    })}</div>)}</section>}
+
+    {activeTab === "Staging & Links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([ ["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"] ] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16}/></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12}/></a> : <strong>Not added</strong>}</div><button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button></article>; })}</div><p className="storage-note">Links are stored in this browser workspace. Environment creation and repository permissions are managed outside this module.</p></section>}
+
+    {showDispatch && <TaskDispatchDrawer project={project} onClose={() => setShowDispatch(false)} onDispatch={dispatchTask}/>}
+    <p className="storage-note">Project changes update this browser workspace and other open tabs. Shared server sync is not connected.</p>
+  </div>;
+}
