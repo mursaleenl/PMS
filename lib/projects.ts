@@ -70,7 +70,7 @@ export type Project = {
   tasks: KickoffTask[];
   workItems?: ProjectWorkItem[];
   links?: ProjectLinks;
-  status: "ACTIVE";
+  status: "ACTIVE" | "COMPLETED";
 };
 
 export function readProjects(): Project[] {

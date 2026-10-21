@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, Clock3, Download, ExternalLink, FileText, Link2, Plus, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Clock3, Download, ExternalLink, FileText, Heart, Link2, Plus, Users, X } from "lucide-react";
+import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
 import { readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
+import { readManagedProjects, type ManagedProject } from "@/lib/post-sale";
 
 type ProjectTab = "Overview" | "Kanban Board" | "Staging & Links";
 const projectTabs: ProjectTab[] = ["Overview", "Kanban Board", "Staging & Links"];
@@ -65,17 +67,22 @@ export default function ProjectWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ProjectTab>("Overview");
   const [showDispatch, setShowDispatch] = useState(false);
+  const [showManagedPlan, setShowManagedPlan] = useState(false);
+  const [managedPlan, setManagedPlan] = useState<ManagedProject | null>(null);
 
   useEffect(() => {
     const refresh = () => {
       setProject(readProjects().find((item) => item.id === projectId) ?? null);
+      setManagedPlan(readManagedProjects().find((item) => item.sourceProjectId === projectId) ?? null);
       setLoading(false);
     };
     refresh();
     window.addEventListener("evecture:projects-updated", refresh);
+    window.addEventListener("evecture:post-sale-updated", refresh);
     window.addEventListener("storage", refresh);
     return () => {
       window.removeEventListener("evecture:projects-updated", refresh);
+      window.removeEventListener("evecture:post-sale-updated", refresh);
       window.removeEventListener("storage", refresh);
     };
   }, [projectId]);
@@ -84,6 +91,10 @@ export default function ProjectWorkspacePage() {
     if (!project) return;
     updateProject(project.id, updates);
     setProject({ ...project, ...updates });
+  }
+
+  function markProjectComplete() {
+    save({ status: "COMPLETED" });
   }
 
   function logKickoff(event: FormEvent<HTMLFormElement>) {
@@ -126,9 +137,9 @@ export default function ProjectWorkspacePage() {
 
   return <div className="page-content project-detail-page">
     <Link className="back-link" href="/projects"><ArrowLeft size={15}/>Project portfolio</Link>
-    <header className="record-heading project-room-heading"><div><div className="eyebrow">{project.id} · {project.services.join(" / ").toUpperCase()} TRACK</div><h1>{project.title}</h1><p>{project.clientCompany || project.clientName} · PM: {project.team.find((member) => member.role === "Project Manager")?.name || "Unassigned"} · Lead developer: {project.team.find((member) => member.role === "Lead Developer")?.name || "Unassigned"}</p></div><span className={`health-pill ${health.className}`}><i/>{health.label}</span></header>
+    <header className="record-heading project-room-heading"><div><div className="eyebrow">{project.id} · {project.services.join(" / ").toUpperCase()} TRACK</div><h1>{project.title}</h1><p>{project.clientCompany || project.clientName} · PM: {project.team.find((member) => member.role === "Project Manager")?.name || "Unassigned"} · Lead developer: {project.team.find((member) => member.role === "Lead Developer")?.name || "Unassigned"}</p></div><div className="project-lifecycle-actions"><span className={`health-pill ${health.className}`}><i/>{health.label}</span>{project.status === "COMPLETED" ? managedPlan ? <Link className="button button-quiet" href="/post-sale"><Check size={14}/>In post-sale · {managedPlan.id}</Link> : <button className="button button-primary" type="button" onClick={() => setShowManagedPlan(true)}><Heart size={14}/>Move to post-sale</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14}/>Mark complete</button>}</div></header>
 
-    <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{health.label}</strong></div><div><small>OPEN WORK ITEMS</small><strong>{workItems.filter((task) => task.status !== "DONE").length}</strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim()).length}</strong></div></section>
+    <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{project.status === "COMPLETED" ? "Completed" : "Active"}</strong></div><div><small>OPEN WORK ITEMS</small><strong>{workItems.filter((task) => task.status !== "DONE").length}</strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim()).length}</strong></div></section>
 
     <nav className="project-room-tabs" aria-label="Project room sections">{projectTabs.map((tab) => { const count = tab === "Kanban Board" ? workItems.length : undefined; return <button key={tab} type="button" className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}{count ? <span>{count}</span> : null}</button>; })}<button type="button" className="button button-primary room-dispatch-button" onClick={() => setShowDispatch(true)}><Plus size={14}/>Dispatch task</button></nav>
 
@@ -152,6 +163,7 @@ export default function ProjectWorkspacePage() {
     {activeTab === "Staging & Links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([ ["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"] ] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16}/></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12}/></a> : <strong>Not added</strong>}</div><button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button></article>; })}</div><p className="storage-note">Links are stored in this browser workspace. Environment creation and repository permissions are managed outside this module.</p></section>}
 
     {showDispatch && <TaskDispatchDrawer project={project} onClose={() => setShowDispatch(false)} onDispatch={dispatchTask}/>}
+    {showManagedPlan && <ManagedPlanDrawer projects={[project]} initialProjectId={project.id} onClose={() => setShowManagedPlan(false)} onCreated={(item) => setManagedPlan(item)}/>}
     <p className="storage-note">Project changes update this browser workspace and other open tabs. Shared server sync is not connected.</p>
   </div>;
 }
