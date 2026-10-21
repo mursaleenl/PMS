@@ -1,11 +1,13 @@
 export type WorkspaceCollection = "leads" | "projects" | "management" | "postSaleOperations";
 
-export const workspaceStorage = {
+type WorkspaceStorageEntry = { key: string; legacyKeys: string[]; changedEvent: string };
+
+export const workspaceStorage: Record<WorkspaceCollection, WorkspaceStorageEntry> = {
   leads: { key: "evecture.leads.v1", legacyKeys: ["everture.leads.v1"], changedEvent: "evecture:leads-updated" },
   projects: { key: "evecture.projects.v1", legacyKeys: ["everture.projects.v1"], changedEvent: "evecture:projects-updated" },
   management: { key: "evecture.post-sale.v1", legacyKeys: [], changedEvent: "evecture:post-sale-updated" },
   postSaleOperations: { key: "evecture.post-sale-operations.v1", legacyKeys: [], changedEvent: "evecture:post-sale-operations-updated" },
-} satisfies Record<WorkspaceCollection, { key: string; legacyKeys: string[]; changedEvent: string }>;
+};
 
 export type WorkspaceRecord = { recordId: string; order: number; data: unknown };
 export type LocalWorkspaceChange = { collection: WorkspaceCollection; data: unknown };
