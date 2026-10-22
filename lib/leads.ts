@@ -1,4 +1,5 @@
 import { publishLocalWorkspaceChange } from "@/lib/workspace-sync";
+import type { OperatingCompany } from "@/lib/companies";
 
 export const LEADS_STORAGE_KEY = "evecture.leads.v1";
 
@@ -47,6 +48,16 @@ export type ProposalVersion = {
 
 export type LeadInvoice = {
   invoiceNumber: string;
+  operatingCompany?: OperatingCompany;
+  billTo?: string;
+  description?: string;
+  quantity?: number;
+  unitPrice?: number;
+  subtotal?: number;
+  gstEnabled?: boolean;
+  gstRate?: number;
+  gstAmount?: number;
+  total?: number;
   issueDate: string;
   dueDate: string;
   contractValue: number;
@@ -61,6 +72,13 @@ export type LeadInvoice = {
   transactionReference?: string;
   confirmedPaidAt?: string;
 };
+
+export function nextInvoiceNumber(leads: Lead[], operatingCompany: OperatingCompany) {
+  const year = new Date().getFullYear();
+  const prefix = operatingCompany === "Servn" ? "SER" : "EVE";
+  const values = leads.map((lead) => lead.invoice?.invoiceNumber.match(new RegExp(`^${prefix}-INV-${year}-(\\d+)$`))?.[1]).filter(Boolean).map(Number);
+  return `${prefix}-INV-${year}-${String(Math.max(0, ...values) + 1).padStart(3, "0")}`;
+}
 
 export type Lead = {
   id: string;
@@ -83,6 +101,7 @@ export type Lead = {
   urgency: "Standard" | "Rush";
   source: string;
   acquisitionSource: string;
+  operatingCompany?: OperatingCompany;
   status: LeadStatus;
   firstContactAt?: string;
   disqualificationReason?: string;
@@ -102,7 +121,17 @@ export function readLeads(): Lead[] {
   try {
     const stored = window.localStorage.getItem(LEADS_STORAGE_KEY) ?? window.localStorage.getItem("everture.leads.v1");
     const parsed: unknown = stored ? JSON.parse(stored) : [];
-    return Array.isArray(parsed) ? parsed as Lead[] : [];
+    return Array.isArray(parsed) ? parsed.map((item) => {
+      const lead = item as Lead;
+      return {
+        ...lead,
+        operatingCompany: (lead.operatingCompany as string | undefined) === "Servyn" ? "Servn" : lead.operatingCompany,
+        invoice: lead.invoice ? {
+          ...lead.invoice,
+          operatingCompany: (lead.invoice.operatingCompany as string | undefined) === "Servyn" ? "Servn" : lead.invoice.operatingCompany,
+        } : undefined,
+      };
+    }) : [];
   } catch {
     return [];
   }

@@ -1,4 +1,5 @@
 import type { Lead, LeadInvoice, ProposalVersion } from "@/lib/leads";
+import type { OperatingCompany } from "@/lib/companies";
 import { publishLocalWorkspaceChange } from "@/lib/workspace-sync";
 
 export const PROJECTS_STORAGE_KEY = "evecture.projects.v1";
@@ -10,14 +11,6 @@ export type ProjectTeamMember = {
   role: "Project Manager" | "Lead Designer" | "Lead Developer" | "QA Owner" | "Supporting team member";
   name: string;
   allocationPercent: number;
-};
-
-export type KickoffTask = {
-  id: string;
-  title: string;
-  createdAt: string;
-  status: "TO_DO" | "IN_PROGRESS" | "DONE";
-  source: "KICKOFF";
 };
 
 export type ProjectWorkItem = {
@@ -47,6 +40,7 @@ export type Project = {
   clientCompany: string;
   clientName: string;
   clientEmail: string;
+  operatingCompany?: OperatingCompany;
   services: string[];
   classification: ProjectClassification;
   startDate: string;
@@ -64,10 +58,6 @@ export type Project = {
   assumptions: string;
   revisionRounds: number;
   team: ProjectTeamMember[];
-  kickoffScheduledAt: string;
-  kickoffHeldAt?: string;
-  kickoffNotes?: string;
-  tasks: KickoffTask[];
   workItems?: ProjectWorkItem[];
   links?: ProjectLinks;
   status: "ACTIVE" | "COMPLETED";
@@ -78,7 +68,18 @@ export function readProjects(): Project[] {
   try {
     const stored = window.localStorage.getItem(PROJECTS_STORAGE_KEY) ?? window.localStorage.getItem("everture.projects.v1");
     const parsed: unknown = stored ? JSON.parse(stored) : [];
-    return Array.isArray(parsed) ? parsed as Project[] : [];
+    return Array.isArray(parsed) ? parsed.map((item) => {
+      const project = { ...(item as Project) } as Project & Record<string, unknown>;
+      for (const legacyField of ["kickoffScheduledAt", "kickoffHeldAt", "kickoffNotes", "tasks"]) Reflect.deleteProperty(project, legacyField);
+      return {
+        ...project,
+        operatingCompany: (project.operatingCompany as string | undefined) === "Servyn" ? "Servn" : project.operatingCompany,
+        invoice: project.invoice ? {
+          ...project.invoice,
+          operatingCompany: (project.invoice.operatingCompany as string | undefined) === "Servyn" ? "Servn" : project.invoice.operatingCompany,
+        } : undefined,
+      };
+    }) : [];
   } catch {
     return [];
   }
@@ -111,8 +112,8 @@ export function projectFromLead(input: {
   proposal: ProposalVersion;
   title: string;
   classification: ProjectClassification;
+  operatingCompany: OperatingCompany;
   startDate: string;
-  kickoffScheduledAt: string;
   team: ProjectTeamMember[];
 }): Project {
   const { lead, proposal } = input;
@@ -125,6 +126,7 @@ export function projectFromLead(input: {
     clientCompany: lead.companyName,
     clientName: lead.fullName,
     clientEmail: lead.email,
+    operatingCompany: input.operatingCompany,
     services: lead.services,
     classification: input.classification,
     startDate: input.startDate,
@@ -142,8 +144,6 @@ export function projectFromLead(input: {
     assumptions: proposal.assumptions,
     revisionRounds: proposal.revisionRounds,
     team: input.team,
-    kickoffScheduledAt: input.kickoffScheduledAt,
-    tasks: [],
     workItems: [],
     status: "ACTIVE",
   };

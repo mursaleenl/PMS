@@ -8,8 +8,8 @@ const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 
 export const metadata: Metadata = {
-  title: "Evecture Studio · Project Workspace",
-  description: "Evecture Studio project management workspace",
+  title: "VRKSpace · Project Workspace",
+  description: "VRKSpace project management workspace",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

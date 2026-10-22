@@ -12,7 +12,7 @@ const collections = ["leads", "projects", "management", "postSaleOperations"] as
 
 async function requireEmployee(ctx: { auth: { getUserIdentity: () => Promise<unknown> } }) {
   const identity = await ctx.auth.getUserIdentity();
-  if (!identity) throw new ConvexError("Sign in is required to access the Evecture workspace.");
+  if (!identity) throw new ConvexError("Sign in is required to access the VRKSpace workspace.");
 }
 
 export const getAll = query({

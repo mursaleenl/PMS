@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Users } from "lucide-react";
 import { readProjects, type Project } from "@/lib/projects";
 import { readManagedProjects, type ManagedProject } from "@/lib/post-sale";
+import { EmptyState } from "@/app/_components/empty-state";
 
 type ClientRecord = {
   key: string;
@@ -19,6 +20,10 @@ function clientKey(company: string, email = "", name = "") {
   if (company.trim()) return `company:${company.trim().toLocaleLowerCase()}`;
   if (email.trim()) return `email:${email.trim().toLocaleLowerCase()}`;
   return `name:${name.trim().toLocaleLowerCase()}`;
+}
+
+function clientSlug(value: string) {
+  return value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "client";
 }
 
 export default function ClientsPage() {
@@ -61,8 +66,14 @@ export default function ClientsPage() {
     return [...clientMap.values()].sort((left, right) => left.name.localeCompare(right.name));
   }, [projects, plans]);
 
+  useEffect(() => {
+    const targetId = window.location.hash.slice(1);
+    if (!targetId || clients.length === 0) return;
+    window.requestAnimationFrame(() => document.getElementById(decodeURIComponent(targetId))?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, [clients]);
+
   return <div className="page-content clients-page">
-    <section className="welcome-row"><div><div className="eyebrow"><span className="live-dot"/>WORKSPACE</div><h1>Clients</h1><p className="welcome-subtitle">Clients from your active projects and managed plans.</p></div></section>
-    {clients.length === 0 ? <section className="panel pipeline-empty projects-empty"><span className="empty-icon"><Users size={22}/></span><h2>No clients yet</h2><p>Clients will appear here when you add projects or managed plans.</p><Link className="button button-primary" href="/projects">Open projects <ArrowRight size={15}/></Link></section> : <section className="client-list">{clients.map((client) => <article className="panel client-card" key={client.key}><div className="client-card-heading"><div><h2>{client.name}</h2>{client.contactName && <p>{client.contactName}</p>}{client.email && <a href={`mailto:${client.email}`}>{client.email}</a>}</div><span>{client.managedPlans} {client.managedPlans === 1 ? "managed plan" : "managed plans"}</span></div>{client.projects.length > 0 && <div className="client-projects"><small>PROJECTS</small>{client.projects.map((project) => <Link href={`/projects/${project.id}`} key={project.id}>{project.title}<ArrowRight size={13}/></Link>)}</div>}</article>)}</section>}
+    <section className="welcome-row"><div><div className="eyebrow"><span className="live-dot" />WORKSPACE</div><h1>Clients</h1><p className="welcome-subtitle">Clients from your active projects and managed plans.</p></div></section>
+    {clients.length === 0 ? <EmptyState icon={<Users size={22} />} title="No clients yet" description="Clients will appear here when you add projects or managed plans." action={<Link className="button button-primary" href="/projects">Open projects <ArrowRight size={15} /></Link>} /> : <div className="panel client-table-wrap"><table className="client-table"><thead><tr><th>Client</th><th>Primary contact</th><th>Projects</th><th>Managed plans</th></tr></thead><tbody>{clients.map((client) => <tr id={`client-${clientSlug(client.name)}`} key={client.key}><td><strong>{client.name}</strong></td><td>{client.contactName ? <strong>{client.contactName}</strong> : <span className="table-muted">—</span>}{client.email && <a href={`mailto:${client.email}`}>{client.email}</a>}</td><td>{client.projects.length ? <div className="client-table-projects">{client.projects.map((project) => <Link href={`/projects/${project.id}`} key={project.id}><span>{project.title}</span><small className="mono-meta">{project.id}</small></Link>)}</div> : <span className="table-muted">No project linked</span>}</td><td><span className="client-plan-count">{client.managedPlans}</span></td></tr>)}</tbody></table></div>}
   </div>;
 }
