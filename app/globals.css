@@ -7970,6 +7970,9 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); font-weight: 700; lin
 .invoice-company-logo { position: absolute; top: -22px; left: -15px; display: block; width: 92px; height: 110px; max-width: none; object-fit: none; flex: none; }
 .invoice-logo-crop.invoice-logo-servn { width: 140px; height: 58px; overflow: visible; }
 .invoice-company-logo-servn { position: static; width: 140px; height: auto; max-width: 100%; object-fit: contain; }
+.invoice-reference-layout.invoice-company-servn .invoice-paper-head { position: relative; justify-content: center; }
+.invoice-reference-layout.invoice-company-servn .invoice-paper-head > div:first-child { margin-inline: auto; }
+.invoice-reference-layout.invoice-company-servn .invoice-title { position: absolute; right: 0; top: 0; }
 .invoice-reference-layout .invoice-paper-head { min-height: 45mm; align-items: flex-start; padding: 0 0 8mm; }
 .invoice-reference-layout .invoice-paper-head>div:first-child { align-items: center; }
 .invoice-reference-layout .invoice-paper-meta { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12mm; padding: 4mm 0 10mm; }
