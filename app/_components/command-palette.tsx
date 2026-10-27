@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Command, FolderKanban, Heart, Inbox, Search, Users, X } from "lucide-react";
+import { ArrowRight, Command, FolderKanban, Handshake, Inbox, Search, Users, X } from "lucide-react";
 import { formatLeadId, readLeads, type Lead } from "@/lib/leads";
 import { readProjects, type Project } from "@/lib/projects";
 import { readManagedProjects, type ManagedProject } from "@/lib/post-sale";
@@ -78,7 +78,7 @@ export function CommandPalette() {
     <section className="command-dialog" role="dialog" aria-modal="true" aria-label="Search workspace">
       <div className="command-search-row"><Search size={19} /><input autoFocus value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Search requests, clients, projects, post-sale…" /><kbd>ESC</kbd><button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="Close search"><X size={17} /></button></div>
       {term.trim() ? <div className="command-results">{results.length ? results.map((item) => {
-        const Icon = item.kind === "Request" ? Inbox : item.kind === "Project" ? FolderKanban : item.kind === "Client" ? Users : Heart;
+        const Icon = item.kind === "Request" ? Inbox : item.kind === "Project" ? FolderKanban : item.kind === "Client" ? Users : Handshake;
         return <Link href={item.href} className="command-result" key={`${item.kind}-${item.href}-${item.title}`} onClick={() => setOpen(false)}><span className="command-result-icon"><Icon size={16} /></span><span className="command-result-copy"><strong>{item.title}</strong><small>{item.detail}</small></span><span className="command-result-kind">{item.kind}</span><ArrowRight size={15} /></Link>;
       }) : <div className="command-empty">No matching records. Try a client, project, or request.</div>}</div> : <div className="command-hint"><span><Command size={14} /> Type to search your workspace</span><span>Requests · Projects · Clients · Post-sale</span></div>}
       <footer className="command-footer"><span>Navigate with results</span><span><kbd>⌘</kbd> <kbd>K</kbd> to toggle</span></footer>

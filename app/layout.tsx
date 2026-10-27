@@ -1,21 +1,20 @@
 import type { Metadata } from "next";
-import { DM_Sans, Manrope } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { WorkspaceShell } from "./_components/workspace-shell";
 import { AppProviders } from "./_components/providers";
 
-const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
-const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "VRKSpace · Project Workspace",
-  description: "VRKSpace project management workspace",
+  title: "EVECTURE · Project Workspace",
+  description: "EVECTURE project management workspace",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className={`${dmSans.variable} ${manrope.variable}`}><AppProviders><WorkspaceShell>{children}</WorkspaceShell></AppProviders></body>
+    <html lang="en" className={inter.variable}>
+      <body className={`${inter.variable} ${inter.className}`}><AppProviders><WorkspaceShell>{children}</WorkspaceShell></AppProviders></body>
     </html>
   );
 }

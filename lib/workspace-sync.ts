@@ -12,6 +12,16 @@ export const workspaceStorage: Record<WorkspaceCollection, WorkspaceStorageEntry
 export type WorkspaceRecord = { recordId: string; order: number; data: unknown };
 export type LocalWorkspaceChange = { collection: WorkspaceCollection; data: unknown };
 
+/** Parse browser storage without allowing one damaged value to break the workspace. */
+export function parseStoredJson(raw: string | null): unknown | undefined {
+  if (raw === null || raw.trim() === "") return undefined;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
 export function publishLocalWorkspaceChange(collection: WorkspaceCollection, data: unknown) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent<LocalWorkspaceChange>("evecture:workspace-local-updated", { detail: { collection, data } }));
@@ -39,8 +49,8 @@ export function localCollectionValue(collection: WorkspaceCollection): { exists:
   for (const key of [config.key, ...config.legacyKeys]) {
     const raw = window.localStorage.getItem(key);
     if (raw !== null) {
-      try { return { exists: true, value: JSON.parse(raw) as unknown }; }
-      catch { return { exists: false }; }
+      const value = parseStoredJson(raw);
+      return value === undefined ? { exists: false } : { exists: true, value };
     }
   }
   return { exists: false };

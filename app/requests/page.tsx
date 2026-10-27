@@ -105,7 +105,7 @@ export default function RequestsPage() {
 
   return <div className="page-content requests-page">
     <section className="welcome-row requests-welcome">
-      <div><div className="eyebrow"><span className="live-dot" />STAGES 01–02 · LEAD & PROPOSAL</div><h1>Request pipeline</h1><p className="welcome-subtitle">Review, qualify, and prepare proposals for incoming enquiries.</p></div>
+      <div><h1>Leads</h1><p className="welcome-subtitle">Review, qualify, and move incoming enquiries forward.</p></div>
       <Link className="button button-primary" href="/requests/new"><Plus size={16} />Log enquiry</Link>
     </section>
 
@@ -114,14 +114,13 @@ export default function RequestsPage() {
       <label className="pipeline-search"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search leads" /></label>
     </div>
 
-    {visibleLeads.length === 0 ? <EmptyState icon={<Mail size={22} />} title={leads.length === 0 ? "No requests yet" : "No matching requests"} description={leads.length === 0 ? "Log a new enquiry to add it to the request pipeline." : "Try another search or status filter."} action={leads.length === 0 ? <Link className="button button-primary" href="/requests/new">Log first enquiry <ArrowRight size={15} /></Link> : undefined} /> : <div className="lead-record-list">
+    {visibleLeads.length === 0 ? <EmptyState icon={<Mail size={22} />} title={leads.length === 0 ? "No leads yet" : "No matching leads"} description={leads.length === 0 ? "Log a new enquiry to add it to your leads." : "Try another search or status filter."} action={leads.length === 0 ? <Link className="button button-primary" href="/requests/new">Log first enquiry <ArrowRight size={15} /></Link> : undefined} /> : <div className="lead-record-list">
       {visibleLeads.map((lead) => {
         const answer = checks[lead.id] ?? blankChecks;
         const call = callFields[lead.id] ?? blankCall;
         return <article className={`lead-record panel ${expanded === lead.id ? "lead-expanded" : ""}`} id={lead.id} key={lead.id}>
           <button className="lead-record-summary" onClick={() => setExpanded(expanded === lead.id ? null : lead.id)} aria-expanded={expanded === lead.id}>
-            <span className="lead-initial">{lead.fullName.slice(0, 1).toUpperCase()}</span>
-            <span className="lead-main"><strong>{lead.fullName}<small>{lead.designation ? ` · ${lead.designation}` : ""}</small></strong><span>{lead.companyName || "Individual enquiry"} · {lead.services.join(", ")}</span><small><span className="mono-meta">{formatLeadId(lead.id)}</span> · {lead.source}</small></span>
+            <span className="lead-main"><strong>{lead.fullName}<small>{lead.designation ? ` · ${lead.designation}` : ""}</small></strong><span>{lead.companyName || "Individual enquiry"} · {lead.services.join(", ")}</span></span>
             <StatusBadge status={lead.status} />
             <span className="lead-received"><Clock3 size={13} />{ageSince(lead.createdAt, now)}<small>received</small></span>
             <span className="lead-response">{lead.firstContactAt ? <><UserRoundCheck size={14} /><span>First contact logged<small>{new Date(lead.firstContactAt).toLocaleString()}</small></span></> : <><Clock3 size={14} /><span>First contact pending<small>SLA target not configured</small></span></>}</span>
@@ -129,7 +128,7 @@ export default function RequestsPage() {
           </button>
           {expanded === lead.id && <div className="lead-detail">
             <div className="lead-detail-columns">
-              <section><h3>Contact information</h3><div className="detail-line"><strong>{lead.fullName}</strong>{lead.designation && <span>{lead.designation}</span>}</div>{lead.companyName && <div className="detail-line">{lead.companyName}{lead.companyWebsite && <> · <a href={lead.companyWebsite} target="_blank" rel="noreferrer">Company site <ExternalLink size={11} /></a></>}</div>}<div className="detail-line"><a href={`mailto:${lead.email}`}>{lead.email}</a></div>{lead.phone && <div className="detail-line"><Phone size={13} /><a href={`tel:${lead.phone}`}>{lead.phone}</a></div>}{(lead.country || lead.timezone) && <div className="detail-line"><MapPin size={13} />{[lead.country, lead.timezone].filter(Boolean).join(" · ")}</div>}</section>
+              <section><h3>Contact information</h3><div className="detail-line"><b>Lead ID</b><span className="mono-meta">{formatLeadId(lead.id)}</span></div><div className="detail-line"><strong>{lead.fullName}</strong>{lead.designation && <span>{lead.designation}</span>}</div>{lead.companyName && <div className="detail-line">{lead.companyName}{lead.companyWebsite && <> · <a href={lead.companyWebsite.startsWith("http") ? lead.companyWebsite : `https://${lead.companyWebsite}`} target="_blank" rel="noreferrer">Company site <ExternalLink size={11} /></a></>}</div>}<div className="detail-line"><a href={`mailto:${lead.email}`}>{lead.email}</a></div>{lead.phone && <div className="detail-line"><Phone size={13} /><a href={`tel:${lead.phone}`}>{lead.phone}</a></div>}{lead.country && <div className="detail-line"><MapPin size={13} />{lead.country}</div>}</section>
               <section><h3>Project information</h3><div className="detail-line"><b>Industry</b>{lead.industry}</div><div className="detail-line"><b>Urgency</b><span className={lead.urgency === "Rush" ? "rush-label" : ""}>{lead.urgency}</span></div><p className="lead-description">{lead.description}</p>{lead.referenceLinks && <div className="detail-line reference-links"><b>References</b>{lead.referenceLinks.split(/\s+/).map((url) => <a key={url} href={url} target="_blank" rel="noreferrer">{url}<ExternalLink size={11} /></a>)}</div>}</section>
             </div>
             <div className="lead-actions-row">
@@ -152,7 +151,7 @@ export default function RequestsPage() {
               </div>
               {lead.status === "NEW" && <div className="qualification-box">
                 <div><h3>Discovery call & qualification</h3><p>Record the call and confirm fit before moving to proposal preparation.</p></div>
-                <div className="qualification-fields">{([["genuine", "Real enquiry, not spam"], ["budget", "Budget aligns with scope"], ["fit", "Good fit for VRKSpace"], ["capacity", "Team capacity available"]] as const).map(([key, label]) => <label key={key}>{label}<select value={answer[key]} onChange={(event) => setChecks((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankChecks), [key]: event.target.value } }))}><option value="">Unreviewed</option><option value="yes">Yes</option><option value="no">No</option><option value="unknown">Need more information</option></select></label>)}</div>
+                <div className="qualification-fields">{([["genuine", "Real enquiry, not spam"], ["budget", "Budget aligns with scope"], ["fit", "Good fit for EVECTURE"], ["capacity", "Team capacity available"]] as const).map(([key, label]) => <label key={key}>{label}<select value={answer[key]} onChange={(event) => setChecks((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankChecks), [key]: event.target.value } }))}><option value="">Unreviewed</option><option value="yes">Yes</option><option value="no">No</option><option value="unknown">Need more information</option></select></label>)}</div>
                 <div className="qualification-call-grid">
                   <label className="field">Actual problem<textarea rows={2} value={call.problem} onChange={(event) => setCallFields((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankCall), problem: event.target.value } }))} placeholder="What is the client trying to solve?" /></label>
                   <label className="field">Desired outcome<textarea rows={2} value={call.outcome} onChange={(event) => setCallFields((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankCall), outcome: event.target.value } }))} placeholder="What result would make this successful?" /></label>

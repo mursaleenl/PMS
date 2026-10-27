@@ -1,32 +1,21 @@
-# Clerk and Convex setup
+# Supabase setup
 
-The app uses Clerk for employee sign-in and Convex for shared workspace data. All authenticated employees currently share one workspace; role-based permissions are not configured yet.
+VRKSpace uses Supabase Auth and Postgres. Access is split into three tiers: Administrator, Employee, and Client.
 
-## 1. Install packages
+## Setup
 
-The dependency manifest now includes Clerk and Convex. From the project root, install packages and refresh the lockfile:
+1. Create a Supabase project.
+2. In Authentication → Providers, enable Email and Password. Disable public sign-up if only invited users should access the workspace.
+3. Copy the project URL and anon key into `.env.local` using the names in `.env.example`. Also add the Supabase `service_role` key as `SUPABASE_SERVICE_ROLE_KEY`; it is used only by the server route that creates invited user accounts and must never use a `NEXT_PUBLIC_` prefix.
+4. Open the Supabase SQL editor and run [`supabase/schema.sql`](supabase/schema.sql).
+5. Set `NEXT_PUBLIC_ADMIN_EMAIL` to the administrator’s email. Passwords are handled by Supabase Auth and are never stored by this app.
 
-```sh
-pnpm install --no-frozen-lockfile
-```
+## Role setup
 
-The Next.js dependency is set to 15.2.8 or newer to satisfy Clerk's current supported version range.
-
-## 2. Create the service projects
-
-1. Create a Clerk application and set its sign-up policy to invitation-only for employee use.
-2. Enable the Convex integration in Clerk. The Clerk JWT template/application ID must be `convex`.
-3. Create a Convex project and connect it from this repository with `pnpm exec convex dev`.
-4. Copy the key names from `.env.example` into the local environment file without committing secrets.
-5. Set `CLERK_JWT_ISSUER_DOMAIN` in the Convex deployment's environment variables to the Clerk Frontend API URL shown in Clerk's dashboard.
-6. Run `pnpm exec convex dev` to deploy the schema, functions, and Clerk issuer configuration.
-
-## 3. Environment variables
-
-The Next.js app needs the Clerk publishable key, Clerk secret key, and Convex deployment URL. Convex also needs the Clerk issuer domain. Use separate development and production values for the corresponding Clerk instances and Convex deployments.
+The configured `NEXT_PUBLIC_ADMIN_EMAIL` is automatically registered as the administrator when that account signs in. Administrators can add an account from Settings with the temporary password `admin123`. New accounts must change it in Settings before they can use the workspace. Disable public sign-up in Supabase Auth so accounts can only be created by an administrator.
 
 ## Data sync
 
-Leads, projects, management plans, and post-sale operations sync from the existing local browser records into Convex on first authenticated load. Convex then supplies the shared workspace snapshot to other signed-in employees. Browser storage remains a local cache for compatibility with the current screens.
+Leads, projects, and management plans sync from the existing local browser records into the Supabase `workspace_records` table on first authenticated load. Browser storage remains a local cache for compatibility with the current screens.
 
-Large documents currently represented as base64 data URLs may exceed Convex document limits. Move uploaded files to Convex file storage before relying on large attachments in production.
+Large documents currently represented as base64 data URLs should be moved to Supabase Storage before relying on large attachments in production.

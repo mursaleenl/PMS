@@ -89,7 +89,7 @@ export default function MyWorkPage() {
   }
 
   return <div className="page-content my-work-page task-management-page">
-    <section className="welcome-row task-page-welcome"><div><div className="eyebrow"><span className="live-dot" />TEAM WORKSPACE</div><h1>Tasks</h1><p className="welcome-subtitle">Manage and track work across your active projects.</p></div><div className="task-page-actions"><label className="work-assignee-filter"><span>Assignee</span><select value={assignee} onChange={(event) => setAssignee(event.target.value)}><option value="">All team members</option>{assignees.map((name) => <option key={name}>{name}</option>)}</select></label><Link className="button button-primary" href="/projects"><Plus size={15} />Add from project</Link></div></section>
+    <section className="welcome-row task-page-welcome"><div><h1>Tasks</h1><p className="welcome-subtitle">Manage and track work across active projects.</p></div><div className="task-page-actions"><label className="work-assignee-filter"><span>Assignee</span><select value={assignee} onChange={(event) => setAssignee(event.target.value)}><option value="">All team members</option>{assignees.map((name) => <option key={name}>{name}</option>)}</select></label><Link className="button button-primary" href="/projects"><Plus size={15} />Add from project</Link></div></section>
     <section className="task-stats-grid" aria-label="Task summary">
       <button type="button" className={`task-stat-card ${filter === "ALL" ? "selected" : ""}`} onClick={() => setFilter("ALL")}><span className="task-stat-icon task-icon-blue"><FileCheck2 size={17} /></span><span className="task-stat-copy"><small>Total tasks</small><strong>{allTasks.length}</strong></span><span className="task-stat-note">Across active projects</span></button>
       <button type="button" className={`task-stat-card ${filter === "IN_PROGRESS" ? "selected" : ""}`} onClick={() => setFilter("IN_PROGRESS")}><span className="task-stat-icon task-icon-violet"><Clock3 size={17} /></span><span className="task-stat-copy"><small>In progress</small><strong>{inProgressCount}</strong></span><span className="task-stat-note">Currently being worked on</span></button>
@@ -106,7 +106,7 @@ export default function MyWorkPage() {
           <td className="task-check-col"><span className={`task-row-check ${task.status === "DONE" ? "checked" : ""}`}>{task.status === "DONE" && <Check size={11} />}</span></td>
           <td className="task-name-cell"><strong>{task.title}</strong><small>{task.kind.replaceAll("_", " ")}{task.revisionRequested ? " · Revision requested" : ""}</small><span className="task-progress-line"><i style={{ width: `${progress}%` }} /></span></td>
           <td><Link className="task-project-link" href={`/projects/${project.id}`}><strong>{project.title}</strong><small className="mono-meta">{project.id}</small></Link></td>
-          <td><span className="task-assignee"><i>{avatarText(task.assignee)}</i><span>{task.assignee || "Unassigned"}</span></span></td>
+          <td><span className="task-assignee">{task.assignee || "Unassigned"}</span></td>
           <td><StatusBadge status={task.priority}>{priorityLabels[task.priority]}</StatusBadge></td>
           <td><StatusBadge status={task.status}>{taskStatusLabels[task.status]}</StatusBadge></td>
           <td className="task-created-cell">{new Date(task.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</td>

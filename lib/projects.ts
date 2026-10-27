@@ -1,6 +1,6 @@
 import type { Lead, LeadInvoice, ProposalVersion } from "@/lib/leads";
 import type { OperatingCompany } from "@/lib/companies";
-import { publishLocalWorkspaceChange } from "@/lib/workspace-sync";
+import { parseStoredJson, publishLocalWorkspaceChange } from "@/lib/workspace-sync";
 
 export const PROJECTS_STORAGE_KEY = "evecture.projects.v1";
 
@@ -67,7 +67,7 @@ export function readProjects(): Project[] {
   if (typeof window === "undefined") return [];
   try {
     const stored = window.localStorage.getItem(PROJECTS_STORAGE_KEY) ?? window.localStorage.getItem("everture.projects.v1");
-    const parsed: unknown = stored ? JSON.parse(stored) : [];
+    const parsed: unknown = parseStoredJson(stored) ?? [];
     return Array.isArray(parsed) ? parsed.map((item) => {
       const project = { ...(item as Project) } as Project & Record<string, unknown>;
       for (const legacyField of ["kickoffScheduledAt", "kickoffHeldAt", "kickoffNotes", "tasks"]) Reflect.deleteProperty(project, legacyField);
@@ -99,6 +99,10 @@ export function addProject(project: Project) {
 
 export function updateProject(id: string, updates: Partial<Project>) {
   writeProjects(readProjects().map((project) => project.id === id ? { ...project, ...updates } : project));
+}
+
+export function deleteProject(id: string) {
+  writeProjects(readProjects().filter((project) => project.id !== id));
 }
 
 export function nextProjectId(projects = readProjects()) {

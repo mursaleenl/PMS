@@ -11,5 +11,6 @@ const statusTone: Record<string, string> = {
 export function StatusBadge({ status, children }: { status: string; children?: ReactNode }) {
   const key = status.trim().toUpperCase().replace(/[\s-]+/g, "_");
   const tone = statusTone[key] ?? "neutral";
-  return <span className={`status-badge status-badge-${tone}`}>{children ?? status.replaceAll("_", " ")}</span>;
+  const label = status.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return <span className={`status-badge status-badge-${tone}`}>{children ?? label}</span>;
 }
