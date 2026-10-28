@@ -5,11 +5,12 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Check, FolderKanban, Handshake, Plus, Trash2, User, Users } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
 import { deleteProject, readProjects, type Project, updateProject, getProjectDisplayTitle } from "@/lib/projects";
-import { readManagedProjects, type ManagedProject } from "@/lib/post-sale";
+import { deleteManagedProject, readManagedProjects, type ManagedProject } from "@/lib/post-sale";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignees";
+import { showToast } from "@/app/_components/toast-hub";
 
 export default function ProjectsPage() {
   const { role } = useWorkspaceAuth();
@@ -34,6 +35,15 @@ export default function ProjectsPage() {
   function markComplete(project: Project) {
     updateProject(project.id, { status: "COMPLETED" });
     setProjects(readProjects());
+  }
+
+  function moveFromRetainerToProjects(project: Project, managedPlan: ManagedProject) {
+    if (!window.confirm(`Move "${project.title}" out of Retainers and back to active Projects?`)) return;
+    deleteManagedProject(managedPlan.id);
+    updateProject(project.id, { status: "ACTIVE" });
+    setProjects(readProjects());
+    setManagedProjects(readManagedProjects());
+    showToast({ message: `"${project.title}" moved to active projects.` });
   }
 
   function removeProject(project: Project) {
@@ -95,9 +105,19 @@ export default function ProjectsPage() {
               <Check size={13} />Mark complete
             </button>
           ) : managedPlan ? (
-            <Link className="button button-quiet portfolio-lifecycle-button" href="/post-sale">
-              <Handshake size={13} />In retainer · {managedPlan.id}
-            </Link>
+            <>
+              <Link className="button button-quiet portfolio-lifecycle-button" href="/post-sale" title="View retainer plan">
+                <Handshake size={13} />In retainer · {managedPlan.id}
+              </Link>
+              <button
+                className="button button-quiet portfolio-lifecycle-button"
+                type="button"
+                onClick={() => moveFromRetainerToProjects(project, managedPlan)}
+                title="Move out of retainers and back to active projects"
+              >
+                <FolderKanban size={13} />Move to projects
+              </button>
+            </>
           ) : (
             <button className="button button-primary portfolio-lifecycle-button" type="button" onClick={() => setSelectedProject(project)}>
               <Handshake size={13} />Move to retainer

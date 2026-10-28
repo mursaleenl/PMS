@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bell, CheckSquare, ChevronDown, ChevronRight, Command, FileText, FolderKanban, Handshake, Inbox, LayoutDashboard, LogOut, Menu, MoreHorizontal, Receipt, Search, Settings, User, Users } from "lucide-react";
+import { Bell, CheckSquare, ChevronDown, ChevronRight, Command, FileText, FolderKanban, Handshake, Inbox, LayoutDashboard, LogOut, Menu, MoreHorizontal, Receipt, Search, Settings, TrendingUp, User, Users } from "lucide-react";
 import { CommandPalette } from "@/app/_components/command-palette";
 import { ToastHub } from "@/app/_components/toast-hub";
 import { NotificationCenter } from "@/app/_components/notification-center";
@@ -35,6 +35,11 @@ const employeeGroups = [
     title: "RELATIONSHIPS", items: [
       { label: "Clients", href: "/clients", icon: Users },
       { label: "Retainers", href: "/post-sale", icon: Handshake },
+    ]
+  },
+  {
+    title: "PERFORMANCE", items: [
+      { label: "Performance", href: "/work/performance", icon: TrendingUp },
     ]
   },
   {
@@ -70,6 +75,11 @@ const adminGroups = [
     ]
   },
   {
+    title: "PERFORMANCE", items: [
+      { label: "Performance", href: "/work/performance", icon: TrendingUp },
+    ]
+  },
+  {
     title: "SYSTEM", items: [
       { label: "Users", href: "/users", icon: Users },
     ]
@@ -87,7 +97,7 @@ function groupsForRole(role: WorkspaceRole) {
   return employeeGroups;
 }
 
-const routeLabels: Record<string, string> = { admin: "Admin", client: "Client portal", requests: "Leads", proposals: "Proposals", projects: "Projects", invoices: "Invoices", work: "Tasks", clients: "Clients", "post-sale": "Retainers", settings: "Account settings", users: "Users" };
+const routeLabels: Record<string, string> = { admin: "Admin", client: "Client portal", requests: "Leads", proposals: "Proposals", projects: "Projects", invoices: "Invoices", work: "Tasks", performance: "Performance", clients: "Clients", "post-sale": "Retainers", settings: "Account settings", users: "Users" };
 
 type Crumb = { label: string; href?: string };
 
@@ -148,7 +158,9 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   if (parts.length) {
     const section = parts[0];
     trail.push({ label: routeLabels[section] ?? "Workspace", href: `/${section}` });
-    if (section === "projects" && parts[1] === "assignments") {
+    if (section === "work" && parts[1] === "performance") {
+      trail.push({ label: "Performance" });
+    } else if (section === "projects" && parts[1] === "assignments") {
       trail.push({ label: "Project assignments" });
     } else if (section === "projects" && parts[1]) {
       const project = projects.find((item) => item.id === parts[1]);
@@ -191,7 +203,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
           <div className="workspace-label">{group.title}</div>
           <nav className="primary-nav" aria-label={`${group.title} navigation`}>
             {group.items.map(({ label, href, icon: Icon }) => {
-              const active = pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+              const active = pathname === href || (href !== "/" && href !== "/work" && pathname.startsWith(`${href}/`));
               return <Link key={href} href={href} onClick={() => setMenuOpen(false)} className={`nav-link ${active ? "active" : ""}`} title={label}>
                 <span className="nav-icon"><Icon size={18} strokeWidth={1.8} /></span><span className="nav-link-label">{label}</span>
               </Link>;

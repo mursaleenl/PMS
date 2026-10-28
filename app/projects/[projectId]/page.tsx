@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, Check, Download, ExternalLink, FileText, Handshake, Link2, Plus, Trash2, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Download, ExternalLink, FileText, FolderKanban, Handshake, Link2, Plus, Trash2, Users, X } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
 import { deleteProject, readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
-import { readManagedProjects, type ManagedProject } from "@/lib/post-sale";
+import { deleteManagedProject, readManagedProjects, type ManagedProject } from "@/lib/post-sale";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 import { showToast } from "@/app/_components/toast-hub";
 import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignees";
@@ -262,6 +262,17 @@ export default function ProjectWorkspacePage() {
     save({ status: "COMPLETED" });
   }
 
+  function moveFromRetainerToProjects() {
+    if (!project) return;
+    if (!window.confirm(`Move "${project.title}" out of Retainers and back to active Projects?`)) return;
+    if (managedPlan) {
+      deleteManagedProject(managedPlan.id);
+      setManagedPlan(null);
+    }
+    save({ status: "ACTIVE" });
+    showToast({ message: `"${project.title}" reactivated and moved to active projects.` });
+  }
+
   function removeProject() {
     if (!project || role !== "admin") return;
     if (!window.confirm(`Delete “${project.title}”? This will permanently remove its workspace and tasks.`)) return;
@@ -294,7 +305,7 @@ export default function ProjectWorkspacePage() {
 
   return <div className="page-content project-detail-page">
     <Link className="back-link" href="/projects"><ArrowLeft size={15} />Project portfolio</Link>
-    <header className="record-heading project-room-heading"><div><h1>{project.title}</h1></div><div className="project-lifecycle-actions"><span className={`health-pill ${health.className}`}><i />{health.label}</span>{project.status === "COMPLETED" ? managedPlan ? <Link className="button button-quiet" href="/post-sale"><Check size={14} />In retainer · {managedPlan.id}</Link> : <button className="button button-primary" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>}{role === "admin" && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></header>
+    <header className="record-heading project-room-heading"><div><h1>{project.title}</h1></div><div className="project-lifecycle-actions"><span className={`health-pill ${health.className}`}><i />{health.label}</span>{project.status === "COMPLETED" ? managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-primary" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>}{role === "admin" && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></header>
 
     <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{project.status === "COMPLETED" ? "Completed" : "Active"}</strong></div><div><small>OPEN WORK ITEMS</small><strong><Link href="/work" style={{ textDecoration: "none", color: "inherit" }}>{workItems.filter((task) => task.status !== "DONE").length} · In Tasks</Link></strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim() && !DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim())).length}</strong></div></section>
 

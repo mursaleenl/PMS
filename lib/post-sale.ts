@@ -45,6 +45,10 @@ export function updateManagedProject(id: string, updates: Partial<ManagedProject
   writeManagedProjects(readManagedProjects().map((item) => item.id === id ? { ...item, ...updates } : item));
 }
 
+export function deleteManagedProject(id: string) {
+  writeManagedProjects(readManagedProjects().filter((item) => item.id !== id));
+}
+
 export function nextManagedProjectId(items = readManagedProjects()) {
   const year = new Date().getFullYear();
   const sequence = items.map((item) => item.id.match(new RegExp(`^(?:PS|RET)-${year}-(\\d+)$`))?.[1]).filter(Boolean).map(Number);

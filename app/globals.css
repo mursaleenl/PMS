@@ -9655,6 +9655,134 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* The invoice preview is portaled directly to body, so keep its print rules
+   independent from the dashboard .main-area hierarchy. */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 210mm !important;
+    min-width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body > .app-shell {
+    display: none !important;
+  }
+
+  body > .invoice-preview-backdrop {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    backdrop-filter: none !important;
+  }
+
+  body > .invoice-preview-backdrop .invoice-preview-modal {
+    display: block !important;
+    width: 210mm !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #fff !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body > .invoice-preview-backdrop .invoice-preview-topbar {
+    display: none !important;
+  }
+
+  body > .invoice-preview-backdrop .invoice-preview-scroll {
+    display: block !important;
+    width: 210mm !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body > .invoice-preview-backdrop .invoice-print-area,
+  body > .invoice-preview-backdrop .invoice-print-area.invoice-reference-layout {
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    margin: 0 !important;
+    padding: 14mm !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    color: #111 !important;
+    break-after: avoid-page !important;
+    page-break-after: avoid !important;
+  }
+
+  body > .invoice-preview-backdrop .invoice-print-area,
+  body > .invoice-preview-backdrop .invoice-print-area * {
+    visibility: visible !important;
+  }
+
+  body > .invoice-preview-backdrop .invoice-paper-head {
+    min-height: 39mm !important;
+    padding-bottom: 6mm !important;
+  }
+
+  body > .invoice-preview-backdrop .invoice-paper-meta {
+    padding: 3mm 0 7mm !important;
+  }
+
+  body > .invoice-preview-backdrop .invoice-lines {
+    margin-bottom: 7mm !important;
+  }
+
+  body > .invoice-preview-backdrop .invoice-sample-details {
+    position: absolute !important;
+    left: 14mm !important;
+    right: 14mm !important;
+    bottom: 28mm !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  body > .invoice-preview-backdrop .invoice-paper-head,
+  body > .invoice-preview-backdrop .invoice-paper-meta,
+  body > .invoice-preview-backdrop .invoice-lines,
+  body > .invoice-preview-backdrop .invoice-summary-row,
+  body > .invoice-preview-backdrop .invoice-totals,
+  body > .invoice-preview-backdrop .invoice-sample-details {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  body > .invoice-preview-backdrop .invoice-lines th,
+  body > .invoice-preview-backdrop .invoice-totals > div {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
 /* Overview: simpler hierarchy, larger type, and no decorative status copy. */
 .overview-dashboard .welcome-row {
   align-items: center;
@@ -13229,7 +13357,7 @@ textarea {
   font-size: 11px !important;
   font-weight: 600 !important;
   letter-spacing: 0.02em !important;
-  text-transform: uppercase !important;
+  text-transform: none !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -15787,4 +15915,463 @@ textarea:focus {
 *::before,
 *::after {
   border-radius: 0 !important;
+}
+
+/* ============================================================
+   WORK & PERFORMANCE (ATTENDANCE) SECTION STYLES
+   Strictly Monochrome / Grayscale: #ffffff, #0f172a, slate grays.
+   Zero rounded corners (border-radius: 0 !important).
+   Zero blue borders or outlines.
+   ============================================================ */
+.work-subnav-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 24px;
+  padding-bottom: 0;
+}
+
+.work-subnav-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  text-decoration: none !important;
+  padding: 8px 4px 12px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+  position: relative;
+  top: 1px;
+}
+
+.work-subnav-link:hover {
+  color: #0f172a;
+  border-bottom-color: #cbd5e1;
+}
+
+.work-subnav-link.active {
+  color: #0f172a;
+  font-weight: 600;
+  border-bottom-color: #0f172a;
+}
+
+.performance-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.date-stepper {
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  height: 36px;
+}
+
+.date-step-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 34px;
+  border: none !important;
+  background: transparent !important;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+}
+
+.date-step-btn:hover {
+  color: #0f172a;
+  background: #f8fafc !important;
+}
+
+.current-date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: #0f172a;
+  border-left: 1px solid #f1f5f9;
+  border-right: 1px solid #f1f5f9;
+  height: 100%;
+}
+
+.today-chip {
+  background: #f4f4f5;
+  color: #0f172a;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border: 1px solid #e4e4e7;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.jump-today-btn {
+  height: 36px;
+  font-size: 12px;
+}
+
+.performance-roster-panel {
+  margin-top: 24px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.performance-roster-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.performance-roster-heading h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.performance-roster-heading p {
+  font-size: 13px;
+  color: #64748b;
+  margin: 4px 0 0;
+}
+
+.performance-filter-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.performance-search-input {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  background: #ffffff;
+}
+
+.performance-search-input .search-icon {
+  position: absolute;
+  left: 10px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.performance-search-input input {
+  padding: 0 28px 0 32px;
+  height: 34px;
+  font-size: 13px;
+  border: 1px solid #e2e8f0;
+  width: 200px;
+  color: #0f172a;
+}
+
+.performance-search-input input:focus {
+  border-color: #0f172a;
+  outline: 1.5px solid #0f172a;
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.status-pill-filter {
+  display: inline-flex;
+  border: 1px solid #e2e8f0;
+}
+
+.status-filter-btn {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-right: 1px solid #f1f5f9;
+}
+
+.status-filter-btn:last-child {
+  border-right: none;
+}
+
+.status-filter-btn:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.status-filter-btn.active {
+  background: #0f172a;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.performance-table-wrap {
+  overflow-x: auto;
+}
+
+.performance-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.performance-table th {
+  background: #f8fafc;
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.performance-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.performance-member-row:hover td {
+  background: #fafbfc;
+}
+
+.member-info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.member-info-col strong {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.member-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.member-email-meta {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.performance-status-select {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.performance-status-select:focus {
+  border-color: #0f172a;
+  outline: 1.5px solid #0f172a;
+}
+
+.time-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-active-now {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.time-unrecorded {
+  color: #cbd5e1;
+}
+
+.rate-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+}
+
+.rate-text-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.rate-text-row span {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.rate-text-row small {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.rate-track {
+  height: 5px;
+  background: #f1f5f9;
+  width: 100%;
+  overflow: hidden;
+}
+
+.rate-fill {
+  height: 100%;
+  background: #0f172a;
+}
+
+.row-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkin-toggle-btn {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.edit-btn {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.performance-matrix-panel {
+  margin-top: 24px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.matrix-table th.matrix-day-header {
+  text-align: center;
+  padding: 10px 8px;
+}
+
+.matrix-day-header span {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.matrix-day-header small {
+  display: block;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.matrix-cell {
+  text-align: center;
+  padding: 10px 8px;
+}
+
+.matrix-status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #f4f4f5;
+  color: #0f172a;
+  border: 1px solid #e4e4e7;
+}
+
+.matrix-status-chip.status-present {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.matrix-status-chip.status-remote {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.matrix-status-chip.status-half_day {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+.matrix-status-chip.status-on_leave {
+  background: #ffffff;
+  color: #94a3b8;
+  border-color: #e2e8f0;
+}
+
+.matrix-status-chip.status-absent {
+  background: #ffffff;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.matrix-total-cell {
+  text-align: right;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.matrix-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 12px;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+.attendance-time-inputs-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.performance-empty-roster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: #94a3b8;
+  gap: 12px;
+}
+
+.performance-empty-roster p {
+  font-size: 13px;
+  color: #64748b;
 }

@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, ChevronDown, ExternalLink, Handshake, Plus } from "lucide-react";
+import { ArrowRight, ChevronDown, ExternalLink, FolderKanban, Handshake, Plus } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
 import { EmptyState } from "@/app/_components/empty-state";
-import { readProjects, type Project } from "@/lib/projects";
-import { readManagedProjects, type ManagedProject, updateManagedProject } from "@/lib/post-sale";
+import { addProject, nextProjectId, readProjects, updateProject, type Project } from "@/lib/projects";
+import { deleteManagedProject, readManagedProjects, type ManagedProject, updateManagedProject } from "@/lib/post-sale";
 import { StatusBadge } from "@/app/_components/status-badge";
+import { showToast } from "@/app/_components/toast-hub";
 
 function planStatus(item: ManagedProject) {
   if (item.status === "PAUSED") return "PAUSED";
@@ -24,6 +26,7 @@ function money(amount: number, currency: string) {
 }
 
 export default function PostSalePage() {
+  const router = useRouter();
   const [items, setItems] = useState<ManagedProject[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -51,6 +54,51 @@ export default function PostSalePage() {
   function setStatus(item: ManagedProject, status: ManagedProject["status"]) {
     updateManagedProject(item.id, { status });
     setItems(readManagedProjects());
+  }
+
+  function moveToProjects(item: ManagedProject) {
+    if (!window.confirm(`Move "${item.projectTitle}" from Retainers to active Projects?`)) return;
+
+    const currentProjects = readProjects();
+    const linked = item.sourceProjectId ? currentProjects.find((p) => p.id === item.sourceProjectId) : undefined;
+
+    let targetProjectId = "";
+    if (linked) {
+      updateProject(linked.id, { status: "ACTIVE" });
+      targetProjectId = linked.id;
+      showToast({ message: `"${linked.title}" reactivated and moved to active projects.` });
+    } else {
+      targetProjectId = nextProjectId(currentProjects);
+      const newProject: Project = {
+        id: targetProjectId,
+        leadId: "",
+        createdAt: new Date().toISOString(),
+        title: item.projectTitle,
+        clientCompany: item.clientCompany,
+        clientName: item.clientCompany,
+        clientEmail: "",
+        operatingCompany: "Evecture",
+        services: [item.model || "Maintenance & Retainer"],
+        classification: "Repeat Client",
+        startDate: item.periodStart || new Date().toISOString().slice(0, 10),
+        billingStructure: "Retainer",
+        contractedValue: item.managementAmount,
+        currency: item.currency || "USD",
+        proposalVersion: 1,
+        scopeIncluded: item.model || "Ongoing maintenance & retainer",
+        scopeExcluded: "",
+        assumptions: "",
+        revisionRounds: 0,
+        team: [],
+        status: "ACTIVE",
+      };
+      addProject(newProject);
+      showToast({ message: `Created project workspace and moved "${item.projectTitle}" to active projects.` });
+    }
+
+    deleteManagedProject(item.id);
+    setItems(readManagedProjects());
+    router.push(`/projects/${targetProjectId}`);
   }
 
   return <div className="page-content post-sale-page clients-page">
@@ -154,6 +202,14 @@ export default function PostSalePage() {
                           End plan
                         </button>
                       )}
+                      <button
+                        type="button"
+                        className="button button-primary"
+                        onClick={() => moveToProjects(item)}
+                        title="Move to active projects"
+                      >
+                        <FolderKanban size={14} />Move to projects
+                      </button>
                     </div>
                   </section>
                 </div>

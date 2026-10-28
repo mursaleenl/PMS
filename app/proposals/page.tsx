@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, FileText, ExternalLink, Plus } from "lucide-react";
-import { readLeads, seedProposalExample, type Lead } from "@/lib/leads";
+import { readLeads, type Lead } from "@/lib/leads";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
 
@@ -21,7 +21,6 @@ export default function ProposalsPage() {
 
   useEffect(() => {
     const refresh = () => setLeads(readLeads());
-    seedProposalExample();
     refresh();
     window.addEventListener("evecture:leads-updated", refresh);
     window.addEventListener("storage", refresh);
