@@ -95,9 +95,9 @@ export type LeadInvoice = {
   depositPercent: number;
   depositAmount: number;
   currency: string;
-  paymentTerms: string;
-  paymentInstructions: string;
-  externalPaymentLink: string;
+  paymentTerms?: string;
+  paymentInstructions?: string;
+  externalPaymentLink?: string;
   status: "GENERATED" | "SENT" | "CONFIRMED_PAID";
   sentAt?: string;
   transactionReference?: string;

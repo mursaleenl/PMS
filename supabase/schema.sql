@@ -212,6 +212,11 @@ create index if not exists leads_status_idx on public.leads(status);
 create index if not exists leads_client_id_idx on public.leads(client_id);
 create index if not exists leads_email_idx on public.leads(lower(email));
 
+-- Fields retained by the browser-first UI and now stored relationally.
+alter table public.leads add column if not exists qualification_note text;
+alter table public.leads add column if not exists acceptance_document_name text;
+alter table public.leads add column if not exists acceptance_document_data_url text;
+
 -- -----------------------------------------------------------------------------
 -- Proposals and client decisions
 -- -----------------------------------------------------------------------------
@@ -278,6 +283,9 @@ create table if not exists public.proposals (
 
 create index if not exists proposals_lead_id_idx on public.proposals(lead_id, version desc);
 create index if not exists proposals_status_idx on public.proposals(status);
+
+alter table public.proposals add column if not exists document_name text;
+alter table public.proposals add column if not exists document_data_url text;
 
 create table if not exists public.proposal_follow_ups (
   id uuid primary key default gen_random_uuid(),
@@ -358,6 +366,13 @@ create table if not exists public.project_work_items (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.projects add column if not exists signed_contract_name text;
+alter table public.projects add column if not exists signed_contract_data_url text;
+alter table public.project_work_items add column if not exists external_id text;
+create unique index if not exists project_work_items_external_id_idx
+  on public.project_work_items(project_id, external_id)
+  where external_id is not null;
 
 create table if not exists public.project_links (
   id uuid primary key default gen_random_uuid(),

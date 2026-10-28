@@ -4,10 +4,11 @@ import Link from "next/link";
 import { ArrowRight, Check, Users } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { readProjects, type Project, type ProjectTeamMember, updateProject } from "@/lib/projects";
+import { useAssignableUsers, type AssignableUser, DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignees";
 
 const roles: ProjectTeamMember["role"][] = ["Project Manager", "Lead Designer", "Lead Developer", "QA Owner", "Supporting team member"];
 
-function AssignmentCard({ project }: { project: Project }) {
+function AssignmentCard({ project, assignableUsers }: { project: Project; assignableUsers: AssignableUser[] }) {
   const [saved, setSaved] = useState(false);
 
   function saveAssignments(event: FormEvent<HTMLFormElement>) {
@@ -33,8 +34,22 @@ function AssignmentCard({ project }: { project: Project }) {
         const member = project.team.find((item) => item.role === role);
         const key = `role-${index}`;
         return <div className="assignment-editor-row" key={role}>
-          <label className="field">{role}<input name={`${key}-name`} defaultValue={member?.name || ""} placeholder="Unassigned" required={role === "Project Manager"} /></label>
-          <label className="field">Allocation %<input name={`${key}-allocation`} type="number" min="0" max="100" step="1" defaultValue={member?.allocationPercent || ""} placeholder="0" /></label>
+          <label className="field">{role}
+            <select name={`${key}-name`} defaultValue={member?.name || ""} required={role === "Project Manager"}>
+              <option value="">{role === "Project Manager" ? "Select Project Manager..." : "Unassigned"}</option>
+              {assignableUsers.map((person) => (
+                <option key={person.name} value={person.name}>
+                  {person.name} {person.role ? `· ${person.role}` : ""}
+                </option>
+              ))}
+              {member?.name &&
+                !DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim()) &&
+                !assignableUsers.some((u) => u.name.toLowerCase() === member.name.toLowerCase()) && (
+                  <option value={member.name}>{member.name} (Current)</option>
+              )}
+            </select>
+          </label>
+          <label className="field">Allocation %<input name={`${key}-allocation`} type="number" min="0" max="100" step="1" defaultValue={member?.allocationPercent ?? (role === "Project Manager" ? 100 : "")} placeholder="0" /></label>
         </div>;
       })}</div>
       <div className="assignment-card-footer"><span>Allocation is recorded per role; employee availability is not connected.</span><button className="button button-primary" type="submit">{saved ? <><Check size={14} />Saved</> : <><Users size={14} />Save assignments</>}</button></div>
@@ -44,6 +59,7 @@ function AssignmentCard({ project }: { project: Project }) {
 
 export default function ProjectAssignmentsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const { users: assignableUsers } = useAssignableUsers();
   useEffect(() => {
     const refresh = () => setProjects(readProjects());
     refresh();
@@ -59,7 +75,7 @@ export default function ProjectAssignmentsPage() {
   const roster = new Map<string, { roles: Set<string>; projects: Set<string>; allocation: number }>();
   active.forEach((project) => project.team.forEach((member) => {
     const name = member.name.trim();
-    if (!name) return;
+    if (!name || DUMMY_ASSIGNABLE_NAMES.has(name.toLowerCase())) return;
     const current = roster.get(name) ?? { roles: new Set<string>(), projects: new Set<string>(), allocation: 0 };
     current.roles.add(member.role);
     current.projects.add(project.title);
@@ -73,7 +89,7 @@ export default function ProjectAssignmentsPage() {
       <section className="team-roster-section"><div className="overview-section-heading"><div><h2>Team members</h2><p>{team.length} people assigned to {active.length} active projects</p></div><span className="team-roster-count"><Users size={14} />{team.length} members</span></div>
         {team.length === 0 ? <div className="panel team-roster-empty">No team members are assigned yet. Assign roles below to build the project roster.</div> : <div className="team-roster-grid">{team.map(([name, info]) => <article className="panel team-roster-card" key={name}><div className="team-roster-card-top"><span className="team-member-avatar"><Users size={16} /></span><span className="team-member-load">{info.allocation}%</span></div><h3>{name}</h3><p>{[...info.roles].join(" · ")}</p><div className="team-member-projects">{[...info.projects].slice(0, 2).map((title) => <span key={title}>{title}</span>)}{info.projects.size > 2 && <small>+{info.projects.size - 2} more</small>}</div><div className="team-member-card-footer"><span>{info.projects.size} {info.projects.size === 1 ? "project" : "projects"}</span><span className="team-load-track"><i style={{ width: `${Math.min(info.allocation, 100)}%` }} /></span></div></article>)}</div>}
       </section>
-      <section className="team-assignment-section"><div className="overview-section-heading"><div><h2>Project assignments</h2><p>Update role ownership and planned allocation by project.</p></div></div><div className="assignment-card-list">{active.map((project) => <AssignmentCard key={project.id} project={project} />)}</div></section>
+      <section className="team-assignment-section"><div className="overview-section-heading"><div><h2>Project assignments</h2><p>Update role ownership and planned allocation by project.</p></div></div><div className="assignment-card-list">{active.map((project) => <AssignmentCard key={project.id} project={project} assignableUsers={assignableUsers} />)}</div></section>
     </>}
     <p className="storage-note">Assignments update the project workspace immediately. Resource availability and team directory lookup will be connected later.</p>
   </div>;

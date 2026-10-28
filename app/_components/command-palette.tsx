@@ -65,7 +65,7 @@ export function CommandPalette() {
     }
     for (const plan of plans) {
       const name = plan.clientCompany || plan.projectTitle;
-      items.push({ kind: "Post-sale", title: plan.projectTitle, detail: `${name} · ${plan.model}`, href: "/post-sale", terms: `${name} ${plan.projectTitle} ${plan.model}` });
+      items.push({ kind: "Retainers", title: plan.projectTitle, detail: `${name} · ${plan.model}`, href: "/post-sale", terms: `${name} ${plan.projectTitle} ${plan.model}` });
       if (plan.clientCompany && !clients.has(plan.clientCompany.toLowerCase())) clients.set(plan.clientCompany.toLowerCase(), { name: plan.clientCompany, detail: "Client · Managed plan", terms: plan.clientCompany });
     }
     for (const client of clients.values()) items.push({ kind: "Client", title: client.name, detail: client.detail, href: `/clients#client-${clientSlug(client.name)}`, terms: client.terms });
@@ -76,11 +76,11 @@ export function CommandPalette() {
   if (!open) return null;
   return <div className="command-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
     <section className="command-dialog" role="dialog" aria-modal="true" aria-label="Search workspace">
-      <div className="command-search-row"><Search size={19} /><input autoFocus value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Search requests, clients, projects, post-sale…" /><kbd>ESC</kbd><button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="Close search"><X size={17} /></button></div>
+      <div className="command-search-row"><Search size={19} /><input autoFocus value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Search requests, clients, projects, retainers…" /><kbd>ESC</kbd><button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="Close search"><X size={17} /></button></div>
       {term.trim() ? <div className="command-results">{results.length ? results.map((item) => {
         const Icon = item.kind === "Request" ? Inbox : item.kind === "Project" ? FolderKanban : item.kind === "Client" ? Users : Handshake;
         return <Link href={item.href} className="command-result" key={`${item.kind}-${item.href}-${item.title}`} onClick={() => setOpen(false)}><span className="command-result-icon"><Icon size={16} /></span><span className="command-result-copy"><strong>{item.title}</strong><small>{item.detail}</small></span><span className="command-result-kind">{item.kind}</span><ArrowRight size={15} /></Link>;
-      }) : <div className="command-empty">No matching records. Try a client, project, or request.</div>}</div> : <div className="command-hint"><span><Command size={14} /> Type to search your workspace</span><span>Requests · Projects · Clients · Post-sale</span></div>}
+      }) : <div className="command-empty">No matching records. Try a client, project, lead, or retainer.</div>}</div> : <div className="command-hint"><span><Command size={14} /> Type to search your workspace</span><span>Leads · Projects · Clients · Retainers</span></div>}
       <footer className="command-footer"><span>Navigate with results</span><span><kbd>⌘</kbd> <kbd>K</kbd> to toggle</span></footer>
     </section>
   </div>;

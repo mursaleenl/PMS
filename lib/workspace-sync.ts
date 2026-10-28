@@ -1,4 +1,4 @@
-export type WorkspaceCollection = "leads" | "projects" | "management" | "postSaleOperations";
+export type WorkspaceCollection = "leads" | "projects" | "management" | "postSaleOperations" | "invoices";
 
 type WorkspaceStorageEntry = { key: string; legacyKeys: string[]; changedEvent: string };
 
@@ -7,6 +7,7 @@ export const workspaceStorage: Record<WorkspaceCollection, WorkspaceStorageEntry
   projects: { key: "evecture.projects.v1", legacyKeys: ["everture.projects.v1"], changedEvent: "evecture:projects-updated" },
   management: { key: "evecture.post-sale.v1", legacyKeys: [], changedEvent: "evecture:post-sale-updated" },
   postSaleOperations: { key: "evecture.post-sale-operations.v1", legacyKeys: [], changedEvent: "evecture:post-sale-operations-updated" },
+  invoices: { key: "evecture.invoices.v1", legacyKeys: [], changedEvent: "evecture:invoices-updated" },
 };
 
 export type WorkspaceRecord = { recordId: string; order: number; data: unknown };

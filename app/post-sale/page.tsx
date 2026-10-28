@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, ChevronDown, ExternalLink, Handshake, Plus } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
+import { EmptyState } from "@/app/_components/empty-state";
 import { readProjects, type Project } from "@/lib/projects";
 import { readManagedProjects, type ManagedProject, updateManagedProject } from "@/lib/post-sale";
 import { StatusBadge } from "@/app/_components/status-badge";
@@ -27,6 +28,7 @@ export default function PostSalePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [filter, setFilter] = useState("ALL");
+  const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
 
   useEffect(() => {
     const refreshPlans = () => setItems(readManagedProjects());
@@ -51,17 +53,117 @@ export default function PostSalePage() {
     setItems(readManagedProjects());
   }
 
-  return <div className="page-content post-sale-page">
-    <section className="welcome-row"><div><h1>Managed plans</h1><p className="welcome-subtitle">Track ongoing client support and maintenance.</p></div><button className="button button-primary" type="button" onClick={() => setShowCreate(true)}><Plus size={15} />Add managed plan</button></section>
-    <section className="panel post-sale-records"><div className="panel-heading"><div><h2>Managed plans</h2><p>{items.length} {items.length === 1 ? "plan" : "plans"}</p></div><label className="post-sale-filter">Show<select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="ALL">All plans</option><option value="ACTIVE">Active</option><option value="UPCOMING">Upcoming</option><option value="PAUSED">Paused</option><option value="EXPIRED">Expired</option><option value="ENDED">Ended</option></select></label></div>
-      {shownItems.length === 0 ? <div className="pipeline-empty projects-empty"><h2>{items.length === 0 ? "No managed plans" : "No matching plans"}</h2><p>{items.length === 0 ? "Add a plan to get started." : "Choose another status filter."}</p>{items.length === 0 && <button className="button button-primary" type="button" onClick={() => setShowCreate(true)}><Plus size={14} />Add managed plan</button>}</div> : <div className="managed-project-list">{shownItems.map((item) => {
-        const status = planStatus(item);
-        const linked = item.sourceProjectId ? projects.find((project) => project.id === item.sourceProjectId) : undefined;
-        return <article className="panel managed-project-card" key={item.id}><div className="managed-project-main"><div className="managed-project-heading"><div><h2>{item.projectTitle}</h2><p>{item.clientCompany || "Client not named"}</p></div><StatusBadge status={status} /></div><div className="management-meta-grid"><div><small>Amount</small><strong>{money(item.managementAmount, item.currency)} <span>/ {item.billingCycle.toLowerCase()}</span></strong></div><div><small>Project</small>{linked ? <Link href={`/projects/${linked.id}`}><span className="mono-meta">{linked.id}</span> · Open project <ArrowRight size={12} /></Link> : <strong>{item.projectTitle}</strong>}</div></div>
-          <div className="managed-project-footer"><span>{item.periodEnd ? `Ends ${new Date(`${item.periodEnd}T12:00:00`).toLocaleDateString()}` : "Ongoing"}</span><div>{status === "PAUSED" ? <button type="button" className="button button-quiet" onClick={() => setStatus(item, "ACTIVE")}>Resume</button> : status === "ACTIVE" && <button type="button" className="button button-quiet" onClick={() => setStatus(item, "PAUSED")}>Pause</button>}{status !== "ENDED" && <button type="button" className="button button-quiet management-end-button" onClick={() => setStatus(item, "ENDED")}>End plan</button>}</div></div>
-        </div></article>;
-      })}</div>}
+  return <div className="page-content post-sale-page clients-page">
+    <section className="welcome-row">
+      <div>
+        <h1>Retainers & AMC</h1>
+        <p className="welcome-subtitle">Track ongoing client support and maintenance contracts.</p>
+      </div>
+      <div className="welcome-actions">
+        <label className="post-sale-filter">Show
+          <select value={filter} onChange={(event) => setFilter(event.target.value)}>
+            <option value="ALL">All plans ({items.length})</option>
+            <option value="ACTIVE">Active</option>
+            <option value="UPCOMING">Upcoming</option>
+            <option value="PAUSED">Paused</option>
+            <option value="EXPIRED">Expired</option>
+            <option value="ENDED">Ended</option>
+          </select>
+        </label>
+        <button className="button button-primary" type="button" onClick={() => setShowCreate(true)}>
+          <Plus size={15} />Add retainer plan
+        </button>
+      </div>
     </section>
+
+    {shownItems.length === 0 ? (
+      <EmptyState
+        icon={<Handshake size={22} />}
+        title={items.length === 0 ? "No retainers yet" : "No matching retainers"}
+        description={items.length === 0 ? "Add a retainer plan or move a completed project to retainers to track ongoing contracts." : "Try selecting a different status filter."}
+        action={items.length === 0 ? <button className="button button-primary" type="button" onClick={() => setShowCreate(true)}><Plus size={14} />Add retainer plan</button> : undefined}
+      />
+    ) : (
+      <div className="clients-list post-sale-list">
+        {shownItems.map((item) => {
+          const status = planStatus(item);
+          const isExpanded = expandedPlan === item.id;
+          const linked = item.sourceProjectId ? projects.find((project) => project.id === item.sourceProjectId) : undefined;
+          return (
+            <article
+              className={`client-card panel ${isExpanded ? "client-card-expanded" : ""}`}
+              key={item.id}
+              id={`plan-${item.id}`}
+            >
+              <button
+                className="client-card-summary post-sale-card-summary"
+                type="button"
+                aria-expanded={isExpanded}
+                onClick={() => setExpandedPlan(isExpanded ? null : item.id)}
+              >
+                <span className="client-card-main">
+                  <strong>{item.projectTitle}</strong>
+                  <small>{item.clientCompany || "Client not named"}{item.model ? ` · ${item.model}` : ""}</small>
+                </span>
+                <span className="client-card-stat">
+                  <strong>{money(item.managementAmount, item.currency)}</strong>
+                  <small>/ {item.billingCycle.toLowerCase()}</small>
+                </span>
+                <span className="client-card-stat post-sale-status-cell">
+                  <StatusBadge status={status} />
+                </span>
+                <ChevronDown size={21} className="client-card-chevron" />
+              </button>
+              {isExpanded && (
+                <div className="client-card-details">
+                  <section>
+                    <h2>Plan model & duration</h2>
+                    <strong>{item.model}</strong>
+                    <span>Billing: {item.billingCycle}</span>
+                    <span>{item.periodStart ? `Started ${new Date(`${item.periodStart}T12:00:00`).toLocaleDateString()}` : "Ongoing"}</span>
+                    <span>{item.periodEnd ? `Ends ${new Date(`${item.periodEnd}T12:00:00`).toLocaleDateString()}` : "No expiration set"}</span>
+                  </section>
+                  <section>
+                    <h2>Linked project</h2>
+                    {linked ? (
+                      <div className="client-detail-links">
+                        <Link href={`/projects/${linked.id}`}>
+                          <span>{linked.title}</span>
+                          <small>{linked.id}<ExternalLink size={13} /></small>
+                        </Link>
+                      </div>
+                    ) : (
+                      <span className="table-muted">No project linked</span>
+                    )}
+                    <span>Client: <strong>{item.clientCompany || "Client not named"}</strong></span>
+                  </section>
+                  <section>
+                    <h2>Plan management</h2>
+                    <div className="post-sale-actions">
+                      {status === "PAUSED" ? (
+                        <button type="button" className="button button-quiet" onClick={() => setStatus(item, "ACTIVE")}>
+                          Resume plan
+                        </button>
+                      ) : status === "ACTIVE" ? (
+                        <button type="button" className="button button-quiet" onClick={() => setStatus(item, "PAUSED")}>
+                          Pause plan
+                        </button>
+                      ) : null}
+                      {status !== "ENDED" && (
+                        <button type="button" className="button button-quiet management-end-button" onClick={() => setStatus(item, "ENDED")}>
+                          End plan
+                        </button>
+                      )}
+                    </div>
+                  </section>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    )}
+
     {showCreate && <ManagedPlanDrawer projects={projects} onClose={() => setShowCreate(false)} onCreated={() => setItems(readManagedProjects())} />}
   </div>;
 }

@@ -1,6 +1,7 @@
 import type { Lead, LeadInvoice, ProposalVersion } from "@/lib/leads";
 import type { OperatingCompany } from "@/lib/companies";
 import { parseStoredJson, publishLocalWorkspaceChange } from "@/lib/workspace-sync";
+import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignees";
 
 export const PROJECTS_STORAGE_KEY = "evecture.projects.v1";
 
@@ -71,8 +72,17 @@ export function readProjects(): Project[] {
     return Array.isArray(parsed) ? parsed.map((item) => {
       const project = { ...(item as Project) } as Project & Record<string, unknown>;
       for (const legacyField of ["kickoffScheduledAt", "kickoffHeldAt", "kickoffNotes", "tasks"]) Reflect.deleteProperty(project, legacyField);
+      const team = Array.isArray(project.team)
+        ? project.team.map((member) => {
+            if (member?.name && DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim())) {
+              return { ...member, name: "", allocationPercent: 0 };
+            }
+            return member;
+          })
+        : [];
       return {
         ...project,
+        team,
         operatingCompany: (project.operatingCompany as string | undefined) === "Servyn" ? "Servn" : project.operatingCompany,
         invoice: project.invoice ? {
           ...project.invoice,
@@ -151,4 +161,19 @@ export function projectFromLead(input: {
     workItems: [],
     status: "ACTIVE",
   };
+}
+
+export function getProjectDisplayTitle(project: { title: string; clientCompany?: string; clientName?: string }): string {
+  const title = (project.title || "").trim();
+  const client = (project.clientCompany || project.clientName || "").trim();
+  if (client) {
+    const patterns = [`${client} — `, `${client} - `, `${client} – `];
+    for (const pattern of patterns) {
+      if (title.toLowerCase().startsWith(pattern.toLowerCase())) {
+        const stripped = title.slice(pattern.length).trim();
+        if (stripped) return stripped;
+      }
+    }
+  }
+  return title || "Untitled Project";
 }

@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, CalendarClock, Check, Clock3, Download, FileText, Receipt, Send, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Clock3, Download, FileText, Receipt, Send, ShieldCheck } from "lucide-react";
 import { type Lead, type LeadInvoice, type ProposalVersion, readLeads, updateLead } from "@/lib/leads";
 import { addProject, projectFromLead, updateProject, type ProjectClassification, type ProjectTeamMember } from "@/lib/projects";
+import { updateInvoice } from "@/lib/invoices";
 import { StatusBadge } from "@/app/_components/status-badge";
+import { useAssignableUsers } from "@/lib/assignees";
 
 const MAX_DOCUMENT_BYTES = 1_200_000;
 
@@ -56,6 +58,7 @@ export default function LeadWorkspacePage() {
   const params = useParams<{ leadId: string }>();
   const router = useRouter();
   const leadId = params.leadId;
+  const { users: assignableUsers } = useAssignableUsers();
   const [lead, setLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -109,16 +112,11 @@ export default function LeadWorkspacePage() {
     const quotedAmount = Number(data.get("quotedAmount"));
     const depositPercent = Number(data.get("depositPercent"));
     const expiryDate = String(data.get("expiryDate") || "");
-    const finalFollowUpDate = String(data.get("finalFollowUpDate") || "");
-    if (!Number.isFinite(quotedAmount) || quotedAmount <= 0 || !Number.isFinite(depositPercent) || depositPercent < 0 || depositPercent > 100 || !expiryDate || !finalFollowUpDate) {
-      setError("Enter a contract amount, a deposit percentage from 0 to 100, and both proposal follow-up dates.");
+    if (!Number.isFinite(quotedAmount) || quotedAmount <= 0 || !Number.isFinite(depositPercent) || depositPercent < 0 || depositPercent > 100 || !expiryDate) {
+      setError("Enter a contract amount, a deposit percentage from 0 to 100, and a proposal expiry date.");
       return;
     }
-    const earliestFinalNudge = new Date(`${expiryDate}T09:00:00`).getTime() + 3 * 86400000;
-    if (new Date(`${finalFollowUpDate}T09:00:00`).getTime() < earliestFinalNudge) {
-      setError("Set the final nudge at least three days after the proposal expiry date.");
-      return;
-    }
+    const finalFollowUpDate = String(data.get("finalFollowUpDate") || (expiryDate ? new Date(new Date(`${expiryDate}T09:00:00`).getTime() + 7 * 86400000).toISOString().slice(0, 10) : ""));
     const previous = lead.proposals ?? [];
     const previousLatest = [...previous].sort((a, b) => b.version - a.version)[0];
     const version = Math.max(0, ...previous.map((item) => item.version)) + 1;
@@ -194,17 +192,6 @@ export default function LeadWorkspacePage() {
     window.setTimeout(() => setLinkCopied(false), 2200);
   }
 
-  function logFollowUp(proposal: ProposalVersion, index: number) {
-    if (!lead) return;
-    const proposals = [...(lead.proposals ?? [])];
-    const versionIndex = proposals.findIndex((item) => item.version === proposal.version);
-    if (versionIndex < 0) return;
-    const followUps = [...proposals[versionIndex].followUps];
-    followUps[index] = { ...followUps[index], loggedAt: new Date().toISOString() };
-    proposals[versionIndex] = { ...proposals[versionIndex], followUps };
-    saveLead({ proposals });
-  }
-
   function acceptProposal(event: FormEvent<HTMLFormElement>, proposal: ProposalVersion) {
     event.preventDefault();
     if (!lead) return;
@@ -232,7 +219,7 @@ export default function LeadWorkspacePage() {
   function markNoResponse(proposal: ProposalVersion) {
     if (!lead) return;
     const proposals = (lead.proposals ?? []).map((item) => item.version === proposal.version ? { ...item, status: "DECLINED" as const } : item);
-    saveLead({ status: "LOST", disqualificationReason: "No response after proposal follow-up sequence", proposals });
+    saveLead({ status: "LOST", disqualificationReason: "No response from client", proposals });
   }
 
   function markInvoiceSent() {
@@ -240,15 +227,18 @@ export default function LeadWorkspacePage() {
     const invoice = { ...lead.invoice, status: "SENT" as const, sentAt: new Date().toISOString() };
     saveLead({ invoice });
     if (lead.projectId) updateProject(lead.projectId, { invoice });
+    updateInvoice(lead.invoice.invoiceNumber, { status: "SENT", sentAt: invoice.sentAt });
   }
 
   function confirmExternalPayment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!lead?.invoice) return;
     const data = new FormData(event.currentTarget);
-    const invoice = { ...lead.invoice, status: "CONFIRMED_PAID" as const, transactionReference: String(data.get("transactionReference") || "").trim(), confirmedPaidAt: new Date().toISOString() };
+    const ref = String(data.get("transactionReference") || "").trim();
+    const invoice = { ...lead.invoice, status: "CONFIRMED_PAID" as const, transactionReference: ref, confirmedPaidAt: new Date().toISOString() };
     saveLead({ invoice });
     if (lead.projectId) updateProject(lead.projectId, { invoice, depositStatus: "CONFIRMED_PAID", depositAmount: invoice.depositAmount });
+    updateInvoice(lead.invoice.invoiceNumber, { status: "CONFIRMED_PAID", transactionReference: ref, confirmedPaidAt: invoice.confirmedPaidAt });
   }
 
   function createProjectFromLead(event: FormEvent<HTMLFormElement>) {
@@ -297,8 +287,6 @@ export default function LeadWorkspacePage() {
   if (!lead) return <div className="page-content"><div className="panel pipeline-empty"><h2>Lead record not found</h2><p>It may have been removed from this browser or created in another workspace.</p><Link className="button button-quiet" href="/requests"><ArrowLeft size={14} />Back to pipeline</Link></div></div>;
 
   const latest = [...(lead.proposals ?? [])].sort((a, b) => b.version - a.version)[0];
-  const sequenceComplete = !!latest && latest.followUps.length > 0 && latest.followUps.every((item) => !!item.loggedAt);
-  const outstandingFollowUp = latest?.status === "SENT" ? latest.followUps.findIndex((item) => !item.loggedAt && new Date(item.dueAt).getTime() <= now) : -1;
 
   return <div className="page-content lead-workspace-page">
     <Link className="back-link" href="/requests"><ArrowLeft size={15} />Leads</Link>
@@ -313,7 +301,6 @@ export default function LeadWorkspacePage() {
       {latest?.status === "SENT" && !revisionMode && <div className="sent-proposal-meta"><div><strong>Proposal v{latest.version}</strong><span>{latest.documentName} · Sent {latest.sentAt ? new Date(latest.sentAt).toLocaleString() : ""}</span><span>Quoted {money(latest.quotedAmount, latest.currency)} · Expires {latest.expiryDate}</span><div className="proposal-delivery-actions">{latest.shareToken && <><Link href={"/proposal/" + latest.shareToken} target="_blank" rel="noreferrer"><ArrowRight size={13} />Open client proposal</Link><button type="button" onClick={() => void copyProposalLink(latest.shareToken!)}>{linkCopied ? "Link copied" : "Copy client link"}</button><a href={"mailto:" + lead.email + "?subject=" + encodeURIComponent(latest.proposalTitle || "Your proposal") + "&body=" + encodeURIComponent("Hello " + lead.fullName + ",\n\nPlease review your proposal here:\n/proposal/" + latest.shareToken + "\n\nBest,\nEVECTURE")}>Email client</a></>}{latest.documentDataUrl && <a href={latest.documentDataUrl} download={latest.documentName}><Download size={13} />Download PDF / SOW</a>}</div></div><button className="button button-quiet" onClick={() => { setRevisionMode(true); setProposalFile(null); }}>Revise proposal</button></div>}
       {(lead.status === "QUALIFIED" || latest?.status === "CHANGES_REQUESTED") && !revisionMode && latest?.status !== "SENT" && <button className="button button-primary proposal-start" onClick={() => { setRevisionMode(true); setProposalFile(null); }}>Prepare proposal <ArrowRight size={14} /></button>}
       {revisionMode && <form className="proposal-form" onSubmit={(event) => submitProposal(event, true)}>
-        <div className="form-callout"><CalendarClock size={15} />Proposal submission schedules follow-up reminders at expiry, three days later, and the final date you set below.</div>
         <div className="proposal-fields-grid">
           <label className="field required">Proposal title<input name="proposalTitle" required defaultValue={latest?.proposalTitle || ("Proposal for " + (lead.companyName || lead.fullName))} placeholder="Website design proposal" /></label>
           <label className="field required">Project title<input name="projectTitle" required defaultValue={latest?.projectTitle || latest?.proposalTitle || (lead.companyName || lead.fullName)} placeholder="Client portal system" /></label>
@@ -321,8 +308,6 @@ export default function LeadWorkspacePage() {
           <label className="field required">Quoted amount<input name="quotedAmount" type="number" min="0.01" step="0.01" required placeholder="0.00" defaultValue={latest?.quotedAmount || ""} /></label>
           <label className="field required">Currency<select name="currency" required defaultValue={latest?.currency || ""}><option value="" disabled>Select currency</option>{["USD", "INR", "EUR", "GBP", "AED", "AUD", "CAD"].map((currency) => <option key={currency}>{currency}</option>)}</select></label>
           <label className="field required">Proposal expiry date<input name="expiryDate" type="date" required defaultValue={latest?.expiryDate || ""} /></label>
-          <label className="field required">Final follow-up date<input name="finalFollowUpDate" type="date" required defaultValue={latest?.finalFollowUpDate || ""} /></label>
-          <label className="field required">Included revision rounds<input name="revisionRounds" type="number" min="0" step="1" required defaultValue={latest?.revisionRounds ?? 2} /></label>
           <label className="field required">Deposit percentage<input name="depositPercent" type="number" min="0" max="100" step="1" required defaultValue={latest?.depositPercent ?? 20} /></label>
           <label className="field required">Billing structure<select name="billingStructure" required defaultValue={latest?.billingStructure || "Fixed"}><option value="" disabled>Select structure</option><option>Fixed</option><option>Hourly</option><option>Retainer</option></select></label>
         </div>
@@ -369,11 +354,9 @@ export default function LeadWorkspacePage() {
         <div className="form-actions"><button type="button" className="button button-quiet" onClick={() => setRevisionMode(false)}>Cancel</button><button type="submit" className="button button-primary"><Send size={14} />{latest?.status === "SENT" ? "Save & send revised version" : "Save & mark proposal sent"}</button></div>
       </form>}
 
-      {latest?.status === "SENT" && !revisionMode && <div className="followup-panel"><h3><CalendarClock size={15} />Proposal follow-up sequence</h3><p>Record each follow-up after the PM contacts the client. Email delivery is not connected in this workspace.</p><div className="followup-steps">{latest.followUps.map((followUp, index) => { const due = new Date(followUp.dueAt); const overdue = !followUp.loggedAt && due.getTime() < now; return <div className="followup-step" key={`${latest.version}-${followUp.label}`}><span className={`followup-marker ${followUp.loggedAt ? "done" : overdue ? "overdue" : ""}`}>{followUp.loggedAt ? <Check size={12} /> : index + 1}</span><div><strong>{followUp.label}</strong><small>{due.toLocaleDateString()} {overdue ? "· due" : ""}</small>{followUp.loggedAt && <small>Logged {new Date(followUp.loggedAt).toLocaleString()}</small>}</div>{!followUp.loggedAt && index === outstandingFollowUp && <button className="button button-quiet" onClick={() => logFollowUp(latest, index)}>Log follow-up sent</button>}</div>; })}</div></div>}
-
       {latest?.status === "SENT" && !revisionMode && <div className="proposal-outcomes"><form className="acceptance-form" onSubmit={(event) => acceptProposal(event, latest)}><h3>Client accepts</h3><p>Record the authorized signatory to mark the proposal accepted. The signed SOW may be attached later.</p><label className="field">Name of signatory<input name="acceptanceName" required placeholder="Authorized signatory" /></label><label className="field document-upload">Attach signed SOW (optional)<input type="file" accept=".pdf,.doc,.docx" onChange={(event) => void selectDocument(event.target.files?.[0], setAcceptanceFile)} /><small>{acceptanceFile?.name || "You can add the signed document later."}</small></label><button className="button button-primary" type="submit"><Check size={14} />Record acceptance</button></form>
         <div className="decline-form"><h3>Client declines</h3><p>Archive the lead with a reason.</p><label className="field">Decline reason<textarea rows={2} value={declineReason} onChange={(event) => setDeclineReason(event.target.value)} placeholder="Reason provided, if any" /></label><button className="button button-quiet" disabled={!declineReason.trim()} onClick={() => markDeclined(latest)}>Mark lost · declined</button></div>
-        <div className="silent-form"><h3>Client goes silent</h3><p>After the follow-up sequence is complete, archive as no response.</p><button className="button button-quiet" disabled={!sequenceComplete} onClick={() => markNoResponse(latest)}>Mark lost · no response</button></div>
+        <div className="silent-form"><h3>Client goes silent</h3><p>Archive the lead as no response if the client becomes unresponsive.</p><button className="button button-quiet" onClick={() => markNoResponse(latest)}>Mark lost · no response</button></div>
       </div>}
 
       {lead.status === "ACCEPTED" && latest && <div className="invoice-generator"><div className="invoice-generator-heading"><span className="section-icon"><FileText size={17} /></span><div><h2>{lead.invoice ? "Invoice generated" : "Proposal accepted"}</h2><p>{lead.invoice ? `${lead.invoice.invoiceNumber} · ${lead.invoice.status.replaceAll("_", " ")}` : "Create the client invoice from the accepted proposal."}</p></div></div><Link className="button button-primary" href={`/invoices?lead=${lead.id}`}>{lead.invoice ? "View invoice" : "Open invoice generator"} <ArrowRight size={14} /></Link></div>}
@@ -389,17 +372,62 @@ export default function LeadWorkspacePage() {
     {lead.status === "ACCEPTED" && !lead.projectId && latest && <section className="panel record-section project-create-section"><div className="record-section-heading"><div><span className="section-icon"><Check size={17} /></span><div><h2>Move accepted project into Projects</h2><p>Set the project owner and setup details to create its workspace. Deposit and SOW tracking can be completed separately.</p></div></div></div>
       <div className="commercial-proof"><span className={lead.acceptanceDocumentDataUrl ? "" : "commercial-proof-pending"}>{lead.acceptanceDocumentDataUrl ? <Check size={13} /> : <Clock3 size={13} />}Signed SOW · {lead.acceptanceDocumentDataUrl ? lead.acceptanceDocumentName : "not attached"}</span><span className={lead.invoice?.status === "CONFIRMED_PAID" ? "" : "commercial-proof-pending"}>{lead.invoice?.status === "CONFIRMED_PAID" ? <Check size={13} /> : <Clock3 size={13} />}Deposit · {lead.invoice ? lead.invoice.status.replaceAll("_", " ") : "not recorded"}</span></div>
       <form className="project-create-form" onSubmit={createProjectFromLead}>
-        <div className="proposal-fields-grid"><label className="field required">Project title<input name="projectTitle" required defaultValue={`${lead.companyName || lead.fullName} — ${lead.services.join(", ")}`} /></label><label className="field required">Project classification<select name="classification" required defaultValue={lead.acquisitionSource === "Referral" ? "Referral" : lead.acquisitionSource === "Repeat client" ? "Repeat Client" : "New Client"}><option>New Client</option><option>Repeat Client</option><option>Referral</option></select></label><label className="field required">Project start date<input type="date" name="startDate" required /></label></div>
-        <div className="project-team-setup"><div><h3>Initial team assignment</h3><p>Resource availability is not connected yet. Enter the assigned employee and allocation; blank roles can be assigned later.</p></div><div className="project-team-grid">{([["Project Manager", "projectManager", true], ["Lead Designer", "leadDesigner", false], ["Lead Developer", "leadDeveloper", false], ["QA Owner", "qaOwner", false], ["Supporting team member", "supportingMember", false]] as const).map(([role, key, required]) => <div className="project-team-row" key={key}><label className="field">{role}<input name={key} required={required} placeholder={required ? "Assigned PM" : "Unassigned"} /></label><label className="field">Allocation %<input name={`${key}Allocation`} type="number" min="0" max="100" step="1" required={required} placeholder="%" /></label></div>)}</div></div>
+        <div className="proposal-fields-grid"><label className="field required">Project title<input name="projectTitle" required defaultValue={lead.services.length > 0 ? lead.services.join(", ") : `${lead.companyName || lead.fullName} Delivery`} /></label><label className="field required">Project classification<select name="classification" required defaultValue={lead.acquisitionSource === "Referral" ? "Referral" : lead.acquisitionSource === "Repeat client" ? "Repeat Client" : "New Client"}><option>New Client</option><option>Repeat Client</option><option>Referral</option></select></label><label className="field required">Project start date<input type="date" name="startDate" required /></label></div>
+        <div className="project-team-setup">
+          <div>
+            <h3>Initial team assignment</h3>
+            <p>Select assigned employees from the workspace directory and specify allocation percentage; blank roles can be assigned later.</p>
+          </div>
+          <div className="project-team-grid">
+            {([
+              ["Project Manager", "projectManager", true],
+              ["Lead Designer", "leadDesigner", false],
+              ["Lead Developer", "leadDeveloper", false],
+              ["QA Owner", "qaOwner", false],
+              ["Supporting team member", "supportingMember", false]
+            ] as const).map(([role, key, required]) => (
+              <div className="project-team-row" key={key}>
+                <label className="field">
+                  {role}
+                  <select
+                    name={key}
+                    required={required}
+                    defaultValue=""
+                    className="assignee-select"
+                  >
+                    <option value="">{required ? "Select Project Manager..." : "Unassigned"}</option>
+                    {assignableUsers.map((person) => (
+                      <option key={person.name} value={person.name}>
+                        {person.name} {person.role ? `· ${person.role}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  Allocation %
+                  <input
+                    name={`${key}Allocation`}
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    required={required}
+                    defaultValue={required ? 100 : ""}
+                    placeholder="%"
+                  />
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
         <div className="project-template-note"><span><Check size={13} /></span><p>Proposal scope, exclusions, assumptions, revision rounds, billing structure, and payment terms carry over. Any SOW or invoice records already captured will be linked. The assigned Project Manager is recorded on the project team.</p></div>
         <div className="form-actions"><button className="button button-primary" type="submit">Move to Projects <ArrowRight size={14} /></button></div>
       </form>
     </section>}
 
-    {lead.proposals && lead.proposals.length > 0 && <section className="panel record-section proposal-history"><div className="record-section-heading"><div><span className="section-icon"><FileText size={17} /></span><div><h2>Proposal versions</h2><p>Version history remains attached to this lead record.</p></div></div>{lead.proposals.some((proposal) => proposal.status === "ACCEPTED") && <Link className="button button-quiet" href={`/invoices?lead=${lead.id}`}><Receipt size={14} />Invoice generator</Link>}</div>{[...lead.proposals].sort((a, b) => b.version - a.version).map((proposal) => <details className="proposal-history-item" key={proposal.version}><summary><strong>Proposal v{proposal.version}</strong><span className={`proposal-version-status version-${proposal.status.toLowerCase()}`}>{proposal.status}</span><span>{money(proposal.quotedAmount, proposal.currency)}</span><span>Expires {proposal.expiryDate}</span></summary><div className="proposal-history-content"><p><b>Included:</b> {proposal.scopeIncluded}</p><p><b>Excluded:</b> {proposal.scopeExcluded || "None specified"}</p><p><b>Deliverables:</b> {proposal.deliverables}</p><p><b>Revisions:</b> {proposal.revisionRounds} rounds · <b>Deposit:</b> {proposal.depositPercent}%</p><p><b>Assumptions:</b> {proposal.assumptions || "None specified"}</p>{proposal.documentDataUrl && <a href={proposal.documentDataUrl} download={proposal.documentName}><Download size={13} />Download {proposal.documentName}</a>}</div></details>)}</section>}
+    {lead.proposals && lead.proposals.length > 0 && <section className="panel record-section proposal-history"><div className="record-section-heading"><div><span className="section-icon"><FileText size={17} /></span><div><h2>Proposal versions</h2><p>Version history remains attached to this lead record.</p></div></div>{lead.proposals.some((proposal) => proposal.status === "ACCEPTED") && <Link className="button button-quiet" href={`/invoices?lead=${lead.id}`}><Receipt size={14} />Invoice generator</Link>}</div>{[...lead.proposals].sort((a, b) => b.version - a.version).map((proposal) => <details className="proposal-history-item" key={proposal.version}><summary><strong>Proposal v{proposal.version}</strong><span className={`proposal-version-status version-${proposal.status.toLowerCase()}`}>{proposal.status}</span><span>{money(proposal.quotedAmount, proposal.currency)}</span><span>Expires {proposal.expiryDate}</span></summary><div className="proposal-history-content"><p><b>Included:</b> {proposal.scopeIncluded}</p><p><b>Excluded:</b> {proposal.scopeExcluded || "None specified"}</p><p><b>Deliverables:</b> {proposal.deliverables}</p><p>{proposal.revisionRounds ? <><b>Revisions:</b> {proposal.revisionRounds} rounds · </> : null}<b>Deposit:</b> {proposal.depositPercent}%</p><p><b>Assumptions:</b> {proposal.assumptions || "None specified"}</p>{proposal.documentDataUrl && <a href={proposal.documentDataUrl} download={proposal.documentName}><Download size={13} />Download {proposal.documentName}</a>}</div></details>)}</section>}
 
     {lead.status === "LOST" && <section className="panel record-section lost-panel"><h2>Lead archived</h2><p>{lead.disqualificationReason || "Lost reason not recorded"}</p><small>This lead is retained in the pipeline history and is not deleted.</small></section>}
     {error && <div className="form-error" role="alert">{error}</div>}
-    <div className="pipeline-system-note"><CalendarClock size={14} /><span>Proposal reminders are stored as due follow-ups. Automated email delivery and server-side scheduling require connected notification services.</span></div>
   </div>;
 }

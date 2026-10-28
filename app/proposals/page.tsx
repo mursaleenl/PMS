@@ -35,7 +35,7 @@ export default function ProposalsPage() {
   const readyLeads = leads.filter((lead) => lead.status === "QUALIFIED" && !(lead.proposals ?? []).some((proposal) => proposal.status === "SENT"));
 
   return <div className="page-content proposals-page">
-    <section className="welcome-row"><div><h1>Proposal generator</h1><p className="welcome-subtitle">Prepare, send, and track client proposals.</p></div><Link className="button button-primary" href="/requests"><Plus size={15} />Open leads</Link></section>
+    <section className="welcome-row"><div><h1>Proposals</h1><p className="welcome-subtitle">Prepare, send, and track client proposals.</p></div><Link className="button button-primary" href="/requests"><Plus size={15} />Open leads</Link></section>
 
     {readyLeads.length > 0 && <section className="panel proposal-ready-panel"><div className="panel-heading"><div><h2>Ready to prepare</h2><p>Qualified enquiries that do not have a current sent proposal.</p></div></div><div className="proposal-ready-list">{readyLeads.map((lead) => <Link className="proposal-ready-row" href={`/requests/${lead.id}`} key={lead.id}><span className="proposal-index-mark"><FileText size={17} /></span><span><strong>{lead.companyName || lead.fullName}</strong><small>{lead.services.join(" · ") || "Project enquiry"}</small></span><ArrowRight size={16} /></Link>)}</div></section>}
 

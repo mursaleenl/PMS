@@ -1,48 +1,49 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { applyRemoteCollection, dataForRecords, localCollectionValue, parseStoredJson, publishLocalWorkspaceChange, recordsForCollection, type LocalWorkspaceChange, type WorkspaceCollection, type WorkspaceRecord, workspaceStorage } from "@/lib/workspace-sync";
+import { applyRemoteCollection, localCollectionValue, parseStoredJson, publishLocalWorkspaceChange, type LocalWorkspaceChange, type WorkspaceCollection, workspaceStorage } from "@/lib/workspace-sync";
 import { supabase } from "@/lib/supabase";
 import { WorkspaceAuthProvider, useWorkspaceAuth } from "@/lib/workspace-auth";
+import { persistRelationalCollection, readRelationalWorkspace } from "@/lib/relational-sync";
 
-const collections: WorkspaceCollection[] = ["leads", "projects", "management"];
+const collections: WorkspaceCollection[] = ["leads", "projects", "management", "invoices"];
 
 function WorkspaceDataSync({ children }: { children: ReactNode }) {
   const { user, role } = useWorkspaceAuth();
   const loaded = useRef(false);
   const syncAvailable = useRef(false);
   const remoteSnapshots = useRef<Partial<Record<WorkspaceCollection, string>>>({});
+  const writeQueues = useRef<Partial<Record<WorkspaceCollection, Promise<void>>>>({});
 
   useEffect(() => {
     const client = supabase;
     if (!client || !user || role === "client") return;
     let cancelled = false;
     const syncInitialData = async () => {
-      const result = await client.from("workspace_records").select("record_id,collection,sort_order,data").order("sort_order", { ascending: true });
-      if (result.error) {
-        console.warn("Supabase workspace_records table is not available; continuing with local workspace data.", result.error.message || result.error);
+      let snapshot;
+      try {
+        snapshot = await readRelationalWorkspace(client);
+      } catch (error) {
+        console.warn("Supabase relational tables are not available; continuing with local workspace data.", error);
         loaded.current = true;
         syncAvailable.current = false;
         return;
       }
       syncAvailable.current = true;
-      const grouped = new Map<WorkspaceCollection, WorkspaceRecord[]>(collections.map((collection) => [collection, []]));
-      for (const record of result.data ?? []) {
-        if (collections.includes(record.collection as WorkspaceCollection)) grouped.get(record.collection as WorkspaceCollection)?.push({ recordId: record.record_id, order: record.sort_order, data: record.data });
-      }
       for (const collection of collections) {
         if (cancelled) return;
-        const serverRecords = grouped.get(collection) ?? [];
-        const serverValue = dataForRecords(collection, serverRecords);
+        const serverValue = snapshot.values[collection];
         const serverJson = JSON.stringify(serverValue);
         const local = localCollectionValue(collection);
         remoteSnapshots.current[collection] = serverJson;
-        if (serverRecords.length > 0) {
+        if (snapshot.remoteCollections.has(collection)) {
+          if (snapshot.legacyCollections.has(collection)) {
+            await persistRelationalCollection(client, collection, serverValue, user.id);
+          }
           if (!local.exists || JSON.stringify(local.value) !== serverJson) applyRemoteCollection(collection, serverValue);
         } else if (local.exists) {
-          const localRecords = recordsForCollection(collection, local.value);
-          await replaceCollection(collection, localRecords);
-          remoteSnapshots.current[collection] = JSON.stringify(dataForRecords(collection, localRecords));
+          await persistRelationalCollection(client, collection, local.value, user.id);
+          remoteSnapshots.current[collection] = JSON.stringify(local.value);
         }
       }
       loaded.current = true;
@@ -51,14 +52,20 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [user?.id, role]);
 
-  async function replaceCollection(collection: WorkspaceCollection, records: WorkspaceRecord[]) {
+  async function replaceCollection(collection: WorkspaceCollection, data: unknown) {
     const client = supabase;
     if (!client || !user || !syncAvailable.current) return;
-    const deleted = await client.from("workspace_records").delete().eq("collection", collection);
-    if (deleted.error) throw new Error(deleted.error.message || deleted.error.details || "Failed to remove previous workspace records");
-    if (records.length === 0) return;
-    const inserted = await client.from("workspace_records").insert(records.map((record) => ({ collection, record_id: record.recordId, sort_order: record.order, data: record.data })));
-    if (inserted.error) throw new Error(inserted.error.message || inserted.error.details || "Failed to persist workspace records");
+    await persistRelationalCollection(client, collection, data, user.id);
+  }
+
+  function queueCollectionWrite(collection: WorkspaceCollection, data: unknown) {
+    const previous = writeQueues.current[collection] ?? Promise.resolve();
+    const next = previous.catch(() => undefined).then(() => replaceCollection(collection, data));
+    writeQueues.current[collection] = next;
+    void next.finally(() => {
+      if (writeQueues.current[collection] === next) delete writeQueues.current[collection];
+    });
+    return next;
   }
 
   useEffect(() => {
@@ -68,7 +75,7 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
       if (!detail || !collections.includes(detail.collection)) return;
       const nextJson = JSON.stringify(detail.data);
       if (remoteSnapshots.current[detail.collection] === nextJson) return;
-      void replaceCollection(detail.collection, recordsForCollection(detail.collection, detail.data))
+      void queueCollectionWrite(detail.collection, detail.data)
         .then(() => { remoteSnapshots.current[detail.collection] = nextJson; })
         .catch((error: unknown) => {
           const message = error instanceof Error ? error.message : (error as { message?: string; details?: string })?.message || (error as { details?: string })?.details || "Unknown sync error";

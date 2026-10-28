@@ -14,7 +14,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className={`${inter.variable} ${inter.className}`}><AppProviders><WorkspaceShell>{children}</WorkspaceShell></AppProviders></body>
+      <body className={`${inter.variable} ${inter.className}`}>
+        <AppProviders>
+          <WorkspaceShell>{children}</WorkspaceShell>
+        </AppProviders>
+      </body>
     </html>
   );
 }
+

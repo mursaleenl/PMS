@@ -1,7 +1,7 @@
 export type WorkspaceRole = "admin" | "employee" | "client";
 
 export const roleLabels: Record<WorkspaceRole, string> = {
-  admin: "Administrator",
+  admin: "Admin",
   employee: "Employee",
   client: "Client",
 };

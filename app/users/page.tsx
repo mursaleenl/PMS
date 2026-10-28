@@ -1,0 +1,366 @@
+"use client";
+
+import { useEffect, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
+import { Plus, ShieldCheck, Trash2, User, UserRoundPlus, X } from "lucide-react";
+import { useWorkspaceAuth } from "@/lib/workspace-auth";
+import type { WorkspaceRole } from "@/lib/roles";
+
+type WorkspaceMember = {
+  id: string;
+  email: string;
+  role: WorkspaceRole;
+  display_name?: string | null;
+  user_id?: string | null;
+  created_at: string;
+};
+
+function readError(error: unknown, fallback: string) {
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message;
+  return fallback;
+}
+
+function roleLabel(role: WorkspaceRole) {
+  if (role === "admin") return "Admin";
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+function joinedDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("en", { month: "short", day: "2-digit", year: "numeric" }).format(date);
+}
+
+export default function UsersPage() {
+  const { role: workspaceRole, members, provisionUser, updateMemberRole, removeMember, user } = useWorkspaceAuth();
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [editingMember, setEditingMember] = useState<WorkspaceMember | null>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [initialPassword, setInitialPassword] = useState("");
+  const [accessRole, setAccessRole] = useState<WorkspaceRole>("employee");
+  const [editingRole, setEditingRole] = useState<WorkspaceRole>("employee");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setShowAddUser(false);
+        setEditingMember(null);
+      }
+    }
+    if (showAddUser || editingMember) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [showAddUser, editingMember]);
+
+  async function saveMember(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage("");
+    try {
+      await provisionUser(name, email, initialPassword, accessRole);
+      setMessage(`${name} was added as ${roleLabel(accessRole)}.`);
+      setShowAddUser(false);
+      setName("");
+      setEmail("");
+      setInitialPassword("");
+      setAccessRole("employee");
+    } catch (error) {
+      setMessage(readError(error, "Unable to add this user."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRoleUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingMember) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await updateMemberRole(editingMember.id, editingRole);
+      setMessage(`Updated role for ${editingMember.display_name || editingMember.email} to ${roleLabel(editingRole)}.`);
+      setEditingMember(null);
+    } catch (error) {
+      setMessage(readError(error, "Unable to update the role."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteMember(id: string, memberName: string) {
+    if (!window.confirm(`Remove ${memberName} and disable their workspace account?`)) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await removeMember(id);
+      setMessage(`${memberName} was removed.`);
+    } catch (error) {
+      setMessage(readError(error, "Unable to remove this user."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="page-content users-page settings-page">
+      <section className="welcome-row">
+        <div>
+          <h1>Users</h1>
+          <p className="welcome-subtitle">Manage user accounts, roles, and workspace access.</p>
+        </div>
+        {workspaceRole === "admin" && (
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={() => {
+              setMessage("");
+              setShowAddUser(true);
+            }}
+          >
+            <UserRoundPlus size={16} />
+            Add user
+          </button>
+        )}
+      </section>
+
+      <section className="settings-section user-management-section">
+        {workspaceRole !== "admin" ? (
+          <div className="access-bootstrap">
+            <ShieldCheck size={18} />
+            <div>
+              <strong>Admin access required</strong>
+              <p>Only administrators can manage workspace users.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="user-management-table-wrap">
+            <table className="user-management-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Joined</th>
+                  <th aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {members.map((member) => {
+                  const memberName = member.display_name?.trim() || member.email.split("@")[0];
+                  return (
+                    <tr key={member.id}>
+                      <td>
+                        <strong>{memberName}</strong>
+                        {member.email && <div className="user-table-email">{member.email}</div>}
+                      </td>
+                      <td>
+                        <span className={`user-role-badge user-role-${member.role}`}>
+                          <ShieldCheck size={14} />
+                          {roleLabel(member.role)}
+                        </span>
+                      </td>
+                      <td>{joinedDate(member.created_at)}</td>
+                      <td className="user-management-actions">
+                        <button
+                          className="button button-quiet"
+                          type="button"
+                          onClick={() => {
+                            setEditingMember(member);
+                            setEditingRole(member.role);
+                            setMessage("");
+                          }}
+                        >
+                          Change role
+                        </button>
+                        <button
+                          className="user-remove-button"
+                          type="button"
+                          aria-label={`Remove ${memberName}`}
+                          disabled={busy || member.user_id === user?.id}
+                          onClick={() => void deleteMember(member.id, memberName)}
+                          title={`Remove ${memberName}`}
+                        >
+                          <Trash2 size={17} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {members.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="user-management-empty">
+                      No users have been added yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {message && <p className="settings-inline-message" role="status">{message}</p>}
+      </section>
+
+      {/* POPUP MODAL: Add User */}
+      {mounted && showAddUser && typeof document !== "undefined" && createPortal(
+        <div
+          className="user-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowAddUser(false);
+          }}
+        >
+          <section className="user-modal-card" role="dialog" aria-modal="true" aria-labelledby="add-user-title">
+            <div className="user-modal-heading">
+              <div>
+                <span className="section-kicker">WORKSPACE ACCESS</span>
+                <h2 id="add-user-title">Add a user</h2>
+                <p>Create a sign-in and assign a workspace role.</p>
+              </div>
+              <button type="button" aria-label="Close add user" onClick={() => setShowAddUser(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form className="add-user-form" onSubmit={saveMember}>
+              <label className="field">
+                Full name
+                <input
+                  required
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Name"
+                />
+              </label>
+              <label className="field">
+                Email address
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="person@company.com"
+                />
+              </label>
+              <label className="field">
+                Initial password
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={initialPassword}
+                  onChange={(event) => setInitialPassword(event.target.value)}
+                  placeholder="At least 8 characters"
+                />
+                <small>The user can change this password in Account settings.</small>
+              </label>
+              <label className="field">
+                Role
+                <select
+                  value={accessRole}
+                  onChange={(event) => setAccessRole(event.target.value as WorkspaceRole)}
+                >
+                  <option value="admin">Admin</option>
+                  <option value="employee">Employee</option>
+                  <option value="client">Client</option>
+                </select>
+              </label>
+              {message && <p className="form-error" role="alert">{message}</p>}
+              <div className="user-modal-actions">
+                <button className="button button-quiet" type="button" onClick={() => setShowAddUser(false)}>
+                  Cancel
+                </button>
+                <button className="button button-primary" type="submit" disabled={busy}>
+                  <Plus size={15} />
+                  {busy ? "Adding user…" : "Add user"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>,
+        document.body
+      )}
+
+      {/* POPUP MODAL: Change Role / Edit User */}
+      {mounted && editingMember && typeof document !== "undefined" && createPortal(
+        <div
+          className="user-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setEditingMember(null);
+          }}
+        >
+          <section className="user-modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-user-title">
+            <div className="user-modal-heading">
+              <div>
+                <span className="section-kicker">WORKSPACE ACCESS</span>
+                <h2 id="edit-user-title">Change user role</h2>
+                <p>Update access level and workspace permissions.</p>
+              </div>
+              <button type="button" aria-label="Close dialog" onClick={() => setEditingMember(null)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="edit-user-info-card">
+              <div className="edit-user-icon-badge">
+                <User size={18} />
+              </div>
+              <div className="edit-user-details">
+                <div className="edit-user-title-row">
+                  <strong>{editingMember.display_name?.trim() || editingMember.email.split("@")[0]}</strong>
+                  <span className={`user-role-badge user-role-${editingMember.role}`}>
+                    <ShieldCheck size={13} />
+                    {roleLabel(editingMember.role)}
+                  </span>
+                </div>
+                <span className="edit-user-email">{editingMember.email}</span>
+                <small>Joined {joinedDate(editingMember.created_at)}</small>
+              </div>
+            </div>
+
+            <form className="edit-user-form" onSubmit={handleRoleUpdate}>
+              <label className="field">
+                Select role
+                <select
+                  value={editingRole}
+                  onChange={(event) => setEditingRole(event.target.value as WorkspaceRole)}
+                >
+                  <option value="admin">Admin — Full workspace access & settings</option>
+                  <option value="employee">Employee — Projects, tasks, and leads access</option>
+                  <option value="client">Client — Client portal access only</option>
+                </select>
+              </label>
+
+              {message && <p className="form-error" role="alert">{message}</p>}
+
+              <div className="user-modal-actions">
+                <button
+                  className="button button-quiet"
+                  type="button"
+                  onClick={() => setEditingMember(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="button button-primary"
+                  type="submit"
+                  disabled={busy || editingRole === editingMember.role}
+                >
+                  {busy ? "Updating…" : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}

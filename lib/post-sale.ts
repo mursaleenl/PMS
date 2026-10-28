@@ -49,6 +49,6 @@ export function updateManagedProject(id: string, updates: Partial<ManagedProject
 
 export function nextManagedProjectId(items = readManagedProjects()) {
   const year = new Date().getFullYear();
-  const sequence = items.map((item) => item.id.match(new RegExp(`^PS-${year}-(\\d+)$`))?.[1]).filter(Boolean).map(Number);
-  return `PS-${year}-${String(Math.max(0, ...sequence) + 1).padStart(3, "0")}`;
+  const sequence = items.map((item) => item.id.match(new RegExp(`^(?:PS|RET)-${year}-(\\d+)$`))?.[1]).filter(Boolean).map(Number);
+  return `RET-${year}-${String(Math.max(0, ...sequence) + 1).padStart(3, "0")}`;
 }

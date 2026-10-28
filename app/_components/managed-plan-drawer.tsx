@@ -48,14 +48,14 @@ export function ManagedPlanDrawer({ projects, onClose, onCreated, initialProject
 
   return <div className="task-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <aside className="task-dispatch-drawer post-sale-drawer" role="dialog" aria-modal="true" aria-labelledby="managed-plan-title">
-      <header><div><h2 id="managed-plan-title">Add managed plan</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="Close form"><X size={18}/></button></header>
+      <header><div><h2 id="managed-plan-title">Add retainer plan</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="Close form"><X size={18}/></button></header>
       <form onSubmit={submit}>
         {initialProjectId ? <div className="post-sale-source-preview"><strong>{selectedProject?.title}</strong><span>{selectedProject?.clientCompany || selectedProject?.clientName}</span></div> : <label className="field">Project<select value={sourceId} onChange={(event) => setSourceId(event.target.value)}><option value="">Add a project manually</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.title} · {project.clientCompany || project.clientName}</option>)}</select></label>}
         {!selectedProject && <div className="post-sale-project-fields"><label className="field required">Project name<input name="projectTitle" required placeholder="Project name"/></label><label className="field required">Client / company<input name="clientCompany" required placeholder="Client or company"/></label></div>}
         <label className="field required">Plan type<select name="model" defaultValue="Annual maintenance">{managementModels.map((model) => <option key={model}>{model}</option>)}</select></label>
         <div className="post-sale-project-fields"><label className="field required">Amount<input name="amount" type="number" min="0.01" step="0.01" required placeholder="0.00"/></label><label className="field required">Currency<select name="currency" defaultValue="USD">{["USD", "INR", "EUR", "GBP", "AED", "AUD", "CAD"].map((currency) => <option key={currency}>{currency}</option>)}</select></label><label className="field required">Billing cycle<select name="billingCycle" defaultValue="Monthly">{billingCycles.map((cycle) => <option key={cycle}>{cycle}</option>)}</select></label></div>
         {error && <div className="form-error" role="alert">{error}</div>}
-        <footer><button className="button button-quiet" type="button" onClick={onClose}>Cancel</button><button className="button button-primary" type="submit"><Plus size={14}/>Add managed plan</button></footer>
+        <footer><button className="button button-quiet" type="button" onClick={onClose}>Cancel</button><button className="button button-primary" type="submit"><Plus size={14}/>Add retainer plan</button></footer>
       </form>
     </aside>
   </div>;
