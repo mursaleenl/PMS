@@ -16,7 +16,7 @@ The configured `NEXT_PUBLIC_ADMIN_EMAIL` is automatically registered as the admi
 
 ## Data sync
 
-Leads, proposals, projects, invoices, work items, and management plans are stored in their normalized Supabase tables. On first authenticated load, existing records in the legacy `workspace_records` table are migrated automatically. Browser storage remains a local cache for compatibility with the current screens; it is no longer the production source of truth.
+Leads, proposals, projects, invoices, work items, and management plans are stored in their normalized Supabase tables. Supabase is the only persistent source of workspace data; the browser does not store a local copy. The legacy `workspace_records` table is not read by the current relational workspace.
 
 For an existing deployment: run `supabase/production-relational-migration.sql`, deploy the application, sign in once as an administrator or employee, then verify the row counts in `public.leads`, `public.proposals`, `public.projects`, `public.invoices`, and `public.managed_projects` before inviting other users.
 

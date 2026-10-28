@@ -3,7 +3,7 @@ import type { Lead, LeadInvoice, ProposalVersion } from "@/lib/leads";
 import type { ManagedProject } from "@/lib/post-sale";
 import type { Project, ProjectTeamMember, ProjectWorkItem } from "@/lib/projects";
 import type { StoredInvoice } from "@/lib/invoices";
-import { dataForRecords, type WorkspaceCollection, type WorkspaceRecord } from "@/lib/workspace-sync";
+import { type WorkspaceCollection } from "@/lib/workspace-sync";
 import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignees";
 
 type DbRow = Record<string, any>;
@@ -250,16 +250,6 @@ async function ensureClients(client: SupabaseClient, details: { companyName: str
   return ids;
 }
 
-async function readLegacyCollections(client: SupabaseClient) {
-  const result = await client.from("workspace_records").select("record_id,collection,sort_order,data").order("sort_order", { ascending: true });
-  if (result.error) return new Map<WorkspaceCollection, unknown>();
-  const grouped = new Map<WorkspaceCollection, WorkspaceRecord[]>(collections.map((collection) => [collection, []]));
-  for (const row of (result.data ?? []) as DbRow[]) {
-    if (collections.includes(row.collection)) grouped.get(row.collection)?.push({ recordId: text(row.record_id), order: number(row.sort_order), data: row.data });
-  }
-  return new Map([...grouped.entries()].map(([collection, rows]) => [collection, dataForRecords(collection, rows)]));
-}
-
 export async function readRelationalWorkspace(client: SupabaseClient): Promise<RelationalSnapshot> {
   const [leads, proposals, followUps, invoices, projects, team, workItems, links, managed] = await Promise.all([
     client.from("leads").select("*"),
@@ -458,21 +448,14 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
   }));
 
   const values: RelationalValues = { leads: hydratedLeads, projects: hydratedProjects, management: hydratedManagement, invoices: hydratedInvoices, postSaleOperations: [] };
-  const remoteCollections = new Set<WorkspaceCollection>();
-  if (leadRows.length) remoteCollections.add("leads");
-  if (projectRows.length) remoteCollections.add("projects");
-  if (managedRows.length) remoteCollections.add("management");
-  if (invoiceRows.length) remoteCollections.add("invoices");
-  const legacy = await readLegacyCollections(client);
-  const legacyCollections = new Set<WorkspaceCollection>();
-  for (const collection of collections) {
-    if (!remoteCollections.has(collection) && legacy.has(collection) && Array.isArray(legacy.get(collection)) && (legacy.get(collection) as unknown[]).length > 0) {
-      values[collection] = legacy.get(collection);
-      remoteCollections.add(collection);
-      legacyCollections.add(collection);
-    }
-  }
-  return { values, remoteCollections, legacyCollections };
+  // Every relational collection is authoritative, including an empty one.
+  // Do not fall back to the legacy workspace_records table or client state:
+  // deleting the final row must make the collection empty in the app.
+  return {
+    values,
+    remoteCollections: new Set<WorkspaceCollection>(collections),
+    legacyCollections: new Set<WorkspaceCollection>(),
+  };
 }
 
 async function persistLeads(client: SupabaseClient, leads: Lead[], userId: string) {

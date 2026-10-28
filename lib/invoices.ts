@@ -1,5 +1,5 @@
 import type { OperatingCompany } from "@/lib/companies";
-import { parseStoredJson, publishLocalWorkspaceChange } from "@/lib/workspace-sync";
+import { localCollectionValue, publishLocalWorkspaceChange } from "@/lib/workspace-sync";
 import { readLeads, updateLead, type Lead, type LeadInvoice } from "@/lib/leads";
 import { readProjects, updateProject, type Project } from "@/lib/projects";
 import { supabase } from "@/lib/supabase";
@@ -58,8 +58,7 @@ export function nextInvoiceNumber(operatingCompany: OperatingCompany, existingIn
 export function readInvoices(): StoredInvoice[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(INVOICES_STORAGE_KEY);
-    const parsed = parseStoredJson(raw);
+    const parsed = localCollectionValue("invoices").value;
     let list: StoredInvoice[] = Array.isArray(parsed) ? (parsed as StoredInvoice[]) : [];
 
     // Migrate/aggregate any invoices existing in leads or projects
@@ -148,10 +147,6 @@ export function readInvoices(): StoredInvoice[] {
       }
     }
 
-    if (migrated && typeof window !== "undefined") {
-      window.localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(list));
-    }
-
     return list.sort((a, b) => new Date(b.issueDate || b.createdAt).getTime() - new Date(a.issueDate || a.createdAt).getTime());
   } catch {
     return [];
@@ -160,9 +155,8 @@ export function readInvoices(): StoredInvoice[] {
 
 export function writeInvoices(invoices: StoredInvoice[]) {
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
-    window.dispatchEvent(new Event("evecture:invoices-updated"));
     publishLocalWorkspaceChange("invoices", invoices);
+    window.dispatchEvent(new Event("evecture:invoices-updated"));
   }
 }
 

@@ -1,4 +1,4 @@
-import { parseStoredJson, publishLocalWorkspaceChange } from "@/lib/workspace-sync";
+import { localCollectionValue, publishLocalWorkspaceChange } from "@/lib/workspace-sync";
 
 export const POST_SALE_STORAGE_KEY = "evecture.post-sale.v1";
 
@@ -24,8 +24,7 @@ export type ManagedProject = {
 export function readManagedProjects(): ManagedProject[] {
   if (typeof window === "undefined") return [];
   try {
-    const stored = window.localStorage.getItem(POST_SALE_STORAGE_KEY);
-    const parsed: unknown = parseStoredJson(stored) ?? [];
+    const parsed: unknown = localCollectionValue("management").value ?? [];
     return Array.isArray(parsed) ? parsed as ManagedProject[] : [];
   } catch {
     return [];
@@ -34,9 +33,8 @@ export function readManagedProjects(): ManagedProject[] {
 
 export function writeManagedProjects(items: ManagedProject[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(POST_SALE_STORAGE_KEY, JSON.stringify(items));
-  window.dispatchEvent(new Event("evecture:post-sale-updated"));
   publishLocalWorkspaceChange("management", items);
+  window.dispatchEvent(new Event("evecture:post-sale-updated"));
 }
 
 export function addManagedProject(item: ManagedProject) {

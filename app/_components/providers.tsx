@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { applyRemoteCollection, localCollectionValue, parseStoredJson, publishLocalWorkspaceChange, type LocalWorkspaceChange, type WorkspaceCollection, workspaceStorage } from "@/lib/workspace-sync";
+import { applyRemoteCollection, clearLegacyBrowserWorkspaceData, type LocalWorkspaceChange, type WorkspaceCollection } from "@/lib/workspace-sync";
 import { supabase } from "@/lib/supabase";
 import { WorkspaceAuthProvider, useWorkspaceAuth } from "@/lib/workspace-auth";
 import { persistRelationalCollection, readRelationalWorkspace } from "@/lib/relational-sync";
@@ -20,11 +20,12 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
     if (!client || !user || role === "client") return;
     let cancelled = false;
     const syncInitialData = async () => {
+      clearLegacyBrowserWorkspaceData();
       let snapshot;
       try {
         snapshot = await readRelationalWorkspace(client);
       } catch (error) {
-        console.warn("Supabase relational tables are not available; continuing with local workspace data.", error);
+        console.warn("Supabase relational tables are not available; workspace data could not be loaded.", error);
         loaded.current = true;
         syncAvailable.current = false;
         return;
@@ -34,17 +35,8 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
         if (cancelled) return;
         const serverValue = snapshot.values[collection];
         const serverJson = JSON.stringify(serverValue);
-        const local = localCollectionValue(collection);
         remoteSnapshots.current[collection] = serverJson;
-        if (snapshot.remoteCollections.has(collection)) {
-          if (snapshot.legacyCollections.has(collection)) {
-            await persistRelationalCollection(client, collection, serverValue, user.id);
-          }
-          if (!local.exists || JSON.stringify(local.value) !== serverJson) applyRemoteCollection(collection, serverValue);
-        } else if (local.exists) {
-          await persistRelationalCollection(client, collection, local.value, user.id);
-          remoteSnapshots.current[collection] = JSON.stringify(local.value);
-        }
+        applyRemoteCollection(collection, serverValue);
       }
       loaded.current = true;
     };
@@ -86,17 +78,6 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
     window.addEventListener("evecture:workspace-local-updated", handleLocalChange);
     return () => window.removeEventListener("evecture:workspace-local-updated", handleLocalChange);
   }, [user?.id, role]);
-
-  useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-      const match = collections.find((collection) => workspaceStorage[collection].key === event.key || workspaceStorage[collection].legacyKeys.includes(event.key || ""));
-      if (!match || !event.newValue) return;
-      const value = parseStoredJson(event.newValue);
-      if (value !== undefined) publishLocalWorkspaceChange(match, value);
-    };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
 
   return children;
 }

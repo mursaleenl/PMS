@@ -1,4 +1,4 @@
-import { parseStoredJson, publishLocalWorkspaceChange } from "@/lib/workspace-sync";
+import { localCollectionValue, publishLocalWorkspaceChange } from "@/lib/workspace-sync";
 import type { OperatingCompany } from "@/lib/companies";
 
 export const LEADS_STORAGE_KEY = "evecture.leads.v1";
@@ -150,8 +150,7 @@ export type Lead = {
 export function readLeads(): Lead[] {
   if (typeof window === "undefined") return [];
   try {
-    const stored = window.localStorage.getItem(LEADS_STORAGE_KEY) ?? window.localStorage.getItem("everture.leads.v1");
-    const parsed: unknown = parseStoredJson(stored) ?? [];
+    const parsed: unknown = localCollectionValue("leads").value ?? [];
     return Array.isArray(parsed) ? parsed.map((item) => {
       const lead = item as Lead;
       return {
@@ -170,9 +169,8 @@ export function readLeads(): Lead[] {
 
 export function writeLeads(leads: Lead[]) {
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(leads));
-    window.dispatchEvent(new Event("evecture:leads-updated"));
     publishLocalWorkspaceChange("leads", leads);
+    window.dispatchEvent(new Event("evecture:leads-updated"));
   }
 }
 

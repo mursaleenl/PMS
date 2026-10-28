@@ -1,30 +1,42 @@
 export type WorkspaceCollection = "leads" | "projects" | "management" | "postSaleOperations" | "invoices";
 
-type WorkspaceStorageEntry = { key: string; legacyKeys: string[]; changedEvent: string };
+type WorkspaceStorageEntry = { changedEvent: string };
 
 export const workspaceStorage: Record<WorkspaceCollection, WorkspaceStorageEntry> = {
-  leads: { key: "evecture.leads.v1", legacyKeys: ["everture.leads.v1"], changedEvent: "evecture:leads-updated" },
-  projects: { key: "evecture.projects.v1", legacyKeys: ["everture.projects.v1"], changedEvent: "evecture:projects-updated" },
-  management: { key: "evecture.post-sale.v1", legacyKeys: [], changedEvent: "evecture:post-sale-updated" },
-  postSaleOperations: { key: "evecture.post-sale-operations.v1", legacyKeys: [], changedEvent: "evecture:post-sale-operations-updated" },
-  invoices: { key: "evecture.invoices.v1", legacyKeys: [], changedEvent: "evecture:invoices-updated" },
+  leads: { changedEvent: "evecture:leads-updated" },
+  projects: { changedEvent: "evecture:projects-updated" },
+  management: { changedEvent: "evecture:post-sale-updated" },
+  postSaleOperations: { changedEvent: "evecture:post-sale-operations-updated" },
+  invoices: { changedEvent: "evecture:invoices-updated" },
 };
 
 export type WorkspaceRecord = { recordId: string; order: number; data: unknown };
 export type LocalWorkspaceChange = { collection: WorkspaceCollection; data: unknown };
 
-/** Parse browser storage without allowing one damaged value to break the workspace. */
-export function parseStoredJson(raw: string | null): unknown | undefined {
-  if (raw === null || raw.trim() === "") return undefined;
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return undefined;
-  }
+// Workspace data is kept only in memory while the app is open. Supabase is the
+// sole persistent source of truth; this store is just a synchronous bridge for
+// the existing client screens while their async query is in flight.
+const memoryCollections: Partial<Record<WorkspaceCollection, unknown>> = {};
+const legacyBrowserWorkspaceKeys = [
+  "evecture.leads.v1",
+  "everture.leads.v1",
+  "evecture.projects.v1",
+  "everture.projects.v1",
+  "evecture.post-sale.v1",
+  "evecture.post-sale-operations.v1",
+  "evecture.invoices.v1",
+  "evecture:notifications",
+];
+
+/** Remove data written by versions of the app that used browser persistence. */
+export function clearLegacyBrowserWorkspaceData() {
+  if (typeof window === "undefined") return;
+  for (const key of legacyBrowserWorkspaceKeys) window.localStorage.removeItem(key);
 }
 
 export function publishLocalWorkspaceChange(collection: WorkspaceCollection, data: unknown) {
   if (typeof window === "undefined") return;
+  memoryCollections[collection] = data;
   window.dispatchEvent(new CustomEvent<LocalWorkspaceChange>("evecture:workspace-local-updated", { detail: { collection, data } }));
 }
 
@@ -46,19 +58,13 @@ export function dataForRecords(collection: WorkspaceCollection, records: Workspa
 
 export function localCollectionValue(collection: WorkspaceCollection): { exists: boolean; value?: unknown } {
   if (typeof window === "undefined") return { exists: false };
-  const config = workspaceStorage[collection];
-  for (const key of [config.key, ...config.legacyKeys]) {
-    const raw = window.localStorage.getItem(key);
-    if (raw !== null) {
-      const value = parseStoredJson(raw);
-      return value === undefined ? { exists: false } : { exists: true, value };
-    }
-  }
-  return { exists: false };
+  return Object.prototype.hasOwnProperty.call(memoryCollections, collection)
+    ? { exists: true, value: memoryCollections[collection] }
+    : { exists: false };
 }
 
 export function applyRemoteCollection(collection: WorkspaceCollection, value: unknown) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(workspaceStorage[collection].key, JSON.stringify(value));
+  memoryCollections[collection] = value;
   window.dispatchEvent(new Event(workspaceStorage[collection].changedEvent));
 }

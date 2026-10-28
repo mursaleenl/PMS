@@ -14,7 +14,7 @@ export interface WorkspaceNotification {
   createdAt: string;
 }
 
-const STORAGE_KEY = "evecture:notifications";
+let memoryNotifications: WorkspaceNotification[] | undefined;
 
 function dispatchNotificationEvent() {
   if (typeof window !== "undefined") {
@@ -24,33 +24,16 @@ function dispatchNotificationEvent() {
 
 export function readNotifications(): WorkspaceNotification[] {
   if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      const initial = generateInitialNotifications();
-      saveNotifications(initial);
-      return initial;
-    }
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      const initial = generateInitialNotifications();
-      saveNotifications(initial);
-      return initial;
-    }
-    return parsed;
-  } catch {
-    return [];
+  if (!memoryNotifications || memoryNotifications.length === 0) {
+    memoryNotifications = generateInitialNotifications();
   }
+  return memoryNotifications;
 }
 
 export function saveNotifications(items: WorkspaceNotification[]) {
   if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    dispatchNotificationEvent();
-  } catch (error) {
-    console.error("Failed to save notifications", error);
-  }
+  memoryNotifications = items;
+  dispatchNotificationEvent();
 }
 
 export function addNotification(
