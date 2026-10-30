@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
+import {MessageSquareText,RefreshCw,Send} from "lucide-react";
 import {useWorkspaceAuth} from "@/lib/workspace-auth";
 type Message={id:string;body:string;sender_name:string;created_at:string};
 export function ProjectConversation({projectId}:{projectId:string}) {
@@ -25,5 +26,22 @@ export function ProjectConversation({projectId}:{projectId:string}) {
     } catch(cause) {setError(cause instanceof Error?cause.message:"Message could not be sent.");}
     finally {setBusy(false);}
   }
-  return <section className="project-conversation"><div className="panel-heading"><h2>Project conversation</h2><button className="button button-quiet" onClick={()=>setAttempt(value=>value+1)}>Refresh messages</button></div>{loading?<p role="status">Loading messages…</p>:<div className="conversation-messages" aria-live="polite">{messages.length?messages.map(item=><article key={item.id}><strong>{item.sender_name}</strong><time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString()}</time><p>{item.body}</p></article>):<p>No messages yet. Start a conversation with your project team.</p>}</div>}{error&&<p className="form-error" role="alert">{error}</p>}<form onSubmit={send}><label className="field">Message<textarea required maxLength={5000} rows={3} value={message} onChange={event=>setMessage(event.target.value)} /></label><button className="button button-primary" disabled={busy || !message.trim()}>{busy?"Sending…":"Send message"}</button></form></section>;
+  return <section className="project-conversation" aria-busy={loading}>
+    <header className="conversation-heading">
+      <div><span className="section-kicker">Project updates</span><h2>Project conversation</h2><p>Share decisions and updates with everyone on this project.</p></div>
+      <button className="button button-quiet conversation-refresh" type="button" onClick={()=>setAttempt(value=>value+1)} disabled={loading}><RefreshCw size={14}/>Refresh</button>
+    </header>
+    <div className={`conversation-messages ${messages.length===0&&!loading?"is-empty":""}`} aria-live="polite">
+      {loading?<p className="conversation-loading" role="status">Loading messages…</p>:messages.length?messages.map(item=><article key={item.id}>
+        <div className="conversation-message-meta"><strong>{item.sender_name}</strong><time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString()}</time></div>
+        <p>{item.body}</p>
+      </article>):<div className="conversation-empty"><span><MessageSquareText size={20}/></span><strong>No messages yet</strong><p>Start the conversation with your project team.</p></div>}
+    </div>
+    {error&&<p className="form-error" role="alert">{error}</p>}
+    <form className="conversation-composer" onSubmit={send}>
+      <label className="field" htmlFor="project-message">Message</label>
+      <textarea id="project-message" required maxLength={5000} rows={3} value={message} onChange={event=>setMessage(event.target.value)} placeholder="Write a message for your project team…" />
+      <div className="conversation-composer-footer"><span>Messages are shared with the project team.</span><button className="button button-primary" disabled={busy || !message.trim()}><Send size={14}/>{busy?"Sending…":"Send message"}</button></div>
+    </form>
+  </section>;
 }

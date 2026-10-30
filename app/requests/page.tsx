@@ -278,6 +278,5 @@ export default function RequestsPage() {
         </article>;
       })}
     </div>}
-    <div className="pipeline-system-note"><Clock3 size={14} /><span>The response clock starts at receipt. Configure the response SLA and team notifications to calculate deadlines and send alerts.</span></div>
   </div>;
 }

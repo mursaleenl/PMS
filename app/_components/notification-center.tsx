@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Bell,
+  BellRing,
   Check,
   CheckCheck,
   CheckSquare,
@@ -164,12 +165,12 @@ export function NotificationCenter() {
         aria-controls={isOpen?panelId:undefined}
         aria-haspopup="dialog"
         className={`icon-button notification-button ${isOpen ? "active" : ""}`}
-        aria-label="Notifications"
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
         title={unreadCount > 0 ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}` : "Notifications"}
       >
-        <Bell size={18} />
+        <BellRing size={19} strokeWidth={1.8} />
         {unreadCount > 0 && (
           <span className="notification-badge" aria-label={`${unreadCount} unread`}>
             {unreadCount > 99 ? "99+" : unreadCount}
