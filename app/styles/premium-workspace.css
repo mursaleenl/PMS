@@ -1558,7 +1558,8 @@
     box-shadow: none !important;
   }
 
-  .app-shell .main-area .page-content.attendance-page { gap: 18px; }
+  .app-shell .main-area .page-content.attendance-page { gap: 14px; }
+  .app-shell .main-area .page-content.attendance-page > .welcome-row { margin-bottom: 0 !important; }
   .app-shell .main-area .page-content .attendance-profile {
     display: grid;
     grid-template-columns: minmax(220px,.8fr) minmax(0,1.6fr);
@@ -1608,6 +1609,43 @@
 
 /* Keep command search readable and consistent with the light workspace. */
 @media screen {
+  /* Portal dialogs are outside the light app shell, so define their own light tokens. */
+  :is(.user-modal-backdrop .user-modal-card,.user-modal-backdrop .invoice-modal-card,.invoice-preview-backdrop .invoice-preview-modal) {
+    --ws-bg: #f8fafc;
+    --ws-surface: #ffffff;
+    --ws-subtle-surface: #f8fafc;
+    --ws-raised: #f1f5f9;
+    --ws-text: #0f172a;
+    --ws-muted: #64748b;
+    --ws-border: #e2e8f0;
+    --ws-accent: #0f172a;
+    --ws-accent-border: #0f172a;
+    --ws-selection: #f4f4f5;
+    --ws-on-solid: #ffffff;
+    color-scheme: light !important;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+  }
+  .user-modal-backdrop .invoice-modal-card :is(.invoice-tax-box,.invoice-gst-toggle-card,.invoice-calculation-summary) {
+    color: #0f172a !important;
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+  }
+  .user-modal-backdrop .invoice-modal-card .invoice-gst-toggle-card :is(strong,span) { color: #0f172a !important; }
+  .user-modal-backdrop .invoice-modal-card .invoice-gst-toggle-card small,
+  .user-modal-backdrop .invoice-modal-card .invoice-calculation-summary .calc-row > span { color: #64748b !important; }
+  .user-modal-backdrop .invoice-modal-card .invoice-calculation-summary :is(.calc-row,.calc-row strong,.total-row,.grand-total-amount) { color: #0f172a !important; }
+  .user-modal-backdrop .invoice-modal-card .invoice-calculation-summary .total-row { border-color: #cbd5e1 !important; }
+  .user-modal-backdrop .invoice-modal-card .custom-check { color: #0f172a !important; background: #ffffff !important; border-color: #64748b !important; }
+  .user-modal-backdrop .invoice-modal-card .custom-check.checked { color: #ffffff !important; background: #0f172a !important; border-color: #0f172a !important; }
+  .user-modal-backdrop .invoice-modal-card .tax-rate-input { color: #334155 !important; }
+  .user-modal-backdrop .invoice-modal-card .calendar-input-wrapper { background: #ffffff !important; border-color: #cbd5e1 !important; }
+  .user-modal-backdrop .invoice-modal-card .calendar-icon-button { color: #334155 !important; background: transparent !important; }
+  .user-modal-backdrop .invoice-modal-card .calendar-icon-button:hover { color: #0f172a !important; background: #f4f4f5 !important; }
+  .user-modal-backdrop .invoice-modal-card .calendar-popover-panel { color: #0f172a !important; background: #ffffff !important; border-color: #cbd5e1 !important; }
+  .user-modal-backdrop .invoice-modal-card .calendar-popover-panel :is(button,strong,span,label) { color: #334155; }
+  .user-modal-backdrop .invoice-modal-card .calendar-popover-panel .calendar-selected { color: #ffffff !important; background: #0f172a !important; }
+
   .app-shell .command-backdrop { background: rgb(15 23 42 / 42%) !important; backdrop-filter: blur(3px); }
   .app-shell .command-dialog {
     color: #0f172a !important;
@@ -1677,4 +1715,28 @@
   .app-shell .command-dialog .command-result-copy small,
   .app-shell .command-dialog .command-result-kind,
   .app-shell .command-dialog .command-result > svg:last-child { color: #64748b !important; }
+}
+
+@media screen {
+  .app-shell .main-area .project-room-heading .project-lifecycle-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .app-shell .main-area .project-room-heading .project-lifecycle-actions > .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: 38px !important;
+    min-height: 38px !important;
+    line-height: 1 !important;
+    vertical-align: middle;
+  }
+  .app-shell .main-area .project-room-heading .project-lifecycle-actions > .project-delete-button {
+    width: 38px !important;
+    min-width: 38px !important;
+    padding: 0 !important;
+    align-self: center;
+  }
 }
