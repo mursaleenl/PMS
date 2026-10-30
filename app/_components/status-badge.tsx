@@ -1,16 +1,9 @@
-import type { ReactNode } from "react";
-
-const statusTone: Record<string, string> = {
-  ACTIVE: "success", COMPLETED: "success", PAID: "success", CONFIRMED_PAID: "success", WON: "success", ACCEPTED: "success", CONVERTED: "success", DONE: "success",
-  PENDING: "warning", NEW: "warning", QUALIFIED: "warning", PROPOSAL_SENT: "warning", DRAFT: "warning", IN_REVIEW: "warning", GENERATED: "warning", SENT: "warning", UPCOMING: "warning", TO_DO: "warning", IN_PROGRESS: "warning",
-  BLOCKED: "danger", OVERDUE: "danger", LOST: "danger", DISQUALIFIED: "danger", DECLINED: "danger", EXPIRED: "danger", P1: "danger",
-  P2: "warning", P3: "neutral", P4: "neutral",
-  PAUSED: "neutral", ENDED: "neutral",
-};
-
-export function StatusBadge({ status, children }: { status: string; children?: ReactNode }) {
-  const key = status.trim().toUpperCase().replace(/[\s-]+/g, "_");
-  const tone = statusTone[key] ?? "neutral";
-  const label = status.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
-  return <span className={`status-badge status-badge-${tone}`}>{children ?? label}</span>;
+import type {ReactNode} from "react";
+const success=new Set(["COMPLETED","DONE","PAID","CONFIRMED_PAID","ACCEPTED","CONVERTED","WON"]);
+const danger=new Set(["BLOCKED","LOST","DISQUALIFIED","DECLINED","EXPIRED","OVERDUE","P1"]);
+export function StatusBadge({status,children}:{status:string;children?:ReactNode}) {
+ const key=status.trim().toUpperCase().replace(/[\s-]+/g,"_");
+ const tone=success.has(key)?"success":danger.has(key)?"danger":"neutral";
+ const label=status.replaceAll("_"," ").toLowerCase().replace(/\b\w/g,letter=>letter.toUpperCase());
+ return <span className={`status-badge status-badge-${tone}`} data-status={key}>{children??label}</span>;
 }

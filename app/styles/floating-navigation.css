@@ -1,0 +1,109 @@
+/* Floating navigation retains the workspace's rectangular geometry. */
+@media screen {
+  .app-shell {
+    --navigation-gap: 12px;
+    --navigation-offset: calc(var(--workspace-header) + var(--navigation-gap) * 2);
+    --navigation-ease: cubic-bezier(.22, 1, .36, 1);
+  }
+  .app-shell .workspace-topbar {
+    inset: var(--navigation-gap) var(--navigation-gap) auto;
+    border: 1px solid rgb(148 163 184 / 17%);
+    background: rgb(16 21 29 / 88%);
+    -webkit-backdrop-filter: blur(18px) saturate(120%);
+    backdrop-filter: blur(18px) saturate(120%);
+    box-shadow: 0 8px 28px rgb(0 0 0 / 22%), 0 1px 0 rgb(255 255 255 / 3%) inset;
+    transition: background-color 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+    animation: floating-header-enter 380ms var(--navigation-ease) both;
+  }
+  .app-shell .workspace-topbar.is-scrolled {
+    background: rgb(16 21 29 / 96%);
+    border-color: rgb(148 163 184 / 25%);
+    box-shadow: 0 12px 36px rgb(0 0 0 / 34%), 0 1px 0 rgb(255 255 255 / 4%) inset;
+  }
+  .app-shell .sidebar {
+    inset: var(--navigation-offset) auto var(--navigation-gap) var(--navigation-gap);
+    border: 1px solid rgb(148 163 184 / 15%);
+    background: rgb(16 21 29 / 94%);
+    box-shadow: 0 8px 30px rgb(0 0 0 / 16%);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    transition: width 300ms var(--navigation-ease), padding 300ms var(--navigation-ease), transform 300ms var(--navigation-ease), opacity 220ms ease;
+    animation: floating-sidebar-enter 420ms var(--navigation-ease) both;
+  }
+  .app-shell .main-area,
+  .app-shell.sidebar-collapsed .main-area {
+    width: calc(100% - var(--workspace-sidebar) - var(--navigation-gap) * 2);
+    margin-top: var(--navigation-offset);
+    margin-left: calc(var(--workspace-sidebar) + var(--navigation-gap) * 2);
+    transition: width 300ms var(--navigation-ease), margin-left 300ms var(--navigation-ease);
+  }
+  .app-shell .workspace-contextbar { min-height: 38px; padding-top: 4px; }
+  .app-shell .sidebar .nav-group { transition: margin 250ms var(--navigation-ease); }
+  .app-shell .workspace-sidebar-heading,
+  .app-shell.sidebar-collapsed .workspace-sidebar-heading {
+    display: flex !important; max-height: 74px; opacity: 1; overflow: hidden;
+    white-space: nowrap;
+    transition: max-height 250ms var(--navigation-ease), padding 250ms var(--navigation-ease), opacity 150ms ease;
+  }
+  .app-shell .sidebar .workspace-label,
+  .app-shell.sidebar-collapsed .sidebar .workspace-label {
+    display: block !important; max-height: 24px; opacity: 1; overflow: hidden;
+    white-space: nowrap;
+    transition: max-height 250ms var(--navigation-ease), padding 250ms var(--navigation-ease), opacity 150ms ease;
+  }
+  .app-shell .sidebar .nav-link-label,
+  .app-shell.sidebar-collapsed .sidebar .nav-link-label {
+    display: inline-block !important; max-width: 170px; opacity: 1; white-space: nowrap; overflow: hidden;
+    transition: max-width 250ms var(--navigation-ease), opacity 160ms ease;
+  }
+  .app-shell .sidebar .nav-link {
+    position: relative;
+    transition: width 300ms var(--navigation-ease), padding 300ms var(--navigation-ease), gap 250ms var(--navigation-ease), background-color 160ms ease, color 160ms ease, box-shadow 180ms ease;
+  }
+  .app-shell .sidebar .nav-link .nav-icon { transition: color 160ms ease, transform 200ms var(--navigation-ease); }
+  .app-shell .sidebar .nav-link:hover .nav-icon { transform: translateX(1px); }
+  .app-shell .sidebar .nav-link:active .nav-icon { transform: scale(.94); }
+  .app-shell.sidebar-collapsed .workspace-sidebar-heading { max-height: 0; padding: 0; opacity: 0; }
+  .app-shell.sidebar-collapsed .sidebar .workspace-label { max-height: 0; padding: 0; opacity: 0; }
+  .app-shell.sidebar-collapsed .sidebar .nav-link-label { max-width: 0; opacity: 0; }
+  .app-shell.sidebar-collapsed .sidebar .nav-link { gap: 0; }
+  /* Expand the navigation above the page while keeping the collapsed content offset fixed. */
+  .app-shell.sidebar-expanded .sidebar { width: 244px; padding: 20px 12px 12px; }
+  .app-shell.sidebar-expanded .workspace-sidebar-heading { max-height: 74px; padding: 0 12px 24px; opacity: 1; }
+  .app-shell.sidebar-expanded .sidebar .workspace-label { max-height: 24px; padding: 0 12px 7px; opacity: 1; }
+  .app-shell.sidebar-expanded .sidebar .nav-link-label { max-width: 170px; opacity: 1; }
+  .app-shell.sidebar-expanded .sidebar .nav-group { margin-bottom: 14px; }
+  .app-shell.sidebar-expanded .sidebar .nav-link { width: 100%; margin: 0; padding: 0 12px; justify-content: flex-start; gap: 11px; }
+  .app-shell .workspace-topbar :is(.workspace-nav-toggle,.mobile-menu,.global-search-trigger,.topbar-user-btn,.notification-button) { transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease; }
+  .app-shell :is(.topbar-profile-dropdown,.notification-popover) { transform-origin: top right; animation: floating-menu-enter 180ms var(--navigation-ease) both; }
+  .app-shell .command-dialog { animation: floating-menu-enter 220ms var(--navigation-ease) both; }
+  .app-shell .mobile-scrim { animation: navigation-scrim-enter 200ms ease both; }
+  @keyframes floating-header-enter { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes floating-sidebar-enter { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes floating-menu-enter { from { opacity: 0; transform: translateY(-5px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes navigation-scrim-enter { from { opacity: 0; } to { opacity: 1; } }
+}
+@media screen and (max-width: 700px) {
+  .app-shell { --navigation-gap: 8px; }
+  .app-shell .workspace-topbar { padding-inline: 8px; gap: 6px; }
+  .app-shell .sidebar, .app-shell.sidebar-collapsed .sidebar {
+    width: 232px; transform: translateX(calc(-100% - var(--navigation-gap) * 2));
+    opacity: 0; visibility: hidden; pointer-events: none; animation: none;
+    transition: transform 300ms var(--navigation-ease), opacity 220ms ease, visibility 0s linear 300ms;
+  }
+  .app-shell .sidebar.sidebar-open {
+    transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto;
+    transition-delay: 0s;
+  }
+  .app-shell.sidebar-collapsed .sidebar .workspace-sidebar-heading { max-height: 74px; padding: 0 12px 24px; opacity: 1; }
+  .app-shell.sidebar-collapsed .sidebar .workspace-label { max-height: 24px; padding: 0 12px 7px; opacity: 1; }
+  .app-shell.sidebar-collapsed .sidebar .nav-link-label { max-width: 170px; opacity: 1; }
+  .app-shell.sidebar-collapsed .sidebar .nav-link { gap: 11px; }
+  .app-shell .mobile-scrim { inset: var(--navigation-offset) 0 0; background: rgb(0 0 0 / 48%); }
+  .app-shell .main-area, .app-shell.sidebar-collapsed .main-area { width: 100%; margin-left: 0; }
+  .app-shell .workspace-contextbar { min-height: 38px; padding-top: 4px; }
+}
+@media screen and (max-width: 360px) { .workspace-wordmark > span { display: none; } }
+@media screen and (prefers-reduced-motion: reduce) {
+  .app-shell *, .app-shell *::before, .app-shell *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

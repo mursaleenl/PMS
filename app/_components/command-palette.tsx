@@ -60,13 +60,25 @@ export function CommandPalette() {
     for (const project of projects) items.push({ kind: "Project", title: project.title, detail: `${project.id} · ${project.clientCompany || project.clientName}`, href: `/projects/${project.id}`, terms: `${project.title} ${project.id} ${project.clientCompany} ${project.clientName} ${project.services.join(" ")}` });
     const clients = new Map<string, { name: string; detail: string; terms: string }>();
     for (const project of projects) {
-      const name = project.clientCompany || project.clientName;
-      if (name) clients.set(name.toLowerCase(), { name, detail: `Client · ${project.clientEmail || "Project record"}`, terms: `${name} ${project.clientName} ${project.clientEmail}` });
+      const clientName = project.clientName?.trim() || project.clientCompany?.trim();
+      const company = project.clientCompany?.trim();
+      if (clientName) {
+        const detail = company && company.toLowerCase() !== clientName.toLowerCase()
+          ? `Client · ${company}`
+          : `Client · ${project.clientEmail || "Project record"}`;
+        clients.set(clientName.toLowerCase(), {
+          name: clientName,
+          detail,
+          terms: `${clientName} ${company || ""} ${project.clientEmail || ""}`,
+        });
+      }
     }
     for (const plan of plans) {
       const name = plan.clientCompany || plan.projectTitle;
       items.push({ kind: "Retainers", title: plan.projectTitle, detail: `${name} · ${plan.model}`, href: "/post-sale", terms: `${name} ${plan.projectTitle} ${plan.model}` });
-      if (plan.clientCompany && !clients.has(plan.clientCompany.toLowerCase())) clients.set(plan.clientCompany.toLowerCase(), { name: plan.clientCompany, detail: "Client · Managed plan", terms: plan.clientCompany });
+      if (plan.clientCompany && !clients.has(plan.clientCompany.toLowerCase())) {
+        clients.set(plan.clientCompany.toLowerCase(), { name: plan.clientCompany, detail: "Client · Managed plan", terms: plan.clientCompany });
+      }
     }
     for (const client of clients.values()) items.push({ kind: "Client", title: client.name, detail: client.detail, href: `/clients#client-${clientSlug(client.name)}`, terms: client.terms });
     const query = term.trim().toLowerCase();

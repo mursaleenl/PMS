@@ -16,6 +16,8 @@ export interface WorkspaceNotification {
 
 let memoryNotifications: WorkspaceNotification[] | undefined;
 
+export function resetNotifications() { memoryNotifications = undefined; dispatchNotificationEvent(); }
+
 function dispatchNotificationEvent() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("evecture:notifications-updated"));
@@ -24,7 +26,7 @@ function dispatchNotificationEvent() {
 
 export function readNotifications(): WorkspaceNotification[] {
   if (typeof window === "undefined") return [];
-  if (!memoryNotifications || memoryNotifications.length === 0) {
+  if (!memoryNotifications) {
     memoryNotifications = generateInitialNotifications();
   }
   return memoryNotifications;

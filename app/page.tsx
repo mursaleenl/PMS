@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BriefcaseBusiness, Check, Clock3, Inbox, ListTodo, Plus, Users } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, Check, Clock3, Inbox, ListTodo, Plus } from "lucide-react";
 import { type Lead, readLeads } from "@/lib/leads";
 import { type Project, readProjects, getProjectDisplayTitle } from "@/lib/projects";
 import { readInvoices, type StoredInvoice } from "@/lib/invoices";
@@ -184,6 +184,5 @@ export default function OverviewPage() {
         {leads.length === 0 ? <div className="overview-inline-empty"><Inbox size={17} />No requests have been recorded yet.</div> : <div className="overview-request-list">{[...leads].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4).map((lead) => <Link href={`/requests#${lead.id}`} className="overview-request-row" key={lead.id}><span className="overview-task-indicator"><Inbox size={14} /></span><span className="overview-task-copy"><strong>{lead.fullName}</strong><small>{lead.companyName || "Individual enquiry"}</small></span><StatusBadge status={lead.status} /></Link>)}</div>}
       </div>
     </section>
-    <p className="storage-note">Workspace records are currently stored in this browser.</p>
   </div>;
 }

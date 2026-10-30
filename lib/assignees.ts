@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
@@ -8,14 +10,8 @@ export type AssignableUser = {
   role?: string;
 };
 
-export const DUMMY_ASSIGNABLE_NAMES = new Set([
-  "sarah chen",
-  "alex rivera",
-  "david kim",
-  "elena rostova",
-  "marcus vance",
-  "priya patel",
-]);
+export { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignee-names";
+import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignee-names";
 
 export function useAssignableUsers(): { users: AssignableUser[]; loading: boolean } {
   const { members, user, role: userRole, session } = useWorkspaceAuth();
@@ -57,7 +53,7 @@ export function useAssignableUsers(): { users: AssignableUser[]; loading: boolea
     if (raw && !DUMMY_ASSIGNABLE_NAMES.has(raw.toLowerCase())) {
       const name = raw.charAt(0).toUpperCase() + raw.slice(1);
       rosterMap.set(name.toLowerCase(), {
-        id: m.id,
+        id: m.user_id || undefined,
         name,
         email: m.email,
         role: m.role ? m.role.charAt(0).toUpperCase() + m.role.slice(1) : "Employee",

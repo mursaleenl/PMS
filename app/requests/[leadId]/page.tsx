@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useRef, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, Clock3, Download, FileText, Receipt, Send, ShieldCheck } from "lucide-react";
-import { type Lead, type LeadInvoice, type ProposalVersion, readLeads, updateLead } from "@/lib/leads";
+import { type Lead, type ProposalVersion, readLeads, updateLead } from "@/lib/leads";
+import { flushWorkspaceChanges } from "@/lib/workspace-sync";
+import { isValidDateValue } from "@/lib/dates";
 import { addProject, projectFromLead, updateProject, type ProjectClassification, type ProjectTeamMember } from "@/lib/projects";
 import { updateInvoice } from "@/lib/invoices";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { useAssignableUsers } from "@/lib/assignees";
+import { CalendarPicker } from "@/app/_components/calendar-picker";
+import { operatingCompanies, type OperatingCompany } from "@/lib/companies";
 
 const MAX_DOCUMENT_BYTES = 1_200_000;
 
@@ -67,7 +71,7 @@ export default function LeadWorkspacePage() {
   const [revisionMode, setRevisionMode] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
-  const [now, setNow] = useState(Date.now());
+  const converting = useRef(false);
 
   useEffect(() => {
     const refresh = () => {
@@ -77,11 +81,9 @@ export default function LeadWorkspacePage() {
     refresh();
     window.addEventListener("evecture:leads-updated", refresh);
     window.addEventListener("storage", refresh);
-    const interval = window.setInterval(() => setNow(Date.now()), 30000);
     return () => {
       window.removeEventListener("evecture:leads-updated", refresh);
       window.removeEventListener("storage", refresh);
-      window.clearInterval(interval);
     };
   }, [leadId]);
 
@@ -94,7 +96,7 @@ export default function LeadWorkspacePage() {
   async function selectDocument(file: File | undefined, setter: (value: { name: string; dataUrl: string } | null) => void) {
     if (!file) return;
     if (file.size > MAX_DOCUMENT_BYTES) {
-      setError("For this browser prototype, attached documents must be under 1.2 MB.");
+      setError("Attachments must be under 1.2 MB.");
       return;
     }
     try {
@@ -105,14 +107,18 @@ export default function LeadWorkspacePage() {
     }
   }
 
-  function submitProposal(event: FormEvent<HTMLFormElement>, send: boolean) {
+  async function submitProposal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!lead) return;
+    if (!lead.operatingCompany) {
+      setError("Choose Evecture or Servn before preparing this proposal.");
+      return;
+    }
     const data = new FormData(event.currentTarget);
     const quotedAmount = Number(data.get("quotedAmount"));
     const depositPercent = Number(data.get("depositPercent"));
     const expiryDate = String(data.get("expiryDate") || "");
-    if (!Number.isFinite(quotedAmount) || quotedAmount <= 0 || !Number.isFinite(depositPercent) || depositPercent < 0 || depositPercent > 100 || !expiryDate) {
+    if (!Number.isFinite(quotedAmount) || quotedAmount <= 0 || !Number.isFinite(depositPercent) || depositPercent < 0 || depositPercent > 100 || !isValidDateValue(expiryDate)) {
       setError("Enter a contract amount, a deposit percentage from 0 to 100, and a proposal expiry date.");
       return;
     }
@@ -120,14 +126,13 @@ export default function LeadWorkspacePage() {
     const previous = lead.proposals ?? [];
     const previousLatest = [...previous].sort((a, b) => b.version - a.version)[0];
     const version = Math.max(0, ...previous.map((item) => item.version)) + 1;
-    const expiry = new Date(`${expiryDate}T09:00:00`).toISOString();
-    const plusThree = new Date(new Date(expiry).getTime() + 3 * 86400000).toISOString();
+    if (!isValidDateValue(finalFollowUpDate)) { setError("Enter a valid final follow-up date."); return; }
     const proposal: ProposalVersion = {
       version,
-      status: send ? "SENT" : "DRAFT",
+      status: "DRAFT",
       createdAt: new Date().toISOString(),
-      sentAt: send ? new Date().toISOString() : undefined,
-      shareToken: send ? crypto.randomUUID() : undefined,
+      sentAt: undefined,
+      shareToken: undefined,
       proposalTitle: String(data.get("proposalTitle") || "").trim(),
       projectTitle: String(data.get("projectTitle") || "").trim(),
       preparedBy: String(data.get("preparedBy") || "").trim(),
@@ -171,14 +176,10 @@ export default function LeadWorkspacePage() {
       assumptions: String(data.get("assumptions") || ""),
       documentName: proposalFile?.name || previousLatest?.documentName || "Online proposal",
       documentDataUrl: proposalFile?.dataUrl || previousLatest?.documentDataUrl,
-      followUps: [
-        { label: "Expiry day", dueAt: expiry },
-        { label: "3 days after expiry", dueAt: plusThree },
-        { label: "Final nudge", dueAt: new Date(`${finalFollowUpDate}T09:00:00`).toISOString() },
-      ],
+      followUps: [],
     };
-    const versions = previous.map((item) => item.status === "SENT" ? { ...item, status: "SUPERSEDED" as const } : item);
-    saveLead({ proposals: [...versions, proposal], status: send ? "PROPOSAL_SENT" : "QUALIFIED" });
+    saveLead({ proposals: [...previous, proposal], status: lead.status });
+    try { await flushWorkspaceChanges(); } catch(cause) { setError(cause instanceof Error ? cause.message : "The proposal could not be saved."); return; }
     setProposalFile(null);
     setLinkCopied(false);
     setRevisionMode(false);
@@ -186,6 +187,7 @@ export default function LeadWorkspacePage() {
   }
 
   async function copyProposalLink(token: string) {
+    try { await flushWorkspaceChanges(); } catch(cause) { setError(cause instanceof Error ? cause.message : "Save this proposal before sharing it."); return; }
     const url = [window.location.origin, "proposal", token].join("/");
     await navigator.clipboard?.writeText(url);
     setLinkCopied(true);
@@ -241,19 +243,21 @@ export default function LeadWorkspacePage() {
     updateInvoice(lead.invoice.invoiceNumber, { status: "CONFIRMED_PAID", transactionReference: ref, confirmedPaidAt: invoice.confirmedPaidAt });
   }
 
-  function createProjectFromLead(event: FormEvent<HTMLFormElement>) {
+  async function createProjectFromLead(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!lead || lead.status !== "ACCEPTED" || lead.projectId) {
-      setError("Only an accepted lead can be moved into Projects.");
+    if (converting.current) return;
+    if (!lead || !["QUALIFIED", "PROPOSAL_SENT", "ACCEPTED"].includes(lead.status) || lead.projectId) {
+      setError("This lead cannot be moved into Projects in its current stage.");
       return;
     }
     if (!lead.operatingCompany) {
       setError("Choose Evecture or Servn in First contact before moving this project into Projects.");
       return;
     }
-    const acceptedProposal = [...(lead.proposals ?? [])].find((proposal) => proposal.status === "ACCEPTED");
-    if (!acceptedProposal) {
-      setError("No accepted proposal is linked to this lead record.");
+    const proposalForProject = [...(lead.proposals ?? [])].sort((a, b) => b.version - a.version).find((proposal) => proposal.status === "ACCEPTED")
+      ?? [...(lead.proposals ?? [])].sort((a, b) => b.version - a.version)[0];
+    if (!proposalForProject) {
+      setError("Save a proposal before moving this lead into Projects.");
       return;
     }
     const data = new FormData(event.currentTarget);
@@ -265,10 +269,11 @@ export default function LeadWorkspacePage() {
       ["QA Owner", "qaOwner"],
       ["Supporting team member", "supportingMember"],
     ] as const).map(([role, key]) => ({ role, name: String(data.get(key) || "").trim(), allocationPercent: allocation(key) }));
+    converting.current = true;
     try {
-      const project = projectFromLead({
+      const project = await projectFromLead({
         lead,
-        proposal: acceptedProposal,
+        proposal: proposalForProject,
         title: String(data.get("projectTitle") || "").trim(),
         classification: String(data.get("classification") || "New Client") as ProjectClassification,
         operatingCompany: lead.operatingCompany,
@@ -277,37 +282,47 @@ export default function LeadWorkspacePage() {
       });
       addProject(project);
       updateLead(lead.id, { status: "CONVERTED", projectId: project.id });
+      await flushWorkspaceChanges();
       router.push(`/projects/${project.id}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Project workspace could not be created.");
-    }
+    } finally { converting.current = false; }
   }
 
   if (loading) return <div className="page-content"><div className="panel pipeline-empty"><p>Loading lead record…</p></div></div>;
-  if (!lead) return <div className="page-content"><div className="panel pipeline-empty"><h2>Lead record not found</h2><p>It may have been removed from this browser or created in another workspace.</p><Link className="button button-quiet" href="/requests"><ArrowLeft size={14} />Back to pipeline</Link></div></div>;
+  if (!lead) return <div className="page-content"><div className="panel pipeline-empty"><h2>Lead record not found</h2><p>This lead may have been removed or you may not have access to it.</p><Link className="button button-quiet" href="/requests"><ArrowLeft size={14} />Back to pipeline</Link></div></div>;
 
   const latest = [...(lead.proposals ?? [])].sort((a, b) => b.version - a.version)[0];
+  const projectProposal = [...(lead.proposals ?? [])].sort((a, b) => b.version - a.version).find((proposal) => proposal.status === "ACCEPTED") ?? latest;
+  const workflowOpen = lead.status !== "LOST" && lead.status !== "DISQUALIFIED";
+  const companySelectionLocked = Boolean(lead.operatingCompany && (lead.proposals ?? []).some((proposal) => ["SENT", "ACCEPTED", "SUPERSEDED"].includes(proposal.status)));
 
   return <div className="page-content lead-workspace-page">
     <Link className="back-link" href="/requests"><ArrowLeft size={15} />Leads</Link>
     <header className="record-heading"><div><h1>{lead.companyName || lead.fullName}</h1></div><StatusBadge status={lead.status} /></header>
 
+    {workflowOpen && <section className={`panel record-section operating-company-step ${lead.operatingCompany ? "is-selected" : "needs-selection"}`} id="workflow-company">
+      <div className="record-section-heading"><div><span className="section-icon"><ShieldCheck size={17} /></span><div><h2>Choose operating company</h2><p>This determines which studio is responsible for the proposal and project.</p></div></div><span className="workflow-state">{companySelectionLocked ? "Set for sent proposal" : lead.operatingCompany ? "Selected" : "Required before proposal"}</span></div>
+      <label className="field required">Operating company<select aria-label="Choose the operating company for this lead" required disabled={companySelectionLocked} value={lead.operatingCompany ?? ""} onChange={(event) => { const value = event.target.value; if (operatingCompanies.some((company) => company === value)) saveLead({ operatingCompany: value as OperatingCompany }); }}><option value="" disabled>Select Evecture or Servn</option>{operatingCompanies.map((company) => <option key={company} value={company}>{company}</option>)}</select>{companySelectionLocked && <small>The choice is locked after a proposal has been sent so the studio assignment stays consistent.</small>}</label>
+    </section>}
+
     {lead.qualification && <section className="panel record-section"><div className="record-section-heading"><div><span className="section-icon"><ShieldCheck size={17} /></span><div><h2>Qualification</h2><p>Discovery call recorded {lead.qualification.discoveryCallAt ? new Date(lead.qualification.discoveryCallAt).toLocaleString() : ""}</p></div></div><StatusBadge status={lead.status}>{lead.status === "DISQUALIFIED" ? "DISQUALIFIED" : "QUALIFICATION RECORDED"}</StatusBadge></div><div className="qualification-summary-grid"><div><small>Actual problem</small><p>{lead.qualification.actualProblem || "Not recorded"}</p></div><div><small>Desired outcome</small><p>{lead.qualification.desiredOutcome || "Not recorded"}</p></div><div><small>Budget / scope fit</small><p>{lead.qualification.budgetFit}</p></div><div><small>Good fit</small><p>{lead.qualification.goodFit}</p></div><div><small>Decision maker</small><p>{lead.qualification.decisionMaker || "Not recorded"}</p></div><div><small>Decision timeline</small><p>{lead.qualification.decisionTimeline || "Not recorded"}</p></div></div>{lead.qualification.callNotes && <div className="saved-call-notes"><small>Discovery call notes</small><p>{lead.qualification.callNotes}</p></div>}</section>}
 
     {lead.status === "ACCEPTED" && <section className="panel record-section acceptance-record"><div className="record-section-heading"><div><span className="section-icon"><Check size={17} /></span><div><h2>Proposal accepted</h2><p>{lead.acceptedAt ? new Date(lead.acceptedAt).toLocaleString() : "Acceptance recorded"}</p></div></div></div><div className="detail-line"><b>Signatory</b>{lead.acceptanceName || "Not recorded"}</div>{lead.acceptanceDocumentName && <div className="detail-line"><b>Signed document</b>{lead.acceptanceDocumentDataUrl ? <a href={lead.acceptanceDocumentDataUrl} download={lead.acceptanceDocumentName}>{lead.acceptanceDocumentName} <Download size={12} /></a> : lead.acceptanceDocumentName}</div>}</section>}
 
-    {(lead.status === "QUALIFIED" || lead.status === "PROPOSAL_SENT" || lead.status === "ACCEPTED") && <section className="panel record-section proposal-section">
-      <div className="record-section-heading"><div><span className="section-icon"><FileText size={17} /></span><div><h2>Proposal & SOW</h2><p>Prepare a versioned scope, record the quote, and track client response.</p></div></div>{latest && <span className={`proposal-version-status version-${latest.status.toLowerCase()}`}>Version {latest.version} · {latest.status}</span>}</div>
+    {(lead.status === "QUALIFIED" || lead.status === "PROPOSAL_SENT" || lead.status === "ACCEPTED") && <section className="panel record-section proposal-section" id="workflow-proposal">
+      <div className="record-section-heading"><div><span className="section-icon"><FileText size={17} /></span><div><h2>Proposal & SOW</h2><p>Build and save a proposal draft for internal review.</p></div></div>{latest && <span className={`proposal-version-status version-${latest.status.toLowerCase()}`}>Version {latest.version} · {latest.status}</span>}</div>
+      {latest?.status === "DRAFT" && !revisionMode && <div className="sent-proposal-meta draft-proposal-meta"><div><strong>{latest.proposalTitle || `Proposal for ${lead.companyName || lead.fullName}`}</strong><span>Draft v{latest.version} · Generated {new Date(latest.createdAt).toLocaleString()}</span><span>Saved internally and not shared with the client.</span><span>{money(latest.quotedAmount, latest.currency)} · Expires {latest.expiryDate}</span></div><button className="button button-quiet" onClick={() => { setRevisionMode(true); setProposalFile(null); }}>Edit draft</button></div>}
       {latest?.status === "SENT" && !revisionMode && <div className="sent-proposal-meta"><div><strong>Proposal v{latest.version}</strong><span>{latest.documentName} · Sent {latest.sentAt ? new Date(latest.sentAt).toLocaleString() : ""}</span><span>Quoted {money(latest.quotedAmount, latest.currency)} · Expires {latest.expiryDate}</span><div className="proposal-delivery-actions">{latest.shareToken && <><Link href={"/proposal/" + latest.shareToken} target="_blank" rel="noreferrer"><ArrowRight size={13} />Open client proposal</Link><button type="button" onClick={() => void copyProposalLink(latest.shareToken!)}>{linkCopied ? "Link copied" : "Copy client link"}</button><a href={"mailto:" + lead.email + "?subject=" + encodeURIComponent(latest.proposalTitle || "Your proposal") + "&body=" + encodeURIComponent("Hello " + lead.fullName + ",\n\nPlease review your proposal here:\n/proposal/" + latest.shareToken + "\n\nBest,\nEVECTURE")}>Email client</a></>}{latest.documentDataUrl && <a href={latest.documentDataUrl} download={latest.documentName}><Download size={13} />Download PDF / SOW</a>}</div></div><button className="button button-quiet" onClick={() => { setRevisionMode(true); setProposalFile(null); }}>Revise proposal</button></div>}
-      {(lead.status === "QUALIFIED" || latest?.status === "CHANGES_REQUESTED") && !revisionMode && latest?.status !== "SENT" && <button className="button button-primary proposal-start" onClick={() => { setRevisionMode(true); setProposalFile(null); }}>Prepare proposal <ArrowRight size={14} /></button>}
-      {revisionMode && <form className="proposal-form" onSubmit={(event) => submitProposal(event, true)}>
+      {(lead.status === "QUALIFIED" || latest?.status === "CHANGES_REQUESTED") && !revisionMode && (!latest || latest.status === "CHANGES_REQUESTED") && <button className="button button-primary proposal-start" onClick={() => { setRevisionMode(true); setProposalFile(null); }}>{latest?.status === "CHANGES_REQUESTED" ? "Prepare revised draft" : "Generate proposal"} <ArrowRight size={14} /></button>}
+      {revisionMode && <form className="proposal-form" onSubmit={(event) => submitProposal(event)}>
         <div className="proposal-fields-grid">
           <label className="field required">Proposal title<input name="proposalTitle" required defaultValue={latest?.proposalTitle || ("Proposal for " + (lead.companyName || lead.fullName))} placeholder="Website design proposal" /></label>
           <label className="field required">Project title<input name="projectTitle" required defaultValue={latest?.projectTitle || latest?.proposalTitle || (lead.companyName || lead.fullName)} placeholder="Client portal system" /></label>
           <label className="field">Prepared by<textarea name="preparedBy" rows={2} defaultValue={latest?.preparedBy || ""} placeholder="Name and matrix no (one per line)" /></label>
           <label className="field required">Quoted amount<input name="quotedAmount" type="number" min="0.01" step="0.01" required placeholder="0.00" defaultValue={latest?.quotedAmount || ""} /></label>
           <label className="field required">Currency<select name="currency" required defaultValue={latest?.currency || ""}><option value="" disabled>Select currency</option>{["USD", "INR", "EUR", "GBP", "AED", "AUD", "CAD"].map((currency) => <option key={currency}>{currency}</option>)}</select></label>
-          <label className="field required">Proposal expiry date<input name="expiryDate" type="date" required defaultValue={latest?.expiryDate || ""} /></label>
+          <label className="field required">Proposal expiry date<CalendarPicker name="expiryDate" required defaultValue={latest?.expiryDate || ""} /></label>
           <label className="field required">Deposit percentage<input name="depositPercent" type="number" min="0" max="100" step="1" required defaultValue={latest?.depositPercent ?? 20} /></label>
           <label className="field required">Billing structure<select name="billingStructure" required defaultValue={latest?.billingStructure || "Fixed"}><option value="" disabled>Select structure</option><option>Fixed</option><option>Hourly</option><option>Retainer</option></select></label>
         </div>
@@ -350,8 +365,8 @@ export default function LeadWorkspacePage() {
           <label className="field">Warranty and post-launch support<textarea name="warrantySupport" rows={4} defaultValue={latest?.warrantySupport || proposalTemplateDefaults.warrantySupport} placeholder="Define the warranty period, bug-fix coverage, and ongoing support options." /></label>
           <label className="field">Cancellation policy<textarea name="cancellationPolicy" rows={4} defaultValue={latest?.cancellationPolicy || proposalTemplateDefaults.cancellationPolicy} placeholder="Explain notice, completed work, committed costs, and cancellation terms." /></label>
         </div>
-        <label className="field document-upload">Optional PDF / SOW attachment<input type="file" accept=".pdf,.doc,.docx" onChange={(event) => void selectDocument(event.target.files?.[0], setProposalFile)} /><small>{proposalFile ? `Attached: ${proposalFile.name}` : latest?.documentName ? `Keep previous attachment: ${latest.documentName}` : "The online proposal is sent without an attachment. Add a PDF or Word file if needed."}</small></label>
-        <div className="form-actions"><button type="button" className="button button-quiet" onClick={() => setRevisionMode(false)}>Cancel</button><button type="submit" className="button button-primary"><Send size={14} />{latest?.status === "SENT" ? "Save & send revised version" : "Save & mark proposal sent"}</button></div>
+        <label className="field document-upload">Optional PDF / SOW attachment<input type="file" accept=".pdf,.doc,.docx" onChange={(event) => void selectDocument(event.target.files?.[0], setProposalFile)} /><small>{proposalFile ? `Attached: ${proposalFile.name}` : latest?.documentName ? `Keep previous attachment: ${latest.documentName}` : "An attachment is optional. Add a PDF or Word file to keep it with this draft."}</small></label>
+        <div className="form-actions"><button type="button" className="button button-quiet" onClick={() => setRevisionMode(false)}>Cancel</button><button type="submit" className="button button-primary"><FileText size={14} />{latest?.status === "DRAFT" ? "Save draft changes" : "Generate proposal draft"}</button></div>
       </form>}
 
       {latest?.status === "SENT" && !revisionMode && <div className="proposal-outcomes"><form className="acceptance-form" onSubmit={(event) => acceptProposal(event, latest)}><h3>Client accepts</h3><p>Record the authorized signatory to mark the proposal accepted. The signed SOW may be attached later.</p><label className="field">Name of signatory<input name="acceptanceName" required placeholder="Authorized signatory" /></label><label className="field document-upload">Attach signed SOW (optional)<input type="file" accept=".pdf,.doc,.docx" onChange={(event) => void selectDocument(event.target.files?.[0], setAcceptanceFile)} /><small>{acceptanceFile?.name || "You can add the signed document later."}</small></label><button className="button button-primary" type="submit"><Check size={14} />Record acceptance</button></form>
@@ -369,10 +384,10 @@ export default function LeadWorkspacePage() {
 
     {lead.status === "CONVERTED" && lead.projectId && <section className="panel record-section project-gate-complete"><div className="record-section-heading"><div><span className="section-icon"><Check size={17} /></span><div><h2>Project workspace created</h2><p>Accepted proposal details and any available commercial records are linked to the active project.</p></div></div></div><Link className="button button-primary" href={`/projects/${lead.projectId}`}>Open project workspace <ArrowRight size={14} /></Link></section>}
 
-    {lead.status === "ACCEPTED" && !lead.projectId && latest && <section className="panel record-section project-create-section"><div className="record-section-heading"><div><span className="section-icon"><Check size={17} /></span><div><h2>Move accepted project into Projects</h2><p>Set the project owner and setup details to create its workspace. Deposit and SOW tracking can be completed separately.</p></div></div></div>
+    {(["QUALIFIED", "PROPOSAL_SENT", "ACCEPTED"].includes(lead.status)) && !lead.projectId && projectProposal && <section className="panel record-section project-create-section"><div className="record-section-heading"><div><span className="section-icon"><Check size={17} /></span><div><h2>Move to Projects</h2><p>{lead.status === "ACCEPTED" ? "Set the project owner and setup details to create its workspace." : "Create an internal project workspace from the saved proposal. This will not mark the proposal accepted or share it with the client."} Deposit and SOW tracking can be completed separately.</p></div></div></div>
       <div className="commercial-proof"><span className={lead.acceptanceDocumentDataUrl ? "" : "commercial-proof-pending"}>{lead.acceptanceDocumentDataUrl ? <Check size={13} /> : <Clock3 size={13} />}Signed SOW · {lead.acceptanceDocumentDataUrl ? lead.acceptanceDocumentName : "not attached"}</span><span className={lead.invoice?.status === "CONFIRMED_PAID" ? "" : "commercial-proof-pending"}>{lead.invoice?.status === "CONFIRMED_PAID" ? <Check size={13} /> : <Clock3 size={13} />}Deposit · {lead.invoice ? lead.invoice.status.replaceAll("_", " ") : "not recorded"}</span></div>
       <form className="project-create-form" onSubmit={createProjectFromLead}>
-        <div className="proposal-fields-grid"><label className="field required">Project title<input name="projectTitle" required defaultValue={lead.services.length > 0 ? lead.services.join(", ") : `${lead.companyName || lead.fullName} Delivery`} /></label><label className="field required">Project classification<select name="classification" required defaultValue={lead.acquisitionSource === "Referral" ? "Referral" : lead.acquisitionSource === "Repeat client" ? "Repeat Client" : "New Client"}><option>New Client</option><option>Repeat Client</option><option>Referral</option></select></label><label className="field required">Project start date<input type="date" name="startDate" required /></label></div>
+        <div className="proposal-fields-grid"><label className="field required">Project title<input name="projectTitle" required defaultValue={lead.services.length > 0 ? lead.services.join(", ") : `${lead.companyName || lead.fullName} Delivery`} /></label><label className="field required">Project classification<select name="classification" required defaultValue={lead.acquisitionSource === "Referral" ? "Referral" : lead.acquisitionSource === "Repeat client" ? "Repeat Client" : "New Client"}><option>New Client</option><option>Repeat Client</option><option>Referral</option></select></label><label className="field required">Project start date<CalendarPicker name="startDate" required /></label></div>
         <div className="project-team-setup">
           <div>
             <h3>Initial team assignment</h3>

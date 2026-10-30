@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Clock3, ExternalLink, Mail, MapPin, Phone, Plus, Search, ShieldCheck, UserRoundCheck } from "lucide-react";
+import { ArrowRight, Clock3, ExternalLink, Mail, MapPin, Phone, Plus, Search, UserRoundCheck } from "lucide-react";
 import { formatLeadId, type Lead, type Qualification, readLeads, updateLead } from "@/lib/leads";
-import { operatingCompanies, type OperatingCompany } from "@/lib/companies";
 import { StatusBadge } from "@/app/_components/status-badge";
-import { updateProject } from "@/lib/projects";
 import { EmptyState } from "@/app/_components/empty-state";
+import { CalendarPicker } from "@/app/_components/calendar-picker";
 
 const disqualificationReasons = ["Budget too low", "Not a fit", "Spam", "No response"];
 const blankChecks = { genuine: "", budget: "", fit: "", capacity: "" };
@@ -37,6 +36,8 @@ export default function RequestsPage() {
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [callFields, setCallFields] = useState<Record<string, typeof blankCall>>({});
+  const [contactPickerLeadId, setContactPickerLeadId] = useState<string | null>(null);
+  const [contactDateTime, setContactDateTime] = useState<string>("");
 
   useEffect(() => {
     const refresh = () => setLeads(readLeads());
@@ -63,13 +64,27 @@ export default function RequestsPage() {
     return matchesStatus && matchesQuery;
   }), [leads, query, status]);
 
-  function logFirstContact(lead: Lead) {
-    if (!lead.firstContactAt) updateLead(lead.id, { firstContactAt: new Date().toISOString() });
+  function openContactPicker(lead: Lead) {
+    setContactPickerLeadId(lead.id);
+    const existing = lead.firstContactAt ? new Date(lead.firstContactAt) : new Date();
+    const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+    const y = existing.getFullYear();
+    const m = pad(existing.getMonth() + 1);
+    const d = pad(existing.getDate());
+    const hh = pad(existing.getHours());
+    const mm = pad(existing.getMinutes());
+    setContactDateTime(`${y}-${m}-${d}T${hh}:${mm}`);
   }
 
-  function assignOperatingCompany(lead: Lead, operatingCompany: OperatingCompany) {
-    updateLead(lead.id, { operatingCompany });
-    if (lead.projectId) updateProject(lead.projectId, { operatingCompany });
+  function saveManualFirstContact(leadId: string) {
+    const dateObj = contactDateTime ? new Date(contactDateTime) : new Date();
+    updateLead(leadId, { firstContactAt: Number.isNaN(dateObj.getTime()) ? new Date().toISOString() : dateObj.toISOString() });
+    setContactPickerLeadId(null);
+  }
+
+  function logNowFirstContact(leadId: string) {
+    updateLead(leadId, { firstContactAt: new Date().toISOString() });
+    setContactPickerLeadId(null);
   }
 
   function makeQualification(lead: Lead): Qualification {
@@ -110,8 +125,25 @@ export default function RequestsPage() {
     </section>
 
     <div className="pipeline-toolbar">
-      <div className="pipeline-tabs">{statusOptions.map(([key, label]) => <button key={key} className={status === key ? "selected" : ""} onClick={() => setStatus(key)}>{label}<span>{counts[key]}</span></button>)}</div>
-      <label className="pipeline-search"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search leads" /></label>
+      <div className="pipeline-tabs" role="tablist" aria-label="Filter leads by status">
+        {statusOptions.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={status === key}
+            className={status === key ? "selected" : ""}
+            onClick={() => setStatus(key)}
+          >
+            {label}
+            <span>{counts[key]}</span>
+          </button>
+        ))}
+      </div>
+      <label className="pipeline-search">
+        <Search size={15} />
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search leads" />
+      </label>
     </div>
 
     {visibleLeads.length === 0 ? <EmptyState icon={<Mail size={22} />} title={leads.length === 0 ? "No leads yet" : "No matching leads"} description={leads.length === 0 ? "Log a new enquiry to add it to your leads." : "Try another search or status filter."} action={leads.length === 0 ? <Link className="button button-primary" href="/requests/new">Log first enquiry <ArrowRight size={15} /></Link> : undefined} /> : <div className="lead-record-list">
@@ -123,7 +155,7 @@ export default function RequestsPage() {
             <span className="lead-main"><strong>{lead.fullName}<small>{lead.designation ? ` · ${lead.designation}` : ""}</small></strong><span>{lead.companyName || "Individual enquiry"} · {lead.services.join(", ")}</span></span>
             <StatusBadge status={lead.status} />
             <span className="lead-received"><Clock3 size={13} />{ageSince(lead.createdAt, now)}<small>received</small></span>
-            <span className="lead-response">{lead.firstContactAt ? <><UserRoundCheck size={14} /><span>First contact logged<small>{new Date(lead.firstContactAt).toLocaleString()}</small></span></> : <><Clock3 size={14} /><span>First contact pending<small>SLA target not configured</small></span></>}</span>
+            <span className="lead-response">{lead.firstContactAt ? <><UserRoundCheck size={14} /><span>First contact logged<small>{new Date(lead.firstContactAt).toLocaleString()}</small></span></> : <><Clock3 size={14} /><span>First contact pending</span></>}</span>
             <span className="lead-expand-caret">⌄</span>
           </button>
           {expanded === lead.id && <div className="lead-detail">
@@ -134,20 +166,91 @@ export default function RequestsPage() {
             <div className="lead-actions-row">
               <div className="contact-action">
                 <div>
-                  <h3>First contact</h3>
+                  <div className="first-contact-title-row">
+                    <h3>First contact</h3>
+                    {contactPickerLeadId !== lead.id && (
+                      <button type="button" className="button button-quiet" onClick={() => openContactPicker(lead)}>
+                        {lead.firstContactAt ? "Edit date & time" : "Log first contact"}
+                      </button>
+                    )}
+                  </div>
                   <p>{lead.firstContactAt ? `Contact logged ${new Date(lead.firstContactAt).toLocaleString()}.` : "Record when the team first reaches out to this lead."}</p>
                   <div className="first-contact-budget-source">
-                    <div className="first-contact-budget-heading"><span>03</span><h4>Budget &amp; source</h4></div>
+                    <div className="first-contact-budget-heading"><h4>Budget &amp; source</h4></div>
                     <div className="first-contact-meta">
                       <span><b>Budget</b>{lead.budgetShared ? lead.budgetRange || "Not provided" : "Declined to share"}</span>
                       <span><b>Source</b>{lead.source || "Not provided"}</span>
                       <span><b>Found via</b>{lead.acquisitionSource || "Not provided"}</span>
                     </div>
-                    <label className="first-contact-company">Operating company<select aria-label={`Assign ${lead.companyName || lead.fullName} to an operating company`} value={lead.operatingCompany ?? ""} onChange={(event) => { const value = event.target.value; if (operatingCompanies.some((company) => company === value)) assignOperatingCompany(lead, value as OperatingCompany); }}><option value="">Choose Evecture or Servn</option>{operatingCompanies.map((company) => <option key={company} value={company}>{company}</option>)}</select><small>Project assignment follows this choice; update it here any time.</small></label>
+                    <div className="first-contact-company"><span>Operating company</span><strong>{lead.operatingCompany || "Not selected"}</strong><Link href={`/requests/${lead.id}#workflow-company`}>{lead.operatingCompany ? "Review selection" : "Choose before proposal"}<ArrowRight size={12} /></Link><small>Choose the responsible studio before drafting a proposal.</small></div>
                     {lead.budgetNote && <p className="budget-note-display">{lead.budgetNote}</p>}
                   </div>
                 </div>
-                {!lead.firstContactAt && <div className="contact-action-tools"><button className="button button-quiet" onClick={() => logFirstContact(lead)}>Log first contact</button></div>}
+
+                {contactPickerLeadId === lead.id && (
+                  <div
+                    className="manual-contact-picker-panel"
+                    style={{
+                      marginTop: "12px",
+                      padding: "14px",
+                      background: "#ffffff",
+                      border: "1.5px solid #0f172a",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "10px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <strong style={{ fontSize: "13px", color: "#0f172a" }}>
+                        {lead.firstContactAt ? "Edit contact date & time" : "Log first contact"}
+                      </strong>
+                      <button
+                        type="button"
+                        onClick={() => setContactPickerLeadId(null)}
+                        style={{ border: "none", background: "transparent", cursor: "pointer", color: "#64748b", fontSize: "14px", padding: "2px" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px", color: "#475569" }}>
+                      <span>Select or enter date &amp; time</span>
+                      <CalendarPicker
+                        mode="datetime"
+                        value={contactDateTime}
+                        onChange={setContactDateTime}
+                        placeholder="YYYY-MM-DD HH:mm"
+                      />
+                    </label>
+
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
+                      <button
+                        type="button"
+                        className="button button-primary"
+                        style={{ height: "32px", fontSize: "12px" }}
+                        onClick={() => saveManualFirstContact(lead.id)}
+                      >
+                        Save date &amp; time
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-quiet"
+                        style={{ height: "32px", fontSize: "12px" }}
+                        onClick={() => logNowFirstContact(lead.id)}
+                      >
+                        Log with current time (Now)
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-quiet"
+                        style={{ height: "32px", fontSize: "12px" }}
+                        onClick={() => setContactPickerLeadId(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               {lead.status === "NEW" && <div className="qualification-box">
                 <div><h3>Discovery call & qualification</h3><p>Record the call and confirm fit before moving to proposal preparation.</p></div>
@@ -156,12 +259,20 @@ export default function RequestsPage() {
                   <label className="field">Actual problem<textarea rows={2} value={call.problem} onChange={(event) => setCallFields((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankCall), problem: event.target.value } }))} placeholder="What is the client trying to solve?" /></label>
                   <label className="field">Desired outcome<textarea rows={2} value={call.outcome} onChange={(event) => setCallFields((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankCall), outcome: event.target.value } }))} placeholder="What result would make this successful?" /></label>
                   <label className="field">Decision-maker / sign-off authority<input value={call.decisionMaker} onChange={(event) => setCallFields((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankCall), decisionMaker: event.target.value } }))} placeholder="Name or role" /></label>
-                  <label className="field">Decision timeline<input value={call.timeline} onChange={(event) => setCallFields((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankCall), timeline: event.target.value } }))} placeholder="Target date or timeframe" /></label>
+                  <div className="field">
+                    <span>Decision timeline</span>
+                    <CalendarPicker
+                      mode="timeline"
+                      value={call.timeline}
+                      onChange={(val) => setCallFields((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankCall), timeline: val } }))}
+                      placeholder="Target date or timeframe"
+                    />
+                  </div>
                 </div>
                 <label className="field qualification-note">Discovery call notes<textarea rows={3} value={notes[lead.id] ?? ""} onChange={(event) => setNotes((current) => ({ ...current, [lead.id]: event.target.value }))} placeholder="Summary and follow-up from the discovery call" /></label>
                 <div className="qualification-actions"><label className="disqualify-select"><span>Disqualify reason</span><select value={reasons[lead.id] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [lead.id]: event.target.value }))}><option value="">Choose a reason</option>{disqualificationReasons.map((reason) => <option key={reason}>{reason}</option>)}</select></label><button className="button button-quiet" onClick={() => saveCallNotes(lead)}>Save call notes</button><button className="button button-quiet disqualify-button" disabled={!reasons[lead.id]} onClick={() => disqualify(lead)}>Disqualify</button><button className="button button-primary" disabled={Object.values(answer).some((value) => value !== "yes")} onClick={() => qualify(lead)}>Mark qualified <ArrowRight size={14} /></button></div>
               </div>}
-              {lead.status !== "NEW" && <div className="archived-qualification"><ShieldCheck size={15} /><span>{lead.status === "QUALIFIED" ? "Qualified for proposal" : lead.status === "PROPOSAL_SENT" ? "Proposal sent · awaiting client" : lead.status === "ACCEPTED" ? "Accepted · ready for project setup" : lead.status === "CONVERTED" ? "Converted · active project created" : lead.status === "LOST" ? `Lost · ${lead.disqualificationReason || "Reason not recorded"}` : `Disqualified · ${lead.disqualificationReason || "Reason not recorded"}`}</span>{lead.qualificationNote && <p>{lead.qualificationNote}</p>}{lead.status === "CONVERTED" && lead.projectId && <Link className="button button-primary" href={`/projects/${lead.projectId}`}>Open project <ArrowRight size={14} /></Link>}{lead.status === "ACCEPTED" && <Link className="button button-primary" href={`/requests/${lead.id}`}>Move to Projects <ArrowRight size={14} /></Link>}{lead.status !== "ACCEPTED" && <Link className="button button-quiet" href={`/requests/${lead.id}`}>Open lead workspace <ArrowRight size={14} /></Link>}</div>}
+              {lead.status !== "NEW" && <div className="archived-qualification"><div className="archived-qualification-status"><span>{lead.status === "QUALIFIED" ? "Qualified for proposal" : lead.status === "PROPOSAL_SENT" ? "Proposal sent · awaiting client" : lead.status === "ACCEPTED" ? "Accepted · ready for project setup" : lead.status === "CONVERTED" ? "Converted · active project created" : lead.status === "LOST" ? `Lost · ${lead.disqualificationReason || "Reason not recorded"}` : `Disqualified · ${lead.disqualificationReason || "Reason not recorded"}`}</span></div>{lead.qualificationNote && <p>{lead.qualificationNote}</p>}<div className="archived-qualification-actions">{lead.status === "CONVERTED" && lead.projectId && <Link className="button button-primary" href={`/projects/${lead.projectId}`}>Open project <ArrowRight size={14} /></Link>}{lead.status === "ACCEPTED" && <Link className="button button-primary" href={`/requests/${lead.id}`}>Move to Projects <ArrowRight size={14} /></Link>}{lead.status !== "ACCEPTED" && <Link className="button button-quiet" href={`/requests/${lead.id}`}>Open lead workspace <ArrowRight size={14} /></Link>}</div></div>}
             </div>
           </div>}
         </article>;

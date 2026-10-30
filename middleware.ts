@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
 // Supabase session state is hydrated in the client provider. The workspace
 // shell enforces the signed-in boundary while proposal links remain public.
-export function middleware(_request: NextRequest) {
+export function middleware() {
   return NextResponse.next();
 }
 

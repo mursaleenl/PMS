@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { ProjectConversation } from "@/app/_components/project-conversation";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, Check, Download, ExternalLink, FileText, FolderKanban, Handshake, Link2, Plus, Trash2, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Download, ExternalLink, FileText, FolderKanban, Handshake, Link2, Plus, Receipt, Trash2, Users, X } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
 import { deleteProject, readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject } from "@/lib/post-sale";
@@ -11,8 +12,8 @@ import { useWorkspaceAuth } from "@/lib/workspace-auth";
 import { showToast } from "@/app/_components/toast-hub";
 import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignees";
 
-type ProjectTab = "Overview" | "Staging & Links";
-const projectTabs: ProjectTab[] = ["Overview", "Staging & Links"];
+type ProjectTab = "Overview" | "Staging & Links" | "Messages";
+const projectTabs: ProjectTab[] = ["Overview", "Staging & Links", "Messages"];
 
 type AssigneeOption = {
   id?: string;
@@ -292,20 +293,21 @@ export default function ProjectWorkspacePage() {
     const labels = { staging: "Staging URL", repository: "Repository URL", design: "Design file URL", other: "Other project link" };
     const value = window.prompt(labels[key], project.links?.[key] || "");
     if (value === null) return;
+    if (value.trim() && !/^https?:\/\//i.test(value.trim())) { showToast({message:"Enter a link starting with https:// or http://"}); return; }
     save({ links: { ...project.links, [key]: value.trim() || undefined } });
   }
 
   if (loading) return <div className="page-content"><div className="panel pipeline-empty"><p>Loading project workspace…</p></div></div>;
-  if (!project) return <div className="page-content"><div className="panel pipeline-empty"><h2>Project workspace not found</h2><p>This browser does not have a record for that project.</p><Link className="button button-quiet" href="/projects"><ArrowLeft size={14} />Project portfolio</Link></div></div>;
+  if (!project) return <div className="page-content"><div className="panel pipeline-empty"><h2>Project workspace not found</h2><p>This project may have been removed or you may not have access to it.</p><Link className="button button-quiet" href="/projects"><ArrowLeft size={14} />Project portfolio</Link></div></div>;
 
-  const workItems = (project.workItems ?? []).map((task) => task.status === "UNDER_REVIEW" ? { ...task, status: "IN_PROGRESS" as const } : task);
+  const workItems = project.workItems ?? [];
   const clientBlocked = workItems.some((task) => task.status === "BLOCKED");
   const marginAlert = workItems.some((task) => task.estimatedHours > 0 && task.loggedHours / task.estimatedHours >= 0.85);
   const health = clientBlocked ? { label: "Blocked work", className: "health-blocked" } : marginAlert ? { label: "Margin alert", className: "health-risk" } : { label: "On track", className: "health-good" };
 
   return <div className="page-content project-detail-page">
     <Link className="back-link" href="/projects"><ArrowLeft size={15} />Project portfolio</Link>
-    <header className="record-heading project-room-heading"><div><h1>{project.title}</h1></div><div className="project-lifecycle-actions"><span className={`health-pill ${health.className}`}><i />{health.label}</span>{project.status === "COMPLETED" ? managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-primary" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>}{role === "admin" && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></header>
+    <header className="record-heading project-room-heading"><div><h1>{project.title}</h1></div><div className="project-lifecycle-actions"><span className={`health-pill ${health.className}`}>{health.label}</span>{project.invoice ? <Link className="button button-quiet" href={`/invoices?invoice=${project.invoice.invoiceNumber}`} title="View invoice"><Receipt size={14} />{project.invoice.invoiceNumber}</Link> : <Link className="button button-quiet" href={`/invoices?project=${project.id}`} title="Generate invoice for this project"><Receipt size={14} />Create invoice</Link>}{project.status === "COMPLETED" ? managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-primary" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>}{role === "admin" && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></header>
 
     <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{project.status === "COMPLETED" ? "Completed" : "Active"}</strong></div><div><small>OPEN WORK ITEMS</small><strong><Link href="/work" style={{ textDecoration: "none", color: "inherit" }}>{workItems.filter((task) => task.status !== "DONE").length} · In Tasks</Link></strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim() && !DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim())).length}</strong></div></section>
 
@@ -318,7 +320,7 @@ export default function ProjectWorkspacePage() {
       <section className="project-detail-grid">
         <div className="project-detail-main">
           {workItems.length > 0 && (
-            <article className="panel project-data-panel">
+            <article className="panel project-data-panel project-task-preview-panel">
               <div className="panel-heading">
                 <div>
                   <h2>Project tasks</h2>
@@ -344,7 +346,7 @@ export default function ProjectWorkspacePage() {
               </div>
             </article>
           )}
-          <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Commercial & scope</h2><p>Carried over from accepted proposal</p></div></div><div className="project-commercial-list"><div><small>Operating company</small><strong>{project.operatingCompany ?? "Evecture"}</strong></div><div><small>Billing structure</small><strong>{project.billingStructure}</strong></div><div><small>Deposit invoice</small><strong>{project.invoice ? `${project.invoice.invoiceNumber} · ${project.invoice.status.replaceAll("_", " ")}` : "Not recorded"}</strong></div><div><small>Payment terms</small><p>{project.invoice?.paymentTerms || "No additional terms recorded."}</p></div><div><small>Included revision rounds</small><strong>{project.revisionRounds}</strong></div><div><small>Included scope</small><p>{project.scopeIncluded}</p></div><div><small>Excluded scope</small><p>{project.scopeExcluded || "None specified"}</p></div><div><small>Assumptions</small><p>{project.assumptions || "None specified"}</p></div></div></article>
+          <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Commercial & scope</h2><p>Carried over from accepted proposal</p></div></div><div className="project-commercial-list"><div><small>Operating company</small><strong>{project.operatingCompany ?? "Evecture"}</strong></div><div><small>Billing structure</small><strong>{project.billingStructure}</strong></div><div><small>Payment terms</small><p>{project.invoice?.paymentTerms || "No additional terms recorded."}</p></div><div><small>Included revision rounds</small><strong>{project.revisionRounds}</strong></div><div><small>Included scope</small><p>{project.scopeIncluded}</p></div><div><small>Excluded scope</small><p>{project.scopeExcluded || "None specified"}</p></div><div><small>Assumptions</small><p>{project.assumptions || "None specified"}</p></div></div></article>
         </div>
         <aside className="project-detail-side"><article className="panel project-data-panel"><div className="panel-heading"><div><h2>Team</h2><p>Assigned roles and allocation</p></div><Users size={16} /></div><div className="team-assignment-list">{project.team.map((member, index) => {
           const isDummy = DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim());
@@ -352,14 +354,15 @@ export default function ProjectWorkspacePage() {
           const allocation = isDummy ? "—" : (member.name ? `${member.allocationPercent}%` : "—");
           return <div className="team-assignment" key={`${member.role}-${index}`}><span className="team-role-icon"><Users size={14} /></span><div><strong>{member.role}</strong><small>{displayName}</small></div><b>{allocation}</b></div>;
         })}</div><Link className="assignment-inline-link" href="/projects/assignments">Manage project assignments <ArrowRight size={13} /></Link></article>
-          <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Project documents</h2><p>Signed commercial records</p></div><FileText size={16} /></div><div className="document-links">{project.signedContractDataUrl && project.signedContractName ? <a href={project.signedContractDataUrl} download={project.signedContractName}><Download size={14} />{project.signedContractName}</a> : <span className="document-pending">Signed SOW not attached</span>}{project.invoice && <Link href={`/requests/${project.leadId}`}><ExternalLink size={14} />{project.invoice.invoiceNumber} · invoice record</Link>}</div></article></aside>
+          <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Project documents</h2><p>Signed commercial records</p></div><FileText size={16} /></div><div className="document-links">{project.signedContractDataUrl && project.signedContractName ? <a href={project.signedContractDataUrl} download={project.signedContractName}><Download size={14} />{project.signedContractName}</a> : <span className="document-pending">Signed SOW not attached</span>}{project.invoice ? <Link href={`/invoices?invoice=${project.invoice.invoiceNumber}`}><ExternalLink size={14} />{project.invoice.invoiceNumber} · invoice record</Link> : <Link className="document-pending" href={`/invoices?project=${project.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px", color: "inherit" }}><Receipt size={13} />No invoice recorded · Create invoice</Link>}</div></article></aside>
       </section>
     </>}
 
-    {activeTab === "Staging & Links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"]] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16} /></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12} /></a> : <strong>Not added</strong>}</div><button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button></article>; })}</div><p className="storage-note">Links are stored in this browser workspace. Environment creation and repository permissions are managed outside this module.</p></section>}
+    {activeTab === "Messages" && <section className="panel portal-record"><ProjectConversation projectId={project.id}/></section>}
+    {activeTab === "Staging & Links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"]] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16} /></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12} /></a> : <strong>Not added</strong>}</div><button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button></article>; })}</div><p className="storage-note">Project links are saved to your workspace. Repository and hosting permissions are managed by their providers.</p></section>}
 
     {showDispatch && <TaskDispatchDrawer project={project} onClose={() => setShowDispatch(false)} onDispatch={dispatchTask} />}
     {showManagedPlan && <ManagedPlanDrawer projects={[project]} initialProjectId={project.id} onClose={() => setShowManagedPlan(false)} onCreated={(item) => setManagedPlan(item)} />}
-    <p className="storage-note">Project changes update this browser workspace and other open tabs. Shared server sync is not connected.</p>
+    <p className="storage-note">Changes are saved to your workspace database.</p>
   </div>;
 }

@@ -1,0 +1,1520 @@
+/* Reference-driven charcoal surfaces, coloured workflow chips and navigation islands. */
+@media screen {
+  :is(.app-shell,.auth-page,.access-denied,.user-modal-backdrop,.invoice-preview-backdrop,.task-drawer-backdrop) {
+    --ws-bg: #101114; --ws-surface: #191b20; --ws-subtle-surface: #1d2026;
+    --ws-raised: #272b34; --ws-border: #30343e; --ws-text: #e9ebf0;
+    --ws-muted: #9da4b3; --ws-primary: #2563eb; --ws-primary-hover: #1d4ed8;
+    --ws-accent: #93c5fd; --ws-accent-border: #3b82f6; --ws-selection: #172b4d;
+  }
+  body { background: #101114; }
+  .app-shell { font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  .app-shell .main-area .page-content h1 { font-family: var(--font-inter), sans-serif !important; font-size: clamp(22px,2vw,26px); font-weight: 650; line-height: 1.3; letter-spacing: .025em; text-transform: uppercase !important; text-wrap: balance; }
+  .app-shell :is(h2,h3,h4,input,select,textarea) { font-family: var(--font-inter), sans-serif; }
+  .app-shell .main-area .page-content :is(input,select,textarea) { font-size: 13px; }
+  .app-shell .workspace-wordmark { display: inline-flex; align-items: center; gap: 9px; line-height: 1; }
+  .app-shell .workspace-logo { display: block; flex: 0 0 27px; object-fit: contain; }
+  .app-shell .workspace-topbar :is(.topbar-user-btn,.global-search-trigger,.workspace-create,.notification-button) { align-self: center; }
+  .app-shell .main-area .page-content .attendance-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .app-shell .main-area .attendance-page > .panel { padding: 24px; margin-bottom: 20px; }
+  .app-shell .attendance-office > img { display: block; width: min(360px,100%); height: auto; margin: 24px auto; }
+  .app-shell .attendance-office { max-width: 650px; margin-inline: auto; text-align: center; }
+  .app-shell .attendance-scan { max-width: 650px; margin-inline: auto; overflow-wrap: anywhere; }
+  .app-shell .attendance-qr-placeholder { min-height: 240px; display: grid; place-items: center; }
+  .app-shell .attendance-correction { display: grid; gap: 10px; min-width: 220px; }
+  .app-shell .attendance-page .performance-table details p { margin: 6px 0; font-size: 12px; }
+
+  .app-shell .workspace-topbar { background: rgb(24 26 32 / 88%); border-color: rgb(255 255 255 / 8%); border-radius: 16px !important; box-shadow: 0 10px 32px rgb(0 0 0 / 24%), inset 0 1px 0 rgb(255 255 255 / 3%); }
+  .app-shell .workspace-topbar.is-scrolled { background: rgb(24 26 32 / 96%); }
+  .app-shell .workspace-topbar :is(.global-search-trigger,.topbar-user-btn) { border-radius: 9px !important; background: rgb(255 255 255 / 3%) !important; }
+  .app-shell .workspace-topbar :is(.workspace-nav-toggle,.mobile-menu,.notification-button) { border-radius: 8px !important; }
+  /* Keep the shared header flush with the viewport instead of floating above content. */
+  .app-shell .workspace-topbar { inset: 0 0 auto !important; width: 100% !important; max-width: none !important; margin: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+  /* Keep form fields readable on the light workspace surfaces. */
+  .app-shell :is(input,select,textarea), .task-drawer-backdrop :is(input,select,textarea) { color-scheme: light; }
+  .app-shell .main-area .page-content :is(select,.field input:not([type="checkbox"]):not([type="radio"]),.field textarea,.qualification-note textarea),
+  .task-drawer-backdrop :is(select,input:not([type="checkbox"]):not([type="radio"]),textarea) {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+    color-scheme: light !important;
+  }
+  .app-shell .main-area .page-content select option, .task-drawer-backdrop select option { background: #ffffff !important; color: #0f172a !important; }
+  /* Use one clear focus border for date and text fields. */
+  .app-shell .main-area .page-content :is(input,select,textarea):focus,
+  .task-drawer-backdrop :is(input,select,textarea):focus { outline: none !important; border-color: #3b82f6 !important; box-shadow: none !important; }
+  /* Keep the dispatch panel fully below the fixed workspace header and give it room to breathe. */
+  .app-shell .task-drawer-backdrop { inset: var(--workspace-header, 58px) 0 0 !important; z-index: 90 !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer { width: min(640px, 100%) !important; height: 100% !important; max-height: 100%; padding: 32px !important; overflow-y: auto; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer > header { margin-bottom: 30px !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer h2 { font-size: 25px !important; line-height: 1.3; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer > header p { margin-top: 8px !important; font-size: 14px !important; line-height: 1.5; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer form { gap: 22px !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer .field { gap: 9px !important; font-size: 15px !important; font-weight: 550; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer .field :is(input,select,textarea) { min-height: 50px !important; padding: 12px 14px !important; font-size: 16px !important; line-height: 1.4; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer .field .field-hint { font-size: 13px; line-height: 1.5; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer form > footer { gap: 12px; margin-top: 12px; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer form > footer .button { min-height: 48px !important; padding-inline: 20px !important; font-size: 15px !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer { color: #0f172a !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer :is(h2,.field,label) { color: #334155 !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer .field-hint { color: #64748b !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer :is(input,select,textarea) { color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; background: #ffffff !important; border-color: #cbd5e1 !important; color-scheme: light !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer :is(input,textarea)::placeholder { color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; opacity: 1; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer select option { color: #0f172a !important; background: #ffffff !important; }
+  .app-shell .main-area .page-content .calendar-input-wrapper:focus-within { outline: none !important; box-shadow: none !important; }
+  .app-shell .main-area .page-content .calendar-input-wrapper input:focus { border-color: #3b82f6 !important; box-shadow: none !important; }
+  .app-shell, .app-shell.sidebar-collapsed { --workspace-sidebar: 64px; }
+  .app-shell .main-area, .app-shell.sidebar-collapsed .main-area { flex: 0 0 auto; margin-left: 88px; width: calc(100% - 88px); max-width: calc(100% - 88px); transition: none; }
+  .app-shell .sidebar, .app-shell.sidebar-collapsed .sidebar {
+    inset: var(--navigation-offset) auto auto 12px; transform: none; max-height: calc(100dvh - var(--navigation-offset) - 12px);
+    height: calc(100dvh - var(--navigation-offset) - 12px); min-height: 0; padding-top: 16px; padding-bottom: 14px;
+    border-radius: 22px !important; background: rgb(25 27 33 / 96%);
+    box-shadow: 0 16px 45px rgb(0 0 0 / 32%), inset 0 1px 0 rgb(255 255 255 / 4%);
+    border: 1px solid rgb(255 255 255 / 9%); overflow: hidden;
+  }
+  .app-shell .sidebar { width: 244px; }
+  .app-shell.sidebar-collapsed .sidebar { width: 64px; }
+  .app-shell.sidebar-expanded .sidebar { width: 244px; padding: 20px 12px 12px; }
+  .app-shell .sidebar .sidebar-nav-scroll { flex: 1; min-height: 0; }
+  .app-shell .sidebar .nav-group { margin-bottom: 14px; }
+  .app-shell.sidebar-collapsed .sidebar .nav-group { margin-bottom: 7px; }
+  .app-shell .sidebar .nav-link { border-radius: 10px !important; height: 38px; }
+  .app-shell .sidebar .nav-link:hover { background: rgb(255 255 255 / 6%); }
+  .app-shell .sidebar .nav-link.active { background: #272b34 !important; color: #ffffff !important; border-color: transparent !important; box-shadow: none !important; }
+  .app-shell .sidebar .nav-link.active .nav-icon { color: #ffffff !important; }
+  .app-shell.sidebar-collapsed .sidebar .nav-link { width: 44px; border-radius: 13px !important; }
+  .app-shell.sidebar-expanded .sidebar .nav-link { width: 100%; margin: 0; padding: 0 12px; justify-content: flex-start; gap: 11px; }
+  .app-shell .sidebar .nav-icon { width: 20px; min-width: 20px; height: 20px; flex-shrink: 0; }
+  .app-shell .sidebar .workspace-sidebar-heading, .app-shell .sidebar .workspace-sidebar-footer { flex-shrink: 0; }
+  .app-shell .workspace-sidebar-footer { margin-top: 7px; padding-top: 10px; }
+  .app-shell .main-area .page-content :is(.panel,.portfolio-card,.client-card,.lead-record,.overview-summary-card,.invoice-stat-card,.task-stat-card,.overview-project-card,.role-summary-card) { border-radius: 12px !important; background: linear-gradient(145deg,#1c1e24,#181a1f); border: 1px solid rgb(255 255 255 / 7%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 2%); }
+  .app-shell .main-area .page-content :is(.overview-summary-card,.invoice-stat-card,.task-stat-card) { position: relative; overflow: hidden; --metric-accent: #3b82f6; }
+  .app-shell .main-area .page-content :is(.overview-summary-card,.invoice-stat-card,.task-stat-card):nth-child(2) { --metric-accent: #70d5db; }
+  .app-shell .main-area .page-content :is(.overview-summary-card,.invoice-stat-card,.task-stat-card):nth-child(3) { --metric-accent: #3b82f6; }
+  .app-shell .main-area .page-content :is(.overview-summary-card,.invoice-stat-card,.task-stat-card):nth-child(4) { --metric-accent: #80d7a9; }
+  .app-shell .main-area .page-content :is(.overview-summary-card,.invoice-stat-card,.task-stat-card)::before { content: ""; position: absolute; top: 19px; left: 0; width: 2px; height: 24px; background: var(--metric-accent); opacity: .8; }
+  .app-shell .main-area .page-content :is(.invoice-stat-card,.task-stat-card).selected { border-color: #3b82f6 !important; background: linear-gradient(145deg,#172b4d,#1b1d27) !important; }
+  .app-shell .main-area .page-content :is(.button,.task-sort-button,.task-filter-select,.task-view-switcher,.view-switcher-button),
+  .app-shell .workspace-topbar .button { border-radius: 8px !important; }
+  .app-shell .main-area .page-content .button-primary, .app-shell .workspace-topbar .button-primary { background: linear-gradient(180deg,#3b82f6,#2563eb) !important; border-color: #2563eb !important; box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 3px 9px rgb(0 0 0 / 14%); }
+  .app-shell .main-area .page-content .button-primary:hover, .app-shell .workspace-topbar .button-primary:hover { background: linear-gradient(180deg,#2563eb,#1d4ed8) !important; box-shadow: 0 4px 14px rgb(37 99 235 / 16%); }
+  .app-shell .main-area .page-content .button-quiet { background: #25282f !important; border-color: #363a44 !important; color: #d4d8e3 !important; }
+  .app-shell .main-area .page-content .button-quiet:hover { background: #30343e !important; border-color: #464b59 !important; }
+  .app-shell .main-area .page-content .button-danger { background: #342227 !important; border-color: #64363f !important; color: #ffadb5 !important; }
+  .app-shell .main-area .page-content :is(input:not([type="checkbox"]),select,textarea,.pipeline-search,.task-table-search,.invoice-table-search) { border-radius: 8px !important; }
+  .app-shell .main-area .page-content .field :is(input:not([type="checkbox"]),select,textarea) { background: #15171c; border-color: #363b46; }
+  .user-modal-backdrop .invoice-modal-card .user-modal-heading h2,
+  .user-modal-backdrop .invoice-modal-card .field,
+  .user-modal-backdrop .invoice-modal-card .field-label { color: #e9ebf0 !important; }
+  .user-modal-backdrop .invoice-modal-card .user-modal-heading .section-kicker,
+  .user-modal-backdrop .invoice-modal-card .user-modal-heading p,
+  .user-modal-backdrop .invoice-modal-card .invoice-deposit-choice small { color: #9da4b3 !important; }
+  .user-modal-backdrop .invoice-modal-card .invoice-deposit-choice > span { display: flex; align-items: center; gap: 10px; color: #e9ebf0; }
+  .user-modal-backdrop .invoice-modal-card .invoice-deposit-choice input[type="checkbox"] {
+    flex: 0 0 16px; width: 16px !important; min-width: 16px; height: 16px !important; min-height: 16px !important;
+    padding: 0 !important; border: 1px solid #94a3b8 !important; background: #ffffff !important; color: #0f172a !important;
+  }
+  .user-modal-backdrop .invoice-modal-card .invoice-deposit-choice input[type="checkbox"]:checked::before { border-color: #0f172a !important; }
+  .app-shell .main-area .page-content :is(.invoice-table,.task-table,.performance-table) th { background: #15171b; color: #8f97a7; }
+  .app-shell .main-area .page-content :is(.invoice-table,.task-table,.performance-table) td { border-bottom-color: rgb(255 255 255 / 4%); }
+  .app-shell .main-area .page-content :is(.invoice-table,.task-table,.performance-table) tbody tr:hover { background: rgb(255 255 255 / 3%); }
+  :is(.app-shell .users-page,.user-modal-backdrop) .user-role-badge {
+    display: inline-flex; align-items: center; gap: 6px; padding: 0 !important;
+    background: transparent !important; border: 0 !important; box-shadow: none !important;
+    font-size: 11px; font-weight: 600;
+  }
+  :is(.app-shell .users-page,.user-modal-backdrop) .user-role-badge.user-role-admin { color: #f87171 !important; }
+  :is(.app-shell .users-page,.user-modal-backdrop) .user-role-badge.user-role-employee { color: #79adff !important; }
+  :is(.app-shell .users-page,.user-modal-backdrop) .user-role-badge.user-role-client { color: #ffffff !important; }
+  :is(.app-shell .users-page,.user-modal-backdrop) .user-role-badge svg { color: inherit !important; }
+  .app-shell .status-badge { --status-rgb: 158, 167, 184; --status-color: #bdc5d3; }
+  .app-shell .main-area .page-content .status-badge {
+    display: inline-flex !important; align-items: center; gap: 5px; width: max-content;
+    min-height: 22px !important; padding: 3px 8px !important;
+    color: var(--status-color) !important; background: rgba(var(--status-rgb),.1) !important;
+    border: 1px solid rgba(var(--status-rgb),.24) !important; border-radius: 999px !important;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%) !important;
+    font-size: 10px !important; font-weight: 500 !important; line-height: 1.2 !important;
+    letter-spacing: 0 !important; text-transform: none !important; white-space: nowrap;
+  }
+  .app-shell .main-area .page-content .status-badge svg { flex-shrink: 0; }
+  .app-shell .status-badge:is([data-status="TO_DO"],[data-status="NEW"],[data-status="DRAFT"],[data-status="PENDING"],[data-status="NOT_STARTED"]) { --status-rgb: 59, 130, 246; --status-color: #93c5fd; }
+  .app-shell .status-badge:is([data-status="IN_PROGRESS"],[data-status="ACTIVE"]) { --status-rgb: 87, 205, 218; --status-color: #7edce7; }
+  .app-shell .status-badge:is([data-status="UNDER_REVIEW"],[data-status="IN_REVIEW"],[data-status="QUALIFIED"]) { --status-rgb: 232, 185, 86; --status-color: #f1cd85; }
+  .app-shell .status-badge:is([data-status="DONE"],[data-status="COMPLETED"],[data-status="CONFIRMED_PAID"],[data-status="ACCEPTED"],[data-status="CONVERTED"]) { --status-rgb: 89, 201, 144; --status-color: #87dfb1; }
+  .app-shell .status-badge:is([data-status="BLOCKED"],[data-status="LOST"],[data-status="DISQUALIFIED"],[data-status="DECLINED"],[data-status="OVERDUE"],[data-status="EXPIRED"],[data-status="P1"]) { --status-rgb: 228, 108, 128; --status-color: #f4a0ad; }
+  .app-shell .status-badge:is([data-status="SENT"],[data-status="PROPOSAL_SENT"],[data-status="ON_HOLD"]) { --status-rgb: 104, 156, 236; --status-color: #9dc1fc; }
+  .app-shell .main-area .page-content [data-company="Evecture"] { color: #f87171 !important; background: transparent !important; border: 0 !important; padding: 0 !important; }
+  .app-shell .main-area .page-content [data-company="Servn"] { color: #79adff !important; background: transparent !important; border: 0 !important; padding: 0 !important; }
+  .app-shell .main-area .task-management-page .task-kanban-board { display: grid; grid-template-columns: repeat(5,minmax(230px,1fr)); gap: 12px; overflow-x: auto; padding: 16px; align-items: start; }
+  .app-shell .main-area .task-management-page .task-kanban-column { min-width: 0; border-radius: 11px !important; background: #131519; border: 1px solid rgb(255 255 255 / 4%); }
+  .app-shell .main-area .task-management-page .task-kanban-column-header { padding: 13px 11px; }
+  .app-shell .main-area .task-management-page .task-kanban-column-title h3 { font-size: 12px; color: #c3c8d4; }
+  .app-shell .main-area .task-management-page .task-kanban-column-dot { width: 3px; height: 14px; border-radius: 3px !important; }
+  .app-shell .main-area .task-management-page .task-kanban-card { border-radius: 10px !important; padding: 13px; border: 1px solid rgb(255 255 255 / 6%); background: linear-gradient(145deg,#22252c,#1b1e24); box-shadow: 0 3px 8px rgb(0 0 0 / 9%); }
+  .app-shell .main-area .task-management-page .task-kanban-card:hover { border-color: #50556a; transform: translateY(-2px); }
+  .app-shell .main-area .task-management-page .task-kanban-card-title { font-size: 12px; line-height: 1.55; font-weight: 500; color: #e0e3eb; }
+  .app-shell :is(.topbar-profile-dropdown,.notification-popover,.command-dialog,.calendar-popover-panel) { border-radius: 12px !important; }
+  .app-shell .main-area .page-content .calendar-input-wrapper { border-radius: 8px !important; }
+  .mobile-navigation-island { display: none; }
+}
+@media screen and (max-width: 700px) {
+  .app-shell .workspace-topbar { gap: 6px; }
+  .app-shell .workspace-topbar .workspace-topbar-brand { gap: 6px; }
+  .app-shell .workspace-topbar .top-actions { gap: 5px; }
+  .app-shell .workspace-topbar .topbar-user-btn { width: 30px; min-width: 30px; padding: 0; justify-content: center; }
+  .app-shell .workspace-topbar :is(.topbar-user-name,.topbar-user-role-badge,.topbar-chevron) { display: none !important; }
+  .app-shell .workspace-topbar .topbar-user-icon { display: grid; place-items: center; width: 18px; height: 18px; }
+  .app-shell .workspace-wordmark { font-size: 14px; gap: 6px; }
+  .app-shell .workspace-logo { width: 24px; height: 24px; flex-basis: 24px; }
+
+  .app-shell .main-area, .app-shell.sidebar-collapsed .main-area { margin-left: 0; width: 100%; max-width: 100%; }
+  .app-shell .main-area .page-content { padding-bottom: calc(125px + env(safe-area-inset-bottom,0px)); }
+  .app-shell .sidebar, .app-shell.sidebar-collapsed .sidebar { inset: var(--navigation-offset) auto auto 10px; width: 232px; height: auto; min-height: 0; max-height: calc(100dvh - 170px); transform: translateX(-110%); border-radius: 18px !important; }
+  .app-shell .sidebar.sidebar-open { transform: translateX(0); }
+  .mobile-navigation-island {
+    position: fixed; z-index: 95; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom,0px));
+    transform: translateX(-50%); display: flex; flex-direction: column; align-items: center;
+    width: min(460px,calc(100% - 24px)); max-width: calc(100vw - 24px);
+    padding: 2px 8px 7px; border: 1px solid rgb(255 255 255 / 15%);
+    border-radius: 30px !important; background: rgb(40 42 49 / 88%);
+    -webkit-backdrop-filter: blur(24px) saturate(130%); backdrop-filter: blur(24px) saturate(130%);
+    box-shadow: 0 12px 34px rgb(0 0 0 / 40%), inset 0 1px 0 rgb(255 255 255 / 8%);
+    transition: width 280ms var(--navigation-ease), padding 220ms ease;
+  }
+  .mobile-navigation-island .island-handle { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 13px; padding: 0; border: 0; color: #d7dae4; background: transparent; }
+  .island-handle > span { width: 28px; height: 3px; background: #838894; border-radius: 4px !important; opacity: .6; }
+  .mobile-navigation-island .island-links { display: flex; align-items: center; gap: 6px; width: 100%; max-height: 62px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; transition: max-height 250ms var(--navigation-ease), opacity 160ms ease; }
+  .island-links::-webkit-scrollbar { display: none; }
+  .mobile-navigation-island .island-link { display: flex; flex: 0 0 57px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 58px; padding: 3px 0; color: #b1b7c4; text-decoration: none; scroll-snap-align: center; }
+  .island-link .island-icon { display: grid; place-items: center; width: 35px; height: 34px; border-radius: 13px !important; transition: color 160ms ease, background-color 160ms ease, transform 200ms var(--navigation-ease); }
+  .island-link .island-label { max-width: 58px; font-size: 8px; line-height: 1.2; font-weight: 500; white-space: nowrap; }
+  .mobile-navigation-island .island-link.active { color: #ffffff; }
+  .island-link.active .island-icon { color: #e2e3ff; background: #555968; box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%); }
+  .island-link:active .island-icon { transform: scale(.9); }
+  .mobile-navigation-island .island-scroll-next { position: absolute; right: 7px; top: 1px; display: grid; place-items: center; width: 28px; height: 14px; padding: 0; border: 0; color: #949aa8; background: transparent; }
+  .app-shell .mobile-navigation-island.island-compact { width: 180px; padding: 10px 15px; border-radius: 999px !important; }
+  .mobile-navigation-island.island-compact .island-handle { height: 23px; }
+  .island-compact .island-handle > span { display: none; }
+  .island-compact .island-handle strong { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 500; }
+  .mobile-navigation-island.island-compact .island-links { max-height: 0; opacity: 0; pointer-events: none; }
+  .app-shell .main-area .task-management-page .task-kanban-board { grid-template-columns: repeat(5,245px); }
+}
+@media (prefers-reduced-motion: reduce) { .app-shell .mobile-navigation-island, .app-shell .mobile-navigation-island * { transition: none !important; animation: none !important; } }
+@media print { .mobile-navigation-island { display: none !important; } }
+@media screen and (max-width: 700px) {
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer { width: 100% !important; padding: 24px 20px !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer form > footer .button { padding-inline: 14px !important; }
+}
+/* Lead proposal setup and consistently aligned proposal fields. */
+.app-shell .lead-workspace-page .operating-company-step {
+  border: 1px solid var(--ws-border, #e2e8f0);
+  background: var(--ws-surface, #ffffff);
+  border-radius: 0 !important;
+}
+
+.app-shell .lead-workspace-page .operating-company-step { padding: 16px 20px; }
+.operating-company-step .record-section-heading { margin-bottom: 12px; }
+.operating-company-step .field { max-width: 460px; }
+.operating-company-step .workflow-state { color: var(--ws-muted, #64748b); font-size: 10px; }
+.operating-company-step.needs-selection { border-left: 3px solid #0f172a; }
+.operating-company-step.is-selected { border-left: 3px solid #64748b; }
+
+.lead-workspace-page .proposal-fields-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 15px 18px; }
+.lead-workspace-page .proposal-fields-grid > .field { display: flex; flex-direction: column; min-width: 0; }
+.lead-workspace-page .proposal-fields-grid > .field :is(input:not([type="checkbox"]), select, textarea) { width: 100%; min-width: 0; box-sizing: border-box; }
+.lead-workspace-page .proposal-fields-grid > .field textarea { flex: 1 1 auto; min-height: 102px; resize: vertical; line-height: 1.5; }
+.lead-workspace-page .proposal-fields-grid.proposal-copy-fields > .field textarea { min-height: 112px; }
+.lead-workspace-page .proposal-fields-grid.proposal-template-fields > .field textarea { min-height: 145px; }
+.lead-workspace-page .proposal-form { display: grid; gap: 14px; }
+.lead-workspace-page .proposal-form .proposal-fields-grid { margin: 0; }
+.lead-workspace-page .proposal-form .proposal-template-heading { margin: 8px 0 0; padding-top: 15px; border-top: 1px solid var(--ws-border, #e2e8f0); }
+.lead-workspace-page .proposal-form .document-upload { margin-top: 2px; }
+
+.lead-record .first-contact-company {
+  display: grid;
+  grid-template-columns: max-content max-content 1fr;
+  align-items: center;
+  justify-content: start;
+  gap: 6px 10px;
+  max-width: 560px;
+  font-size: 11px;
+}
+.lead-record .first-contact-company > span { color: var(--ws-muted, #64748b); font-weight: 500; }
+.lead-record .first-contact-company > strong { color: var(--ws-text, #0f172a); font-weight: 650; }
+.lead-record .first-contact-company > a { display: inline-flex; align-items: center; gap: 4px; color: var(--ws-text, #0f172a); text-decoration: none; font-weight: 600; }
+.lead-record .first-contact-company > a:hover { text-decoration: underline; }
+.lead-record .first-contact-company > small { grid-column: 1 / -1; }
+
+@media (max-width: 700px) {
+  .app-shell .lead-workspace-page .operating-company-step { padding: 14px; }
+  .lead-workspace-page .proposal-fields-grid { grid-template-columns: minmax(0, 1fr); }
+  .lead-workspace-page .proposal-fields-grid > .field textarea,
+  .lead-workspace-page .proposal-fields-grid.proposal-copy-fields > .field textarea,
+  .lead-workspace-page .proposal-fields-grid.proposal-template-fields > .field textarea { min-height: 110px; }
+  .operating-company-step .record-section-heading { align-items: flex-start; }
+  .lead-record .first-contact-company { grid-template-columns: max-content 1fr; }
+  .lead-record .first-contact-company > a { grid-column: 1 / -1; }
+}
+
+/* Reference layout: anchored dark rail with an airy white dashboard and aligned cards. */
+@media screen and (min-width: 701px) {
+  .app-shell {
+    --workspace-header: 58px;
+    --workspace-sidebar: 64px;
+    --workspace-space: 28px;
+    --ws-bg: #f1f5f9;
+    --ws-surface: #ffffff;
+    --ws-subtle-surface: #f8fafc;
+    --ws-raised: #eef2f7;
+    --ws-border: #e2e8f0;
+    --ws-text: #0f172a;
+    --ws-muted: #64748b;
+    --ws-primary: #2563eb;
+    --ws-primary-hover: #1d4ed8;
+    --ws-accent: #2563eb;
+    --ws-accent-border: #2563eb;
+    --ws-selection: #eff6ff;
+    --ws-on-solid: #ffffff;
+    color-scheme: light;
+    color: #0f172a;
+    background: #f1f5f9;
+  }
+
+  body { background: #f1f5f9; }
+  .app-shell .workspace-topbar {
+    inset: 0 0 auto 64px !important;
+    width: auto !important;
+    height: 58px;
+    min-height: 58px;
+    padding: 0 24px;
+    background: #ffffff !important;
+    border: 0 !important;
+    border-bottom: 1px solid #e5eaf1 !important;
+    box-shadow: none !important;
+  }
+  .app-shell .workspace-topbar-brand { display: flex; }
+  .app-shell .workspace-topbar .global-search-trigger {
+    margin: 0 auto 0 0;
+    max-width: 420px;
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+    color: #64748b !important;
+  }
+  .app-shell .workspace-topbar .topbar-user-btn { background: #ffffff !important; border-color: #e2e8f0 !important; }
+
+  .app-shell .sidebar,
+  .app-shell.sidebar-collapsed .sidebar {
+    inset: 0 auto 0 0 !important;
+    z-index: 120;
+    width: 64px;
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    padding: 14px 8px 12px;
+    overflow: hidden;
+    border: 0 !important;
+    background: #111827 !important;
+    box-shadow: 3px 0 18px rgb(15 23 42 / 10%);
+    border-radius: 0 !important;
+    transform: none;
+    transition: width 260ms cubic-bezier(.2,.75,.25,1), padding 220ms cubic-bezier(.2,.75,.25,1), box-shadow 180ms ease;
+  }
+  .app-shell.sidebar-expanded .sidebar { width: 244px; padding: 14px 12px 12px; box-shadow: 8px 0 28px rgb(15 23 42 / 18%); }
+  .app-shell .workspace-sidebar-heading { padding: 4px 10px 20px; }
+  .app-shell .workspace-sidebar-caption { color: #94a3b8; }
+  .app-shell .workspace-sidebar-heading strong { color: #f8fafc; }
+  .app-shell .sidebar .workspace-label { color: #94a3b8; }
+  .app-shell .sidebar .nav-link { color: #cbd5e1; }
+  .app-shell .sidebar .nav-link:hover { color: #ffffff; background: rgb(148 163 184 / 12%) !important; }
+  .app-shell .sidebar .nav-link.active { color: #ffffff !important; background: #2563eb !important; box-shadow: none !important; }
+  .app-shell .sidebar .nav-link.active .nav-icon { color: #ffffff !important; }
+  .app-shell .sidebar .nav-group { margin-bottom: 15px; }
+  .app-shell .workspace-sidebar-footer { border-color: rgb(148 163 184 / 22%); }
+  .app-shell .sidebar .workspace-sidebar-heading,
+  .app-shell .sidebar .workspace-label,
+  .app-shell .sidebar .nav-link-label { transition: opacity 180ms ease, max-width 220ms ease, padding 220ms ease; }
+  .app-shell.sidebar-collapsed .sidebar .workspace-sidebar-heading { display: none !important; }
+  .app-shell.sidebar-expanded .sidebar .workspace-sidebar-heading { display: flex !important; max-height: 74px; padding: 4px 10px 20px; opacity: 1; }
+  .app-shell.sidebar-collapsed .sidebar .workspace-label { display: block !important; height: 0; min-height: 0; max-height: 0; padding-top: 0; padding-bottom: 0; overflow: hidden; opacity: 0; }
+  .app-shell.sidebar-collapsed .sidebar .nav-link-label { display: inline-block !important; max-width: 0; opacity: 0; overflow: hidden; }
+  .app-shell.sidebar-collapsed .sidebar .nav-link { width: 44px; height: 40px; margin: 0 auto; padding: 0; justify-content: center; gap: 0; }
+  .app-shell.sidebar-expanded .sidebar .nav-link { width: 100%; margin: 0; padding: 0 11px; justify-content: flex-start; gap: 10px; }
+  .app-shell.sidebar-expanded .sidebar .workspace-label { height: auto; max-height: 24px; padding: 0 11px 7px; opacity: 1; }
+  .app-shell.sidebar-expanded .sidebar .nav-link-label { max-width: 170px; opacity: 1; }
+  .app-shell .sidebar .nav-link { transition: width 240ms cubic-bezier(.2,.75,.25,1), padding 220ms ease, gap 220ms ease, color 160ms ease, background-color 160ms ease; }
+  .app-shell .sidebar .nav-link-label { visibility: hidden; transition: max-width 220ms cubic-bezier(.2,.75,.25,1), opacity 150ms ease, visibility 0s linear 220ms; }
+  .app-shell.sidebar-expanded .sidebar .nav-link-label { visibility: visible; transition-delay: 35ms, 35ms, 0s; }
+  .app-shell .sidebar .workspace-label { transition: max-height 200ms ease, padding 200ms ease, opacity 140ms ease; }
+  .app-shell .sidebar .nav-icon { transition: color 160ms ease, transform 180ms ease; }
+  .app-shell .sidebar .nav-link:hover .nav-icon { transform: translateX(2px); }
+
+  .app-shell .main-area,
+  .app-shell.sidebar-collapsed .main-area {
+    width: calc(100% - 76px);
+    max-width: none;
+    min-width: 0;
+    margin: 58px 0 0 76px;
+    background: #ffffff;
+  }
+  .app-shell .workspace-contextbar { min-height: 32px; padding: 2px 28px 0; }
+  .app-shell .main-area .page-content { max-width: none; padding: 18px 20px 36px; }
+  .app-shell .main-area .page-content .panel,
+  .app-shell .main-area .page-content :is(.overview-summary-card,.overview-project-card,.invoice-stat-card,.task-stat-card,.role-summary-card,.portal-record) {
+    color: #0f172a;
+    background: #ffffff !important;
+    border: 1px solid #e5eaf1 !important;
+    box-shadow: 0 2px 8px rgb(15 23 42 / 3%) !important;
+    border-radius: 8px !important;
+  }
+  .app-shell .main-area .page-content :is(h1,h2,h3,strong) { color: #0f172a; }
+  .app-shell .main-area .page-content :is(.welcome-subtitle,.panel-heading p,.overview-section-heading p,.overview-panel-heading p,.overview-project-services,.overview-task-copy small) { color: #64748b !important; }
+  .app-shell .main-area .page-content .button-primary,
+  .app-shell .workspace-topbar .button-primary { color: #ffffff !important; background: #2563eb !important; border-color: #2563eb !important; box-shadow: none !important; }
+  .app-shell .main-area .page-content .button-primary:hover,
+  .app-shell .workspace-topbar .button-primary:hover { background: #1d4ed8 !important; border-color: #1d4ed8 !important; }
+  .app-shell .main-area .page-content .button-quiet { color: #334155 !important; background: #ffffff !important; border-color: #dbe3ed !important; }
+  .app-shell .main-area .page-content .button-quiet:hover { background: #f8fafc !important; border-color: #cbd5e1 !important; }
+  .app-shell .main-area .page-content .overview-summary-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; align-items: stretch; margin-bottom: 22px; }
+  .app-shell .main-area .page-content .overview-summary-card {
+    display: flex;
+    min-width: 0;
+    min-height: 112px;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start !important;
+    padding: 15px 16px !important;
+    gap: 0 !important;
+    border-radius: 8px !important;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  }
+  .app-shell .overview-summary-top { min-height: 20px; align-items: center; }
+  .app-shell .overview-summary-card small { color: #64748b !important; font-size: 11px !important; font-weight: 500 !important; text-transform: none !important; letter-spacing: 0 !important; }
+  .app-shell .overview-summary-card strong { margin: 8px 0 4px !important; color: #0f172a !important; font-size: 24px !important; line-height: 1.1 !important; font-variant-numeric: tabular-nums !important; }
+  .app-shell .overview-summary-subtext { min-height: 16px; margin-top: auto !important; color: #64748b !important; font-size: 10px !important; }
+  .app-shell .overview-card-arrow,
+  .app-shell .overview-summary-card::before { display: none !important; }
+  .app-shell .overview-summary-top::after {
+    content: "";
+    display: block;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 24px;
+    background:
+      linear-gradient(#bfdbfe,#bfdbfe) 0 100% / 4px 12px no-repeat,
+      linear-gradient(#60a5fa,#60a5fa) 8px 100% / 4px 18px no-repeat,
+      linear-gradient(#2563eb,#2563eb) 16px 100% / 4px 24px no-repeat,
+      linear-gradient(#bfdbfe,#bfdbfe) 24px 100% / 4px 15px no-repeat;
+  }
+  .app-shell .overview-summary-card:hover,
+  .app-shell .overview-project-card:hover { transform: translateY(-2px) !important; border-color: #bfdbfe !important; box-shadow: 0 7px 18px rgb(37 99 235 / 8%) !important; }
+  .app-shell .overview-summary-card:hover { transform: translateY(-2px) !important; border-color: #bfdbfe !important; box-shadow: 0 7px 18px rgb(37 99 235 / 8%) !important; }
+  .app-shell .overview-project-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); grid-auto-rows: 1fr; align-items: stretch; gap: 14px; }
+  .app-shell .main-area .page-content .overview-project-card { display: flex; min-width: 0; min-height: 226px; flex-direction: column; padding: 17px 18px; border-radius: 8px !important; text-decoration: none; }
+  .app-shell .overview-project-card-top { display: flex; min-height: 22px; align-items: center; justify-content: space-between; gap: 12px; }
+  .app-shell .overview-project-card h3 { min-height: 40px; margin: 12px 0 4px; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 15px; line-height: 1.35; }
+  .app-shell .overview-project-services { min-height: 34px; margin: 0 0 14px; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.5; }
+  .app-shell .overview-progress-label { display: flex; align-items: center; justify-content: space-between; min-height: 20px; margin-top: auto; color: #64748b; font-size: 10px; }
+  .app-shell .overview-progress-label strong { color: #0f172a; font-variant-numeric: tabular-nums; }
+  .app-shell .overview-progress-track { height: 5px; margin: 6px 0 12px; overflow: hidden; background: #e8eef7; border-radius: 99px !important; }
+  .app-shell .overview-progress-track i { display: block; height: 100%; background: #2563eb; border-radius: inherit; }
+  .app-shell .overview-project-footer { display: flex; min-height: 26px; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; color: #64748b; }
+  .app-shell .overview-id-badge { display: inline-flex; align-items: center; gap: 7px; color: #64748b; }
+  .app-shell .overview-arrow-icon { color: #2563eb; }
+  .app-shell .overview-lower-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; align-items: stretch; margin-top: 22px; }
+  .app-shell .overview-lower-grid > .panel { display: flex; min-width: 0; min-height: 270px; flex-direction: column; }
+  .app-shell .overview-panel-heading { display: flex; min-height: 64px; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px; border-bottom: 1px solid #edf1f6; }
+  .app-shell .overview-panel-heading h2 { margin: 0; }
+  .app-shell .overview-task-list,.app-shell .overview-request-list { flex: 1; }
+  .app-shell .overview-task-row { display: grid; grid-template-columns: minmax(0,1fr) auto auto; min-height: 54px; align-items: center; gap: 12px; padding: 9px 16px; border-bottom: 1px solid #edf1f6; }
+  .app-shell .overview-request-row { display: grid; grid-template-columns: 22px minmax(0,1fr) auto; min-height: 50px; align-items: center; gap: 11px; padding: 8px 16px; border-bottom: 1px solid #edf1f6; }
+  .app-shell .overview-task-copy { min-width: 0; }
+  .app-shell .overview-task-copy strong,.app-shell .overview-task-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app-shell .overview-task-row > svg:last-child { color: #94a3b8; }
+  .app-shell .overview-task-indicator { display: grid; place-items: center; width: 28px; height: 28px; color: #2563eb !important; background: #eff6ff !important; }
+  .app-shell .overview-request-row .status-badge { justify-self: end; }
+  .app-shell .overview-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 13px; }
+  .app-shell .overview-section-heading h2 { margin: 0; }
+  .app-shell .overview-section-heading p { margin: 4px 0 0; }
+  .app-shell.sidebar-collapsed .sidebar .nav-group + .nav-group { margin: 2px 0 8px !important; padding: 0 !important; border: 0 !important; }
+}
+
+@media screen and (min-width: 701px) and (max-width: 1000px) {
+  .app-shell .main-area .page-content .overview-summary-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .app-shell .overview-project-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .app-shell .overview-lower-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+
+@media screen and (max-width: 700px) {
+  .app-shell { --ws-bg: #f1f5f9; --ws-surface: #ffffff; --ws-text: #0f172a; --ws-muted: #64748b; --ws-border: #e2e8f0; --ws-primary: #2563eb; color-scheme: light; color: #0f172a; background: #f1f5f9; }
+  body { background: #f1f5f9; }
+  .app-shell .workspace-topbar { background: #ffffff !important; border-bottom: 1px solid #e5eaf1 !important; box-shadow: none !important; }
+  .app-shell .workspace-topbar-brand { display: flex; }
+  .app-shell .main-area { background: #ffffff; }
+  .app-shell .main-area .page-content :is(.panel,.overview-summary-card,.overview-project-card,.invoice-stat-card,.task-stat-card) { background: #ffffff !important; border-color: #e5eaf1 !important; box-shadow: 0 2px 8px rgb(15 23 42 / 4%) !important; }
+  .app-shell .main-area .page-content .overview-summary-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+  .app-shell .main-area .page-content .overview-summary-card { min-height: 102px; padding: 13px; }
+  .app-shell .overview-project-grid { grid-template-columns: 1fr; grid-auto-rows: auto; }
+  .app-shell .overview-lower-grid { grid-template-columns: 1fr; }
+}
+
+/* Keep controls white and readable, and keep the account menu compact. */
+@media screen {
+  .app-shell :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea,.pipeline-search,.task-table-search,.invoice-table-search) {
+    color-scheme: light !important;
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 1.4 !important;
+  }
+  .app-shell :is(input,textarea)::placeholder { color: #94a3b8 !important; opacity: 1; }
+  .app-shell :is(input,select,textarea):focus { border-color: #2563eb !important; outline: 2px solid rgb(37 99 235 / 14%) !important; outline-offset: 0; }
+  .app-shell select option { color: #0f172a !important; background: #ffffff !important; }
+  .app-shell input[type="checkbox"] {
+    appearance: none !important;
+    display: inline-grid !important;
+    place-content: center !important;
+    width: 16px !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    min-height: 16px !important;
+    margin: 0;
+    padding: 0 !important;
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border: 1px solid #94a3b8 !important;
+    border-radius: 2px !important;
+    box-shadow: none !important;
+  }
+  .app-shell input[type="checkbox"]::before {
+    content: "";
+    width: 8px;
+    height: 4px;
+    border-left: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg) scale(0);
+    transform-origin: center;
+    transition: transform 100ms ease;
+  }
+  .app-shell input[type="checkbox"]:checked::before { transform: rotate(-45deg) scale(1); }
+  .app-shell input[type="checkbox"]:focus-visible { outline: 2px solid #2563eb !important; outline-offset: 2px; }
+
+  .app-shell .workspace-topbar .topbar-profile-dropdown {
+    width: 272px;
+    padding: 8px;
+    background: #111827 !important;
+    border: 1px solid #303b4e !important;
+    border-radius: 10px !important;
+    box-shadow: 0 16px 38px rgb(15 23 42 / 24%) !important;
+  }
+  .app-shell .workspace-topbar .topbar-dropdown-user-header { gap: 10px; padding: 8px 8px 12px; }
+  .app-shell .workspace-topbar .topbar-dropdown-user-icon { width: 36px; height: 36px; color: #cbd5e1 !important; background: #1f2937 !important; }
+  .app-shell .workspace-topbar .topbar-dropdown-user-info strong { color: #f8fafc !important; font-size: 14px; }
+  .app-shell .workspace-topbar .topbar-dropdown-user-info small { color: #94a3b8 !important; font-size: 11px; }
+  .app-shell .workspace-topbar .topbar-dropdown-user-info .role-pill { min-height: 18px; height: 18px; margin-top: 6px; padding: 0 6px; color: #cbd5e1 !important; background: #1f2937 !important; border: 1px solid #374151 !important; border-radius: 3px !important; font-size: 9px; }
+  .app-shell .workspace-topbar .topbar-dropdown-divider { height: 1px; margin: 5px 0; background: #303b4e !important; }
+  .app-shell .workspace-topbar .topbar-dropdown-link,
+  .app-shell .workspace-topbar .topbar-dropdown-link.signout-action {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 10px !important;
+    color: #e2e8f0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 5px !important;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: left;
+  }
+  .app-shell .workspace-topbar .topbar-dropdown-link:hover,
+  .app-shell .workspace-topbar .topbar-dropdown-link.signout-action:hover { color: #ffffff !important; background: #1f2937 !important; }
+  .app-shell .workspace-topbar .topbar-dropdown-link svg { color: #94a3b8; }
+  .app-shell .workspace-topbar :is(.topbar-user-role-badge,.role-pill) { color: #52525b !important; background: #f4f4f5 !important; border: 1px solid #e4e4e7 !important; }
+  .app-shell .workspace-topbar .topbar-dropdown-user-info .role-pill { color: #cbd5e1 !important; background: #1f2937 !important; border-color: #374151 !important; }
+
+  .app-shell .main-area .page-content .status-badge:is([data-status="ACTIVE"],[data-status="IN_PROGRESS"],[data-status="PROPOSAL_SENT"],[data-status="SENT"]) { --status-rgb: 37, 99, 235 !important; --status-color: #1d4ed8 !important; }
+  .app-shell .main-area .page-content .status-badge:is([data-status="CONVERTED"],[data-status="ACCEPTED"],[data-status="DONE"],[data-status="COMPLETED"],[data-status="CONFIRMED_PAID"]) { --status-rgb: 21, 128, 61 !important; --status-color: #15803d !important; }
+
+  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #e5eaf1 !important;
+  }
+  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(section,h3,h4,strong,b,span,p,small,div) { color: inherit; }
+  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail h3,
+  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail h4 { color: #0f172a !important; }
+  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(.detail-line,.lead-description,.contact-action p,.first-contact-company,.first-contact-meta span,.budget-note-display) { color: #334155 !important; }
+  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(.detail-line b,.first-contact-meta b,.first-contact-company > span) { color: #64748b !important; }
+  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(.detail-line a,.reference-links a,.first-contact-company > a) { color: #2563eb !important; }
+  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(.lead-actions-row,.first-contact-budget-source) { border-color: #e2e8f0 !important; }
+
+  .app-shell .main-area .page-content :is(.lead-detail,.client-card-details,.qualification-box,.proposal-history-content,.expanded-content,.expanded-details) {
+    color: #334155 !important;
+    background: #ffffff !important;
+    border-color: #e5eaf1 !important;
+  }
+  .app-shell .main-area .page-content :is(.lead-detail,.client-card-details,.qualification-box,.proposal-history-content,.expanded-content,.expanded-details) :is(h1,h2,h3,h4,strong,b) { color: #0f172a !important; }
+  .app-shell .main-area .page-content :is(.lead-detail,.client-card-details,.qualification-box,.proposal-history-content,.expanded-content,.expanded-details) :is(p,small,span,li) { color: #334155; }
+  .app-shell .main-area .page-content details[open] { color: #334155; background: #ffffff !important; border-color: #e5eaf1 !important; }
+  .app-shell .main-area .page-content details[open] > :not(summary) { color: #334155; background: #ffffff !important; }
+  .app-shell .main-area .page-content details[open] summary { color: #0f172a !important; }
+  .app-shell .main-area .page-content .task-action-menu[open] { background: #ffffff !important; border-color: #e2e8f0 !important; box-shadow: 0 8px 24px rgb(15 23 42 / 12%) !important; }
+}
+
+/* Invoice surfaces stay light even when the surrounding workspace is dark. */
+@media screen {
+  .app-shell .main-area .page-content .invoice-stat-card {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 2px 8px rgb(15 23 42 / 5%) !important;
+  }
+  .app-shell .main-area .page-content .invoice-stat-card.selected {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border: 1.5px solid #2563eb !important;
+    box-shadow: 0 2px 8px rgb(15 23 42 / 5%) !important;
+  }
+  .app-shell .main-area .page-content .invoice-stat-card :is(small,strong,.invoice-stat-note) { color: #0f172a !important; }
+  .app-shell .main-area .page-content .invoice-stat-card .invoice-stat-note { color: #64748b !important; }
+  .app-shell .main-area .page-content .invoice-stat-card::before { background: #cbd5e1 !important; }
+  .app-shell .main-area .page-content .invoice-stat-card.selected::before { background: #2563eb !important; }
+
+  .app-shell .main-area .page-content .invoice-directory-panel,
+  .app-shell .main-area .page-content .invoice-table-heading,
+  .app-shell .main-area .page-content .invoice-table tbody tr,
+  .app-shell .main-area .page-content .invoice-table tbody td {
+    color: #0f172a !important;
+    background: #ffffff !important;
+  }
+  .app-shell .main-area .page-content .invoice-table-heading { border-color: #e2e8f0 !important; }
+  .app-shell .main-area .page-content .invoice-table :is(th,td) { border-color: #e2e8f0 !important; }
+  .app-shell .main-area .page-content .invoice-table th {
+    color: #475569 !important;
+    background: #f8fafc !important;
+  }
+  .app-shell .main-area .page-content .invoice-table td { color: #334155 !important; }
+  .app-shell .main-area .page-content .invoice-table tbody tr:hover,
+  .app-shell .main-area .page-content .invoice-table tbody tr:hover td { background: #f8fafc !important; }
+  .app-shell .main-area .page-content .invoice-table-search { color: #64748b !important; background: #ffffff !important; border-color: #cbd5e1 !important; }
+  .app-shell .main-area .page-content .invoice-table-tools select { color: #0f172a !important; background: #ffffff !important; border-color: #cbd5e1 !important; }
+
+  .user-modal-backdrop .invoice-modal-card {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 24px 60px rgb(15 23 42 / 22%) !important;
+    color-scheme: light !important;
+  }
+  .user-modal-backdrop .invoice-modal-card :is(h1,h2,h3,h4,.field,.field-label,label,strong,b) { color: #0f172a !important; }
+  .user-modal-backdrop .invoice-modal-card :is(p,small,.section-kicker,.proposal-client-sub,.proposal-currency-badge) { color: #64748b !important; }
+  .user-modal-backdrop .invoice-modal-card :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color-scheme: light !important;
+  }
+  .user-modal-backdrop .invoice-modal-card input::placeholder,
+  .user-modal-backdrop .invoice-modal-card textarea::placeholder { color: #94a3b8 !important; }
+  .user-modal-backdrop .invoice-modal-card .invoice-drawer-tabs { background: #f1f5f9 !important; }
+  .user-modal-backdrop .invoice-modal-card .invoice-drawer-tab { color: #475569 !important; background: transparent !important; }
+  .user-modal-backdrop .invoice-modal-card .invoice-drawer-tab.active { color: #0f172a !important; background: #ffffff !important; box-shadow: 0 1px 3px rgb(15 23 42 / 12%) !important; }
+  .user-modal-backdrop .invoice-modal-card .invoice-deposit-choice > span { color: #0f172a !important; }
+  .user-modal-backdrop .invoice-modal-card .invoice-deposit-choice small { color: #64748b !important; }
+  .user-modal-backdrop .invoice-modal-card .proposal-count-badge,
+  .user-modal-backdrop .invoice-modal-card .proposal-service-pill { color: #475569 !important; background: #f8fafc !important; border-color: #e2e8f0 !important; }
+  .user-modal-backdrop .invoice-modal-card .proposal-select-card {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: none !important;
+  }
+  .user-modal-backdrop .invoice-modal-card .proposal-select-card :is(strong,span) { color: inherit; }
+  .user-modal-backdrop .invoice-modal-card .proposal-select-card .proposal-client-sub,
+  .user-modal-backdrop .invoice-modal-card .proposal-select-card .proposal-currency-badge { color: #64748b !important; }
+  .user-modal-backdrop .invoice-modal-card .proposal-select-card.selected {
+    background: #f8fafc !important;
+    border-color: #2563eb !important;
+    box-shadow: inset 0 0 0 1px #2563eb !important;
+  }
+  .user-modal-backdrop .invoice-modal-card .proposal-select-card .radio-dot { color: #0f172a !important; background: #ffffff !important; border-color: #94a3b8 !important; }
+  .user-modal-backdrop .invoice-modal-card .proposal-select-card .company-evecture { color: #dc2626 !important; }
+  .user-modal-backdrop .invoice-modal-card .proposal-select-card .company-servn { color: #2563eb !important; }
+  .user-modal-backdrop .invoice-modal-card .user-modal-close-btn { color: #475569 !important; background: #ffffff !important; border-color: #cbd5e1 !important; }
+
+  /* Expanded lead and record details inherit a readable light surface. */
+  .app-shell .main-area .page-content .lead-record :is(.lead-detail,.client-card-details,.qualification-box,.proposal-history-content,.expanded-content,.expanded-details) {
+    color: #334155 !important;
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+  }
+  .app-shell .main-area .page-content .lead-record :is(.lead-detail,.client-card-details,.qualification-box,.proposal-history-content,.expanded-content,.expanded-details) :is(h1,h2,h3,h4,strong,b,summary) { color: #0f172a !important; }
+  .app-shell .main-area .page-content .lead-record :is(.lead-detail,.client-card-details,.qualification-box,.proposal-history-content,.expanded-content,.expanded-details) :is(p,small,span,li) { color: #334155; }
+  .app-shell .main-area .page-content .lead-record details[open] > :not(summary) { color: #334155 !important; background: #ffffff !important; }
+}
+
+/* Keep Tasks and floating popups in the black, white, and gray workspace palette. */
+@media screen {
+  .app-shell .main-area .task-management-page .task-stat-card {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 2px 8px rgb(15 23 42 / 5%) !important;
+  }
+  .app-shell .main-area .task-management-page .task-stat-card.selected {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border: 1.5px solid #0f172a !important;
+    box-shadow: 0 0 0 1px #0f172a !important;
+  }
+  .app-shell .main-area .task-management-page .task-stat-card :is(small,strong,.task-stat-note) { color: #0f172a !important; }
+  .app-shell .main-area .task-management-page .task-stat-card .task-stat-note { color: #64748b !important; }
+  .app-shell .main-area .task-management-page .task-stat-icon,
+  .app-shell .main-area .task-management-page :is(.task-icon-blue,.task-icon-violet,.task-icon-green,.task-icon-rose) {
+    color: #475569 !important;
+    background: #f4f4f5 !important;
+  }
+  .app-shell .main-area .task-management-page .button-primary,
+  .app-shell .main-area .task-management-page a.button-primary {
+    color: #ffffff !important;
+    background: #0f172a !important;
+    border-color: #0f172a !important;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 8%) !important;
+  }
+  .app-shell .main-area .task-management-page :is(.button-primary:hover,a.button-primary:hover) {
+    color: #ffffff !important;
+    background: #1f2937 !important;
+    border-color: #1f2937 !important;
+  }
+  .app-shell .main-area .task-management-page .work-assignee-filter,
+  .app-shell .main-area .task-management-page .work-assignee-filter:focus-within {
+    color: #334155 !important;
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+  .app-shell .main-area .task-management-page .work-assignee-filter select {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border: 0 !important;
+    outline: 0 !important;
+    color-scheme: light !important;
+  }
+  .app-shell .main-area .task-management-page .work-assignee-filter select:focus { outline: 0 !important; box-shadow: none !important; }
+  .app-shell .main-area .task-management-page .task-view-switcher,
+  .app-shell .main-area .task-management-page .task-list-tabs { border-color: #e2e8f0 !important; background: #f8fafc !important; }
+  .app-shell .main-area .task-management-page :is(.view-switcher-button,.task-list-tabs button) { color: #475569 !important; background: transparent !important; border-color: transparent !important; }
+  .app-shell .main-area .task-management-page :is(.view-switcher-button.active,.task-list-tabs button.selected) { color: #ffffff !important; background: #0f172a !important; border-color: #0f172a !important; box-shadow: none !important; }
+  .app-shell .main-area .task-management-page .task-filter-select select,
+  .app-shell .main-area .task-management-page .task-table-tools select { color: #0f172a !important; background: #ffffff !important; border-color: #cbd5e1 !important; color-scheme: light !important; }
+  .app-shell .main-area .task-management-page :is(.task-filter-select,.task-table-search):focus-within { border-color: #0f172a !important; box-shadow: 0 0 0 1px #0f172a !important; }
+
+  :is(.app-shell .command-dialog,.app-shell .notification-popover,.app-shell .calendar-popover-panel,.app-shell .task-action-popover,.app-shell .manual-contact-picker-panel,.user-modal-backdrop .user-modal-card,.user-modal-backdrop .invoice-modal-card,.invoice-preview-backdrop .invoice-preview-modal,.app-shell .task-drawer-backdrop .task-dispatch-drawer) {
+    --ws-primary: #0f172a;
+    --ws-primary-hover: #1f2937;
+    --ws-accent: #0f172a;
+    --ws-accent-border: #0f172a;
+    --ws-selection: #f4f4f5;
+    --ws-subtle-surface: #f4f4f5;
+  }
+  .app-shell :is(.command-dialog,.notification-popover,.calendar-popover-panel,.task-action-popover,.manual-contact-picker-panel) :is(button,a,input,select,textarea):focus-visible,
+  .user-modal-backdrop :is(.user-modal-card,.invoice-modal-card) :is(button,a,input,select,textarea):focus-visible,
+  .invoice-preview-backdrop .invoice-preview-modal :is(button,a,input,select,textarea):focus-visible {
+    outline: 2px solid #0f172a !important;
+    outline-offset: 2px !important;
+    box-shadow: none !important;
+  }
+  .app-shell :is(.command-dialog,.notification-popover,.calendar-popover-panel,.task-action-popover,.manual-contact-picker-panel) :is(input,select,textarea):focus,
+  .user-modal-backdrop :is(.user-modal-card,.invoice-modal-card) :is(input,select,textarea):focus,
+  .invoice-preview-backdrop .invoice-preview-modal :is(input,select,textarea):focus { border-color: #0f172a !important; outline-color: #0f172a !important; box-shadow: 0 0 0 1px #0f172a !important; }
+
+  .app-shell .command-dialog { border-color: #d4d4d8 !important; }
+  .app-shell .command-dialog :is(.command-result:hover,.command-result:focus-visible) { color: #0f172a !important; background: #f4f4f5 !important; }
+  .app-shell .command-dialog .command-result-icon { color: #475569 !important; background: #f4f4f5 !important; border-color: #e4e4e7 !important; }
+  .app-shell .notification-popover { border-color: #d4d4d8 !important; }
+  .app-shell .notification-popover :is(.notification-tabs,.notification-item-icon,.notification-item-icon.notif-lead,.notification-item-icon.notif-task,.notification-item-icon.notif-invoice,.notification-item-icon.notif-project,.notification-item-icon.notif-system) { color: #475569 !important; background: #f4f4f5 !important; border-color: #e4e4e7 !important; }
+  .app-shell .notification-popover .notification-tab-btn.selected { color: #0f172a !important; background: #ffffff !important; box-shadow: inset 0 -2px #0f172a !important; }
+  .app-shell .notification-popover :is(.notification-item,.notification-item.unread,.notification-item.unread:hover) { background: #ffffff !important; }
+  .app-shell .notification-popover .notification-item:hover { background: #f8fafc !important; }
+  .app-shell .notification-popover :is(.notification-popover-header,.notification-tabs,.notification-popover-footer,.notification-item) { border-color: #e4e4e7 !important; }
+  .app-shell .calendar-popover-panel { border-color: #0f172a !important; }
+  .app-shell .calendar-popover-panel .calendar-days button.calendar-selected { color: #ffffff !important; background: #0f172a !important; border-color: #0f172a !important; }
+  .app-shell .calendar-popover-panel .calendar-days button:hover { color: #0f172a !important; background: #f4f4f5 !important; }
+  .app-shell .calendar-popover-panel .calendar-days button[aria-current="date"] { border-color: #0f172a !important; }
+  .app-shell .task-action-popover { border-color: #d4d4d8 !important; box-shadow: 0 8px 20px rgb(15 23 42 / 12%) !important; }
+  .app-shell .task-action-popover button:hover { color: #0f172a !important; background: #f4f4f5 !important; }
+  .app-shell .manual-contact-picker-panel { border-color: #0f172a !important; }
+
+  .user-modal-backdrop :is(.user-modal-card,.invoice-modal-card) .button-primary,
+  .invoice-preview-backdrop .invoice-preview-modal .button-primary { color: #ffffff !important; background: #0f172a !important; border-color: #0f172a !important; box-shadow: none !important; }
+  .user-modal-backdrop :is(.user-modal-card,.invoice-modal-card) .button-primary:hover,
+  .invoice-preview-backdrop .invoice-preview-modal .button-primary:hover { color: #ffffff !important; background: #1f2937 !important; border-color: #1f2937 !important; }
+  .user-modal-backdrop .invoice-modal-card .proposal-select-card.selected { background: #f4f4f5 !important; border-color: #0f172a !important; box-shadow: inset 0 0 0 1px #0f172a !important; }
+  .user-modal-backdrop .invoice-modal-card .proposal-select-card.selected .radio-dot { color: #ffffff !important; background: #0f172a !important; border-color: #0f172a !important; }
+  .user-modal-backdrop .invoice-modal-card .company-servn { color: #2563eb !important; }
+
+  .app-shell .notification-popover .notification-tab-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    color: #475569 !important;
+    background: transparent !important;
+  }
+  .app-shell .notification-popover .notification-tab-btn > span {
+    display: inline !important;
+    min-width: 0 !important;
+    height: auto !important;
+    padding: 0 !important;
+    color: #64748b !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    font-variant-numeric: tabular-nums;
+  }
+  .app-shell .notification-popover .notification-tab-btn.selected { color: #0f172a !important; background: #ffffff !important; }
+  .app-shell .notification-popover .notification-tab-btn.selected > span { color: #0f172a !important; font-weight: 700 !important; }
+  .app-shell .notification-center-container .notification-badge {
+    top: 0 !important;
+    right: 0 !important;
+    min-width: 10px !important;
+    padding: 0 !important;
+    color: #dc2626 !important;
+    background: transparent !important;
+    border: 0 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    text-align: right !important;
+    box-shadow: none !important;
+  }
+
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer :is(input,select,textarea):focus { border-color: #94a3b8 !important; outline: 1px solid #94a3b8 !important; box-shadow: none !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer .button-primary { color: #0f172a !important; background: #f4f4f5 !important; border-color: #e4e4e7 !important; box-shadow: none !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer .button-primary:hover { color: #0f172a !important; background: #e4e4e7 !important; border-color: #d4d4d8 !important; }
+}
+
+/* Text-entry controls use a white surface in every page and dialog. */
+@media screen {
+  .app-shell .main-area .page-content :is(.field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),.field select,.field textarea,.qualification-fields select,.disqualify-select select,.work-assignee-filter select,.task-filter-select select,.task-table-tools select,.task-table-search input,.invoice-table-tools select,.invoice-table-search input),
+  .app-shell :is(.task-drawer-backdrop,.task-modal-backdrop) .task-dispatch-drawer :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea),
+  .user-modal-backdrop :is(.user-modal-card,.invoice-modal-card) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea),
+  .invoice-preview-backdrop .invoice-preview-modal :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea) {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color-scheme: light !important;
+    box-shadow: none !important;
+  }
+  .app-shell .main-area .page-content :is(.field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),.field select,.field textarea,.qualification-fields select,.disqualify-select select,.work-assignee-filter select,.task-filter-select select,.task-table-tools select,.task-table-search input,.invoice-table-tools select,.invoice-table-search input):focus,
+  .app-shell :is(.task-drawer-backdrop,.task-modal-backdrop) .task-dispatch-drawer :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea):focus,
+  .user-modal-backdrop :is(.user-modal-card,.invoice-modal-card) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea):focus,
+  .invoice-preview-backdrop .invoice-preview-modal :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea):focus {
+    border-color: #0f172a !important;
+    outline: 1px solid #0f172a !important;
+    outline-offset: 0 !important;
+    box-shadow: none !important;
+  }
+  .app-shell :is(.task-drawer-backdrop,.task-modal-backdrop) .task-dispatch-drawer select option,
+  .user-modal-backdrop :is(.user-modal-card,.invoice-modal-card) select option,
+  .invoice-preview-backdrop .invoice-preview-modal select option { color: #0f172a !important; background: #ffffff !important; }
+  .app-shell .main-area .page-content :is(.field input,.field textarea,.task-table-search input,.invoice-table-search input)::placeholder { color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; opacity: 1 !important; }
+  .app-shell .main-area .page-content .calendar-input-wrapper > input { color: #0f172a !important; background: transparent !important; border: 0 !important; -webkit-text-fill-color: #0f172a !important; }
+  .app-shell .main-area .page-content :is(.field select,.qualification-fields select,.disqualify-select select) {
+    appearance: none !important;
+    padding-right: 34px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m2 4 4 4 4-4' fill='none' stroke='%23475569' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 11px center !important;
+    background-size: 12px 12px !important;
+  }
+  .app-shell .main-area .page-content .calendar-input-wrapper:focus-within { border-color: #0f172a !important; box-shadow: 0 0 0 1px #0f172a !important; }
+  .app-shell .main-area .page-content .calendar-popover-panel .button-primary { color: #ffffff !important; background: #0f172a !important; border-color: #0f172a !important; box-shadow: none !important; }
+  .app-shell .main-area .page-content .calendar-popover-panel .button-primary:hover { color: #ffffff !important; background: #1f2937 !important; border-color: #1f2937 !important; }
+  .app-shell .main-area .page-content .manual-contact-picker-panel .button-primary { color: #ffffff !important; background: #0f172a !important; border-color: #0f172a !important; box-shadow: none !important; }
+  .app-shell .main-area .page-content .manual-contact-picker-panel .button-primary:hover { background: #1f2937 !important; border-color: #1f2937 !important; }
+}
+
+/* Refine the lead tab counts and selected indicator. */
+@media screen {
+  .app-shell .main-area .requests-page .pipeline-tabs button {
+    min-height: 44px !important;
+    gap: 0 !important;
+    padding: 0 14px !important;
+    color: #64748b !important;
+    border-bottom: 2px solid transparent !important;
+  }
+  .app-shell .main-area .requests-page .pipeline-tabs button:hover { color: #0f172a !important; background: #f8fafc !important; }
+  .app-shell .main-area .requests-page .pipeline-tabs button.selected {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border-bottom-color: #0f172a !important;
+  }
+  .app-shell .main-area .requests-page .pipeline-tabs button span {
+    display: inline !important;
+    min-width: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 0 0 9px !important;
+    padding: 0 !important;
+    color: #64748b !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    font-variant-numeric: tabular-nums;
+  }
+  .app-shell .main-area .requests-page .pipeline-tabs button.selected span {
+    color: #0f172a !important;
+    background: transparent !important;
+    font-weight: 700 !important;
+  }
+  .app-shell .main-area .requests-page .pipeline-tabs button:focus-visible { outline: 2px solid #0f172a !important; outline-offset: -3px !important; }
+}
+
+/* The task workspace and dispatch drawer follow the light dashboard palette. */
+@media screen {
+  .app-shell .main-area .task-management-page .task-stat-card.selected {
+    color: #0f172a !important;
+    background: #f8fbff !important;
+    border: 1.5px solid #2563eb !important;
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 12%) !important;
+  }
+  .app-shell .main-area .task-management-page .task-stat-card.selected::before { background: #2563eb !important; }
+  .app-shell .main-area .task-management-page .button-primary,
+  .app-shell .main-area .task-management-page a.button-primary {
+    color: #ffffff !important;
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 10%) !important;
+  }
+  .app-shell .main-area .task-management-page :is(.button-primary:hover,a.button-primary:hover) { color: #ffffff !important; background: #1d4ed8 !important; border-color: #1d4ed8 !important; }
+  .app-shell .main-area .task-management-page .work-assignee-filter:focus-within { border-color: #2563eb !important; box-shadow: 0 0 0 2px rgb(37 99 235 / 12%) !important; }
+  .app-shell .main-area .task-management-page .task-view-switcher,
+  .app-shell .main-area .task-management-page .task-list-tabs { background: #f8fafc !important; border-color: #e2e8f0 !important; }
+  .app-shell .main-area .task-management-page :is(.view-switcher-button.active,.task-list-tabs button.selected) { color: #ffffff !important; background: #2563eb !important; border-color: #2563eb !important; }
+  .app-shell .main-area .task-management-page :is(.task-kanban-column,.task-kanban-card) {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 2px 8px rgb(15 23 42 / 4%) !important;
+  }
+  .app-shell .main-area .task-management-page .task-kanban-column { background: #f8fafc !important; }
+  .app-shell .main-area .task-management-page .task-kanban-column-title h3 { color: #0f172a !important; }
+  .app-shell .main-area .task-management-page .task-kanban-column.kanban-column-drag-over { background: #eff6ff !important; border-color: #2563eb !important; box-shadow: inset 0 0 0 1px #2563eb !important; }
+  .app-shell .main-area .task-management-page .task-kanban-card:hover { border-color: #93c5fd !important; box-shadow: 0 5px 14px rgb(37 99 235 / 10%) !important; }
+  .app-shell .main-area .task-management-page .task-kanban-card-title { color: #0f172a !important; }
+
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer {
+    width: min(560px, 100%) !important;
+    max-width: min(560px, 100%) !important;
+    padding: 26px !important;
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border-left: 1px solid #e2e8f0 !important;
+    box-shadow: -16px 0 40px rgb(15 23 42 / 16%) !important;
+  }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer > header { margin-bottom: 22px !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer h2 { color: #0f172a !important; font-size: 22px !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer > header p { color: #64748b !important; font-size: 13px !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer :is(.field,label) { color: #334155 !important; font-size: 13px !important; font-weight: 600 !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer .field .field-hint { color: #64748b !important; font-size: 12px !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer form { gap: 17px !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer .field :is(input,select,textarea) {
+    min-height: 42px !important;
+    padding: 10px 12px !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    font-size: 14px !important;
+    color-scheme: light !important;
+  }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer .field select {
+    appearance: none !important;
+    padding-right: 36px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m2 4 4 4 4-4' fill='none' stroke='%23475569' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+  }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer :is(input,select,textarea):focus { color: #0f172a !important; border-color: #2563eb !important; outline: 1px solid #2563eb !important; box-shadow: none !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer select option { color: #0f172a !important; background: #ffffff !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer input::placeholder { color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer form > footer { gap: 10px !important; margin-top: 8px !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer form > footer .button { min-height: 40px !important; padding-inline: 16px !important; font-size: 13px !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer .button-primary { color: #ffffff !important; background: #2563eb !important; border-color: #2563eb !important; box-shadow: none !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer .button-primary:hover { color: #ffffff !important; background: #1d4ed8 !important; border-color: #1d4ed8 !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer .button-quiet { color: #0f172a !important; background: #ffffff !important; border-color: #cbd5e1 !important; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer > header .icon-button { color: #475569 !important; background: transparent !important; border-color: transparent !important; }
+}
+
+/* Shared light workspace polish for cards, forms, tables, and actions. */
+@media screen {
+  .app-shell {
+    --ws-bg: #f1f5f9;
+    --ws-surface: #ffffff;
+    --ws-subtle-surface: #f8fafc;
+    --ws-raised: #eef2f7;
+    --ws-border: #e2e8f0;
+    --ws-text: #0f172a;
+    --ws-muted: #64748b;
+    --ws-primary: #2563eb;
+    --ws-primary-hover: #1d4ed8;
+    --ws-accent: #2563eb;
+    --ws-accent-border: #2563eb;
+    --ws-selection: #eff6ff;
+    --ws-on-solid: #ffffff;
+    color-scheme: light;
+    color: #0f172a;
+  }
+  .app-shell .main-area { background: #ffffff !important; }
+  .app-shell .main-area .page-content { color: #0f172a; background: #ffffff; }
+  .app-shell .main-area .page-content :is(.panel,.portfolio-card,.client-card,.lead-record,.overview-summary-card,.overview-project-card,.invoice-stat-card,.task-stat-card,.role-summary-card,.portal-record,.invoice-directory-panel,.task-table-panel,.qualification-box,.lead-detail,.client-card-details,.expanded-content,.expanded-details,.proposal-history-content) {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 2px 8px rgb(15 23 42 / 4%) !important;
+  }
+  .app-shell .main-area .page-content :is(.overview-summary-card,.overview-project-card,.invoice-stat-card,.task-stat-card):hover { border-color: #cbd5e1 !important; }
+  .app-shell .main-area .page-content :is(.pipeline-table,.invoice-table,.task-table,.client-table,.project-table,.performance-table) th { color: #475569 !important; background: #f8fafc !important; border-color: #e2e8f0 !important; }
+  .app-shell .main-area .page-content :is(.pipeline-table,.invoice-table,.task-table,.client-table,.project-table,.performance-table) td { color: #334155 !important; border-color: #e2e8f0 !important; }
+  .app-shell .main-area .page-content :is(.pipeline-table,.invoice-table,.task-table,.client-table,.project-table,.performance-table) tbody tr:hover,
+  .app-shell .main-area .page-content :is(.pipeline-table,.invoice-table,.task-table,.client-table,.project-table,.performance-table) tbody tr:hover td { background: #f8fafc !important; }
+
+  .app-shell .main-area .page-content :is(.field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),.field select,.field textarea,.qualification-fields select,.disqualify-select select,.first-contact-company select,.project-team-row select,.assignment-editor-row select,.ops-inline-select select) {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color-scheme: light !important;
+  }
+  .app-shell .main-area .page-content :is(.field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),.field select,.field textarea,.qualification-fields select,.disqualify-select select,.first-contact-company select,.project-team-row select,.assignment-editor-row select,.ops-inline-select select):focus {
+    border-color: #2563eb !important;
+    outline: 1px solid #2563eb !important;
+    outline-offset: 0 !important;
+    box-shadow: none !important;
+  }
+  .app-shell .main-area .page-content :is(.field input,.field textarea)::placeholder { color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; opacity: 1 !important; }
+  .app-shell .main-area .page-content :is(.field select,.qualification-fields select,.disqualify-select select,.first-contact-company select,.project-team-row select,.assignment-editor-row select,.ops-inline-select select) {
+    appearance: none !important;
+    padding-right: 34px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m2 4 4 4 4-4' fill='none' stroke='%23475569' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 11px center !important;
+    background-size: 12px 12px !important;
+  }
+  .app-shell .main-area .page-content :is(.calendar-input-wrapper > input,.pipeline-search input,.task-table-search input,.invoice-table-search input) { background: transparent !important; border: 0 !important; outline: 0 !important; box-shadow: none !important; }
+  .app-shell .main-area .page-content .calendar-input-wrapper:focus-within { border-color: #2563eb !important; box-shadow: 0 0 0 1px rgb(37 99 235 / 14%) !important; }
+
+  .app-shell .main-area .page-content .button-primary,
+  .app-shell .main-area .page-content a.button-primary,
+  .app-shell .main-area .page-content button.button-primary,
+  .app-shell .workspace-topbar .button-primary {
+    color: #ffffff !important;
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 8%) !important;
+  }
+  .app-shell .main-area .page-content :is(.button-primary,a.button-primary,button.button-primary):hover,
+  .app-shell .workspace-topbar .button-primary:hover { color: #ffffff !important; background: #1d4ed8 !important; border-color: #1d4ed8 !important; }
+  .app-shell .main-area .page-content :is(.button-quiet,a.button-quiet,button.button-quiet) { color: #334155 !important; background: #ffffff !important; border-color: #cbd5e1 !important; }
+  .app-shell .main-area .page-content :is(.button-quiet,a.button-quiet,button.button-quiet):hover { color: #0f172a !important; background: #f8fafc !important; border-color: #94a3b8 !important; }
+
+  .app-shell .main-area .page-content .manual-contact-picker-panel .button-primary,
+  .app-shell .main-area .page-content .calendar-popover-panel .button-primary { color: #ffffff !important; background: #2563eb !important; border-color: #2563eb !important; }
+  .app-shell .main-area .page-content .manual-contact-picker-panel .button-primary:hover,
+  .app-shell .main-area .page-content .calendar-popover-panel .button-primary:hover { background: #1d4ed8 !important; border-color: #1d4ed8 !important; }
+  .user-modal-backdrop :is(.user-modal-card,.invoice-modal-card) .button-primary,
+  .invoice-preview-backdrop .invoice-preview-modal .button-primary { color: #ffffff !important; background: #2563eb !important; border-color: #2563eb !important; }
+  .user-modal-backdrop :is(.user-modal-card,.invoice-modal-card) .button-primary:hover,
+  .invoice-preview-backdrop .invoice-preview-modal .button-primary:hover { background: #1d4ed8 !important; border-color: #1d4ed8 !important; }
+  .app-shell .main-area .page-content .polished-empty-state {
+    min-height: 210px !important;
+    padding: 24px 16px !important;
+    background: #ffffff !important;
+  }
+  .app-shell .main-area .page-content .polished-empty-state .empty-icon { color: #2563eb !important; background: #eff6ff !important; border-color: #dbeafe !important; box-shadow: none !important; }
+  .app-shell .main-area .page-content .polished-empty-state p { max-width: 520px; margin-bottom: 12px; }
+}
+
+/* Give every route the full workspace width and align its content with the breadcrumb. */
+@media screen and (min-width: 701px) {
+  .app-shell .main-area > .page-content,
+  .app-shell.sidebar-collapsed .main-area > .page-content,
+  .app-shell.sidebar-expanded .main-area > .page-content {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 4px 24px 40px !important;
+    box-sizing: border-box !important;
+  }
+  .app-shell .workspace-contextbar { min-height: 32px !important; padding: 2px 24px 0 !important; }
+  .app-shell .main-area .page-content .welcome-row { margin-bottom: 18px !important; }
+  .app-shell .main-area .page-content :is(.overview-summary-grid,.invoice-stats-grid,.task-stats-grid) { gap: 16px !important; }
+  .app-shell .main-area .page-content :is(.overview-project-grid,.overview-lower-grid) { gap: 18px !important; }
+}
+@media screen and (max-width: 700px) {
+  .app-shell .main-area > .page-content { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 4px 16px calc(110px + env(safe-area-inset-bottom,0px)) !important; box-sizing: border-box !important; }
+  .app-shell .workspace-contextbar { min-height: 32px !important; padding: 2px 16px 0 !important; }
+  .app-shell .main-area .page-content .welcome-row { margin-bottom: 16px !important; }
+}
+
+/* Compact the shared heading stack consistently across workspace pages. */
+@media screen {
+  .app-shell .main-area .page-content :is(h1,h2,h3,h4,h5,h6) {
+    margin-block-start: 0 !important;
+  }
+  .app-shell .main-area .page-content h1 {
+    margin-block-end: 4px !important;
+    line-height: 1.15 !important;
+  }
+  .app-shell .main-area .page-content h2 {
+    margin-block-end: 8px !important;
+    line-height: 1.2 !important;
+  }
+  .app-shell .main-area .page-content h3 {
+    margin-block-end: 6px !important;
+    line-height: 1.25 !important;
+  }
+  .app-shell .main-area .page-content :is(h4,h5,h6) {
+    margin-block-end: 4px !important;
+    line-height: 1.3 !important;
+  }
+  .app-shell .main-area .page-content h1,
+  .app-shell .main-area .page-content .welcome-row h1 {
+    font-size: 22px !important;
+  }
+  .app-shell .main-area .page-content .welcome-row h1 {
+    margin-top: 0 !important;
+    margin-bottom: 3px !important;
+    line-height: 1.15 !important;
+  }
+  .app-shell .main-area .page-content .welcome-row .welcome-subtitle {
+    margin: 0 !important;
+  }
+  .app-shell .main-area .page-content .pipeline-toolbar {
+    margin-top: 4px !important;
+  }
+}
+
+/* File controls use a white field with a clear blue upload action. */
+@media screen {
+  .app-shell input[type="file"],
+  .task-drawer-backdrop input[type="file"] {
+    color-scheme: light !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+  }
+  .app-shell input[type="file"]::file-selector-button,
+  .task-drawer-backdrop input[type="file"]::file-selector-button {
+    margin-right: 12px;
+    min-height: 36px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 10px;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    background: #2563eb !important;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+  }
+  .app-shell input[type="file"]::-webkit-file-upload-button,
+  .task-drawer-backdrop input[type="file"]::-webkit-file-upload-button {
+    margin-right: 12px;
+    min-height: 36px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 10px;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    background: #2563eb !important;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+  }
+}
+
+/* A calendar picker has one shared border; its text input stays borderless. */
+@media screen {
+  .app-shell .main-area .page-content .calendar-picker-root .calendar-input-wrapper > .calendar-text-input,
+  .app-shell .main-area .page-content .calendar-picker-root .calendar-input-wrapper > .calendar-text-input:focus,
+  .app-shell .main-area .page-content .calendar-picker-root .calendar-input-wrapper > .calendar-text-input:focus-visible {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-radius: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+  }
+  .app-shell .main-area .page-content .calendar-picker-root .calendar-input-wrapper:focus-within {
+    border-color: #2563eb !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Add comfortable reading and form spacing throughout every workspace route. */
+@media screen {
+  .app-shell .main-area .page-content {
+    line-height: 1.55;
+  }
+  .app-shell .main-area .page-content :is(p,li,td,th,summary,dt,dd) { line-height: 1.55; }
+  .app-shell .main-area .page-content :is(.form-grid,.form-fields-grid,.proposal-fields-grid,.qualification-fields,.invoice-form-grid,.project-form-grid) {
+    column-gap: 20px !important;
+    row-gap: 18px !important;
+  }
+  .app-shell .main-area .page-content .field { gap: 9px !important; line-height: 1.5 !important; }
+  .app-shell .main-area .page-content .field :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select) { min-height: 44px !important; }
+  .app-shell .main-area .page-content .field textarea { min-height: 96px; padding: 12px 14px !important; line-height: 1.6 !important; }
+  .app-shell .main-area .page-content :is(.panel-heading,.record-section-heading,.overview-section-heading,.overview-panel-heading) { margin-bottom: 18px; }
+
+  .app-shell .main-area .page-content .lead-detail {
+    padding: 26px 30px 28px !important;
+    line-height: 1.6 !important;
+  }
+  .app-shell .main-area .page-content .lead-detail-columns { column-gap: 40px !important; row-gap: 28px !important; }
+  .app-shell .main-area .page-content .lead-detail-columns > section { min-width: 0; }
+  .app-shell .main-area .page-content .lead-detail-columns > section > h3 { margin: 0 0 16px !important; font-size: 14px !important; line-height: 1.45 !important; }
+  .app-shell .main-area .page-content .lead-detail .detail-line {
+    min-height: 26px !important;
+    margin-top: 5px !important;
+    gap: 8px 10px !important;
+    align-items: flex-start !important;
+    font-size: 13px !important;
+    line-height: 1.55 !important;
+  }
+  .app-shell .main-area .page-content .lead-detail .detail-line b { min-width: 100px !important; }
+  .app-shell .main-area .page-content .lead-detail .lead-description { margin: 14px 0 16px !important; font-size: 13px !important; line-height: 1.7 !important; }
+  .app-shell .main-area .page-content .lead-detail .lead-actions-row { margin-top: 24px !important; padding-top: 22px !important; }
+  .app-shell .main-area .page-content .lead-detail .contact-action { align-items: flex-start !important; gap: 24px !important; }
+  .app-shell .main-area .page-content .lead-detail .contact-action > div:first-child { flex: 1 1 auto; min-width: 0; }
+  .app-shell .main-area .page-content .lead-detail .contact-action p { margin-top: 6px !important; font-size: 13px !important; line-height: 1.55 !important; }
+  .app-shell .main-area .page-content .lead-detail .contact-action-tools { flex: 0 0 auto; }
+  .app-shell .main-area .page-content .lead-detail .first-contact-meta { gap: 12px 24px !important; margin-top: 14px !important; }
+  .app-shell .main-area .page-content .lead-detail .first-contact-meta span { display: inline-flex !important; align-items: baseline; gap: 8px !important; font-size: 13px !important; line-height: 1.5 !important; }
+  .app-shell .main-area .page-content .lead-detail .first-contact-meta b { white-space: nowrap; }
+  .app-shell .main-area .page-content .lead-detail .first-contact-budget-source { margin-top: 20px !important; padding-top: 18px !important; }
+  .app-shell .main-area .page-content .lead-detail .first-contact-company { gap: 8px 12px !important; margin-top: 14px !important; line-height: 1.55 !important; }
+  .app-shell .main-area .page-content .lead-detail .first-contact-company > small { line-height: 1.6 !important; }
+  .app-shell .main-area .page-content .lead-detail .first-contact-budget-heading { margin-bottom: 10px; }
+  .app-shell .main-area .page-content .lead-detail .first-contact-budget-heading h4 { font-size: 14px !important; }
+  .app-shell .main-area .page-content .lead-detail .contact-action .button { min-height: 38px !important; height: auto !important; padding: 8px 12px !important; font-size: 12px !important; }
+  .app-shell .main-area .page-content .lead-detail .qualification-box { margin-top: 20px !important; padding: 20px !important; }
+  .app-shell .main-area .page-content .lead-detail .qualification-fields { margin: 18px 0 !important; }
+}
+@media screen and (max-width: 700px) {
+  .app-shell .main-area .page-content .lead-detail { padding: 20px 16px !important; }
+  .app-shell .main-area .page-content .lead-detail-columns { gap: 22px !important; }
+  .app-shell .main-area .page-content .lead-detail .contact-action { flex-direction: column; gap: 14px !important; }
+  .app-shell .main-area .page-content .lead-detail .contact-action-tools { width: 100%; }
+  .app-shell .main-area .page-content .lead-detail .first-contact-meta { gap: 10px 16px !important; }
+}
+
+/* Keep the lead contact summary and its actions grouped and aligned. */
+@media screen {
+  .app-shell .main-area .page-content .lead-record .manual-contact-picker-panel {
+    width: min(100%, 620px) !important;
+    max-width: 620px !important;
+    box-sizing: border-box;
+    padding: 14px !important;
+    gap: 9px !important;
+  }
+  .app-shell .main-area .page-content .lead-record .first-contact-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    width: 100%;
+    min-height: 40px;
+  }
+  .app-shell .main-area .page-content .lead-record .first-contact-title-row h3 {
+    margin: 0 !important;
+    line-height: 1.35 !important;
+  }
+  .app-shell .main-area .page-content .lead-record .first-contact-title-row .button {
+    flex: 0 0 auto;
+    min-height: 38px !important;
+    height: 38px !important;
+    margin-left: auto;
+    padding: 0 14px !important;
+  }
+  .app-shell .main-area .page-content .lead-record .contact-action {
+    display: block !important;
+  }
+  .app-shell .main-area .page-content .lead-record .first-contact-meta {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(150px, max-content));
+    align-items: start;
+    column-gap: 30px !important;
+    row-gap: 12px !important;
+  }
+  .app-shell .main-area .page-content .lead-record .first-contact-meta > span {
+    display: flex !important;
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 3px !important;
+    min-width: 0;
+    line-height: 1.45 !important;
+  }
+  .app-shell .main-area .page-content .lead-record .first-contact-meta > span b {
+    color: #64748b;
+    font-size: 11px;
+  }
+  .app-shell .main-area .page-content .lead-record .first-contact-company {
+    display: flex !important;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 14px !important;
+    max-width: 100%;
+  }
+  .app-shell .main-area .page-content .lead-record .first-contact-company > small {
+    flex-basis: 100%;
+  }
+  .app-shell .main-area .page-content .lead-record .archived-qualification {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+    width: 100%;
+  }
+  .app-shell .main-area .page-content .lead-record .archived-qualification-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+  }
+  .app-shell .main-area .page-content .lead-record .archived-qualification > p {
+    flex: 1 1 220px;
+    margin: 0;
+  }
+  .app-shell .main-area .page-content .lead-record .archived-qualification-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 0 0 auto;
+    gap: 10px;
+    margin-left: auto;
+  }
+  .app-shell .main-area .page-content .lead-record .archived-qualification-actions .button {
+    margin: 0 !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    padding: 0 14px !important;
+  }
+}
+
+@media screen and (max-width: 700px) {
+  .app-shell .main-area .page-content .lead-record .first-contact-title-row { gap: 10px; }
+  .app-shell .main-area .page-content .lead-record .first-contact-title-row .button { padding-inline: 10px !important; }
+  .app-shell .main-area .page-content .lead-record .first-contact-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell .main-area .page-content .lead-record .archived-qualification-actions { width: 100%; margin-left: 0; justify-content: flex-start; flex-wrap: wrap; }
+}
+
+@media screen {
+  .user-modal-backdrop .user-modal-card {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+  }
+  .user-modal-backdrop .user-modal-card .user-modal-heading h2 {
+    color: #0f172a !important;
+  }
+  .user-modal-backdrop .user-modal-card .user-modal-heading .section-kicker,
+  .user-modal-backdrop .user-modal-card .user-modal-heading p {
+    color: #64748b !important;
+  }
+  .user-modal-backdrop .user-modal-card .user-modal-heading > button {
+    color: #475569 !important;
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+  }
+  .user-modal-backdrop .user-modal-card .add-user-form .field {
+    color: #334155 !important;
+  }
+  .user-modal-backdrop .user-modal-card .add-user-form .field :is(input,select) {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color-scheme: light !important;
+  }
+  .user-modal-backdrop .user-modal-card .add-user-form .field :is(input,select):focus {
+    border-color: #2563eb !important;
+    outline: 1px solid #2563eb !important;
+    box-shadow: none !important;
+  }
+  .user-modal-backdrop .user-modal-card .user-modal-actions .button-quiet {
+    color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+  }
+  .user-modal-backdrop .user-modal-card .user-modal-actions .button-primary {
+    color: #ffffff !important;
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+  }
+  .app-shell .main-area .project-detail-main .project-task-preview-panel > .panel-heading {
+    min-height: 0 !important;
+    margin-bottom: 0 !important;
+    padding: 18px 30px 8px !important;
+    align-items: flex-start;
+  }
+  .app-shell .main-area .project-detail-main .project-task-preview-panel > .panel-heading h2 {
+    margin: 0 0 4px !important;
+    line-height: 1.2 !important;
+  }
+  .app-shell .main-area .project-detail-main .project-task-preview-panel > .panel-heading p {
+    margin: 0 !important;
+    line-height: 1.4 !important;
+  }
+  .app-shell .main-area .project-detail-main .project-task-summary-list {
+    padding: 0 30px 18px !important;
+    gap: 8px !important;
+  }
+  .app-shell .main-area .project-detail-main .project-task-summary-list .project-task-summary-item {
+    min-height: 56px;
+    padding: 10px 14px;
+  }
+  .app-shell .main-area .project-detail-main .project-task-summary-list .project-task-summary-item strong {
+    line-height: 1.35;
+  }
+  .app-shell .main-area .project-detail-main .project-task-summary-list .project-task-summary-item small {
+    display: block;
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+  .app-shell .main-area .page-content .overview-task-row {
+    grid-template-columns: 28px minmax(0, 1fr) auto 16px !important;
+  }
+  .app-shell .main-area .page-content .overview-task-row > .overview-task-indicator {
+    grid-column: auto !important;
+    justify-self: start;
+  }
+  .app-shell .main-area .page-content .overview-task-row > .overview-task-copy {
+    grid-column: auto !important;
+  }
+  .app-shell .main-area .page-content .overview-task-row > .status-badge,
+  .app-shell .main-area .page-content .overview-task-row > svg:last-child {
+    grid-column: auto !important;
+    justify-self: end;
+  }
+  .app-shell .main-area .project-data-panel .document-links > :is(a,span) {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 36px;
+    padding: 0 12px;
+    border: 1px solid #e2e8f0;
+  }
+  .app-shell .main-area .project-data-panel .document-links > .document-pending {
+    border-style: solid;
+    background: #ffffff;
+  }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer form > footer > button.button-quiet {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer form > footer > button.button-quiet:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+  }
+  .app-shell .main-area .task-management-page .task-view-switcher .view-switcher-button.active,
+  .app-shell .main-area .task-management-page .task-view-switcher .view-switcher-button.active > span,
+  .app-shell .main-area .task-management-page .task-view-switcher .view-switcher-button.active > svg {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+  .app-shell .main-area .project-room-heading .health-pill {
+    gap: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #475569 !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+  }
+  .app-shell .main-area .project-room-heading .health-pill i { display: none !important; }
+}
+
+@media screen {
+  .app-shell .sidebar .workspace-sidebar-heading-branded {
+    display: flex !important;
+    min-height: 48px;
+    max-height: 56px;
+    align-items: center;
+    flex-direction: row;
+    justify-content: flex-start !important;
+    padding: 4px 12px 12px !important;
+    opacity: 1;
+  }
+  .app-shell .sidebar .workspace-sidebar-brand {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 9px;
+    width: 100%;
+    min-width: 0;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 750;
+    letter-spacing: .025em;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .app-shell .sidebar .workspace-sidebar-brand > span {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+  .app-shell .sidebar .workspace-sidebar-brand img {
+    display: block;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+  }
+  .app-shell.sidebar-collapsed:not(.sidebar-expanded) .sidebar .workspace-sidebar-heading-branded {
+    display: flex !important;
+    width: 100%;
+    justify-content: center !important;
+    min-height: 48px;
+    padding: 4px 0 12px !important;
+  }
+  .app-shell.sidebar-collapsed:not(.sidebar-expanded) .sidebar .workspace-sidebar-brand {
+    width: 32px;
+    justify-content: center;
+  }
+  .app-shell.sidebar-collapsed:not(.sidebar-expanded) .sidebar .workspace-sidebar-brand { gap: 0; }
+  .app-shell.sidebar-collapsed:not(.sidebar-expanded) .sidebar .workspace-sidebar-brand span { display: none; }
+  .app-shell.sidebar-expanded .sidebar .workspace-sidebar-brand span { display: inline; }
+}

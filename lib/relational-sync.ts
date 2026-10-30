@@ -4,7 +4,7 @@ import type { ManagedProject } from "@/lib/post-sale";
 import type { Project, ProjectTeamMember, ProjectWorkItem } from "@/lib/projects";
 import type { StoredInvoice } from "@/lib/invoices";
 import { type WorkspaceCollection } from "@/lib/workspace-sync";
-import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignees";
+import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignee-names";
 
 type DbRow = Record<string, any>;
 type RelationalValues = Record<WorkspaceCollection, unknown>;
@@ -12,6 +12,8 @@ type RelationalSnapshot = {
   values: RelationalValues;
   remoteCollections: Set<WorkspaceCollection>;
   legacyCollections: Set<WorkspaceCollection>;
+  revisions: Record<string, number>;
+  requiresMigration: boolean;
 };
 
 const collections: WorkspaceCollection[] = ["leads", "projects", "management", "invoices"];
@@ -31,14 +33,6 @@ function number(value: unknown, fallback = 0) {
 
 function nullable(value: unknown) {
   return value === undefined || value === "" ? null : value;
-}
-
-function jsonObject(value: unknown) {
-  return value && typeof value === "object" ? value : {};
-}
-
-function clientKey(company: string, email: string) {
-  return `${company.trim().toLowerCase()}|${email.trim().toLowerCase()}`;
 }
 
 function leadInvoiceToRow(invoice: LeadInvoice | StoredInvoice, relationships: { leadId?: string | null; projectId?: string | null }) {
@@ -152,7 +146,7 @@ function proposalToRow(proposal: ProposalVersion, leadId: string) {
     sent_at: nullable(proposal.sentAt),
     viewed_at: nullable(proposal.viewedAt),
     responded_at: nullable(proposal.respondedAt),
-    response_name: null,
+    response_name: nullable(proposal.responseName),
     response_note: nullable(proposal.changeRequest),
     attachment_path: null,
     document_name: nullable(proposal.documentName),
@@ -161,8 +155,10 @@ function proposalToRow(proposal: ProposalVersion, leadId: string) {
   };
 }
 
-function rowToProposal(row: DbRow, followUps: DbRow[]): ProposalVersion {
+export function rowToProposal(row: DbRow, followUps: DbRow[]): ProposalVersion {
   return {
+    changeRequest: row.response_note || undefined,
+    responseName: row.response_name || undefined,
     version: number(row.version, 1),
     status: row.status,
     createdAt: text(row.created_at),
@@ -217,53 +213,22 @@ function rowToProposal(row: DbRow, followUps: DbRow[]): ProposalVersion {
   };
 }
 
-function projectClientDetails(project: Project) {
-  return {
-    companyName: project.clientCompany || project.clientName || project.clientEmail || "Unnamed client",
-    contactName: project.clientName,
-    email: project.clientEmail,
-  };
-}
-
-async function ensureClients(client: SupabaseClient, details: { companyName: string; contactName?: string; email?: string; phone?: string; website?: string; country?: string; timezone?: string }[]) {
-  const existing = await client.from("clients").select("id,company_name,email");
-  fail(existing, "Loading clients");
-  const ids = new Map<string, string>();
-  for (const row of (existing.data ?? []) as DbRow[]) ids.set(clientKey(text(row.company_name), text(row.email)), text(row.id));
-  for (const detail of details) {
-    const companyName = detail.companyName || detail.contactName || detail.email || "Unnamed client";
-    const email = detail.email || "";
-    const key = clientKey(companyName, email);
-    if (ids.has(key)) continue;
-    const created = await client.from("clients").insert({
-      company_name: companyName,
-      contact_name: nullable(detail.contactName),
-      email: nullable(email),
-      phone: nullable(detail.phone),
-      website: nullable(detail.website),
-      country: nullable(detail.country),
-      timezone: nullable(detail.timezone),
-    }).select("id").single();
-    fail(created, "Creating client");
-    ids.set(key, text((created.data as DbRow).id));
-  }
-  return ids;
-}
-
 export async function readRelationalWorkspace(client: SupabaseClient): Promise<RelationalSnapshot> {
-  const [leads, proposals, followUps, invoices, projects, team, workItems, links, managed] = await Promise.all([
-    client.from("leads").select("*"),
-    client.from("proposals").select("*"),
-    client.from("proposal_follow_ups").select("*"),
-    client.from("invoices").select("*"),
-    client.from("projects").select("*"),
-    client.from("project_team_members").select("*"),
-    client.from("project_work_items").select("*"),
-    client.from("project_links").select("*"),
-    client.from("managed_projects").select("*"),
-  ]);
-  for (const [result, name] of [[leads, "leads"], [proposals, "proposals"], [followUps, "proposal follow-ups"], [invoices, "invoices"], [projects, "projects"], [team, "project team"], [workItems, "project work items"], [links, "project links"], [managed, "managed projects"]] as const) fail(result, `Loading ${name}`);
-
+  async function readTable(table: string) {
+    const data: DbRow[] = [];
+    for (let offset = 0; ; offset += 500) {
+      const result = await client.from(table).select("*").order("id").range(offset, offset + 499);
+      fail(result, `Loading ${table}`);
+      data.push(...(result.data ?? []));
+      if ((result.data?.length ?? 0) < 500) return {data};
+    }
+  }
+  const [leads, proposals, followUps, invoices, projects, team, workItems, links, managed] = await Promise.all(
+    ["leads", "proposals", "proposal_follow_ups", "invoices", "projects", "project_team_members", "project_work_items", "project_links", "managed_projects"].map(readTable)
+  );
+  const schemaCheck = await client.from("leads").select("revision").limit(1);
+  const schemaVersion = await client.rpc("workspace_schema_version");
+  if (schemaCheck.error && !["42703","PGRST204"].includes(schemaCheck.error.code)) fail(schemaCheck,"Checking workspace schema");
   const leadRows = (leads.data ?? []) as DbRow[];
   const proposalRows = (proposals.data ?? []) as DbRow[];
   const followUpRows = (followUps.data ?? []) as DbRow[];
@@ -285,6 +250,7 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
   for (const row of proposalRows) (proposalsByLead.get(text(row.lead_id)) ?? (proposalsByLead.set(text(row.lead_id), []), proposalsByLead.get(text(row.lead_id))!)).push(row);
   for (const row of followUpRows) (followUpsByProposal.get(text(row.proposal_id)) ?? (followUpsByProposal.set(text(row.proposal_id), []), followUpsByProposal.get(text(row.proposal_id))!)).push(row);
   for (const row of invoiceRows) {
+    if (!row.is_deposit) continue;
     if (row.lead_id) invoiceByLead.set(text(row.lead_id), row);
     if (row.project_id) invoiceByProject.set(text(row.project_id), row);
   }
@@ -383,8 +349,8 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
       billingStructure: row.billing_structure,
       contractedValue: number(row.contracted_value),
       currency: text(row.currency, "USD"),
-      depositAmount: row.deposit_amount === null ? undefined : number(row.deposit_amount),
-      depositStatus: row.deposit_status || undefined,
+      depositAmount: invoiceRows.filter(invoice => invoice.is_deposit && (invoice.project_id === dbId || (row.lead_id && invoice.lead_id === row.lead_id))).reduce((sum,invoice) => sum + number(invoice.total),0),
+      depositStatus: (() => { const deposits = invoiceRows.filter(invoice => invoice.is_deposit && (invoice.project_id === dbId || (row.lead_id && invoice.lead_id === row.lead_id))); return deposits.length && deposits.every(invoice => invoice.status === "CONFIRMED_PAID") ? "CONFIRMED_PAID" as const : undefined; })(),
       invoice: rowToInvoice(invoiceByProject.get(dbId) || (lead ? invoiceByLead.get(text(lead.id)) : undefined)),
       proposalVersion: number(proposalVersion, 1),
       signedContractName: row.signed_contract_name || undefined,
@@ -422,6 +388,9 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     projectId: row.project_id ? projectIdByDbId.get(text(row.project_id)) : undefined,
     operatingCompany: (row.operating_company as "Evecture" | "Servn") || "Evecture",
     billTo: text(row.bill_to),
+    clientName: row.client_name || undefined,
+    clientEmail: row.client_email || undefined,
+    isDeposit: Boolean(row.is_deposit),
     description: text(row.description),
     quantity: number(row.quantity, 1),
     unitPrice: number(row.unit_price),
@@ -455,15 +424,26 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     values,
     remoteCollections: new Set<WorkspaceCollection>(collections),
     legacyCollections: new Set<WorkspaceCollection>(),
+    requiresMigration: Boolean(schemaCheck.error) || schemaVersion.data !== 1 || [...leadRows,...projectRows,...managedRows,...invoiceRows].some(row => row.revision === undefined),
+    revisions: Object.fromEntries(([ ["leads",leadRows], ["projects",projectRows], ["management",managedRows], ["invoices",invoiceRows] ] as [WorkspaceCollection, DbRow[]][]).flatMap(([collection,rows]) => rows.map(row => {
+      return [`${collection}:${collection === "invoices" ? row.invoice_number : row.external_id || row.id}`, number(row.revision)];
+    }))),
   };
 }
 
-async function persistLeads(client: SupabaseClient, leads: Lead[], userId: string) {
-  const clientIds = await ensureClients(client, leads.map((lead) => ({ companyName: lead.companyName || lead.fullName, contactName: lead.fullName, email: lead.email, phone: lead.phone, website: lead.companyWebsite, country: lead.country, timezone: lead.timezone })));
-  const payload = leads.map((lead) => ({
+export type WorkspaceChange = {
+  collection: WorkspaceCollection;
+  id: string;
+  expectedRevision: number | null;
+  operation: "save" | "delete";
+  data?: Record<string, unknown>;
+};
+
+export function serializeRecord(collection: WorkspaceCollection, value: unknown): Record<string, unknown> {
+  if (collection === "leads") {
+    const lead = value as Lead;
+    return { row: {
     external_id: lead.id,
-    client_id: clientIds.get(clientKey(lead.companyName || lead.fullName, lead.email)) ?? null,
-    created_by: userId,
     full_name: lead.fullName || "Unnamed lead",
     designation: nullable(lead.designation),
     company_name: nullable(lead.companyName),
@@ -493,47 +473,15 @@ async function persistLeads(client: SupabaseClient, leads: Lead[], userId: strin
     acceptance_document_name: nullable(lead.acceptanceDocumentName),
     acceptance_document_data_url: nullable(lead.acceptanceDocumentDataUrl),
     created_at: lead.createdAt || new Date().toISOString(),
-  }));
-  const upserted = payload.length ? await client.from("leads").upsert(payload, { onConflict: "external_id" }).select("id,external_id") : { data: [], error: null };
-  fail(upserted, "Saving leads");
-  const leadIds = new Map(((upserted.data ?? []) as DbRow[]).map((row) => [text(row.external_id), text(row.id)]));
-  const existing = await client.from("leads").select("id,external_id");
-  fail(existing, "Loading existing leads");
-  const currentIds = new Set(leads.map((lead) => lead.id));
-  const staleIds = ((existing.data ?? []) as DbRow[]).filter((row) => row.external_id && !currentIds.has(text(row.external_id))).map((row) => text(row.id));
-  if (staleIds.length) fail(await client.from("leads").delete().in("id", staleIds), "Removing deleted leads");
-
-  for (const lead of leads) {
-    const leadId = leadIds.get(lead.id);
-    if (!leadId) continue;
-    fail(await client.from("proposals").delete().eq("lead_id", leadId), "Refreshing proposals");
-    for (const proposal of lead.proposals ?? []) {
-      const created = await client.from("proposals").insert(proposalToRow(proposal, leadId)).select("id").single();
-      fail(created, "Saving proposal");
-      const proposalId = text((created.data as DbRow).id);
-      if (proposal.followUps.length) {
-        fail(await client.from("proposal_follow_ups").insert(proposal.followUps.map((followUp) => ({ proposal_id: proposalId, label: followUp.label, due_at: followUp.dueAt, logged_at: nullable(followUp.loggedAt) }))), "Saving proposal follow-ups");
-      }
-    }
-    if (lead.invoice) fail(await client.from("invoices").upsert(leadInvoiceToRow(lead.invoice, { leadId }), { onConflict: "invoice_number" }), "Saving lead invoice");
+    }, proposals: (lead.proposals ?? []).map(proposal => ({
+      row: proposalToRow(proposal, ""),
+      followUps: proposal.followUps.map(item => ({ label: item.label, due_at: item.dueAt, logged_at: nullable(item.loggedAt) })),
+    })) };
   }
-}
-
-async function persistProjects(client: SupabaseClient, projects: Project[]) {
-  const leads = await client.from("leads").select("id,external_id");
-  fail(leads, "Loading leads for projects");
-  const leadIds = new Map(((leads.data ?? []) as DbRow[]).map((row) => [text(row.external_id, text(row.id)), text(row.id)]));
-  const proposals = await client.from("proposals").select("id,lead_id,version");
-  fail(proposals, "Loading proposals for projects");
-  const proposalIds = new Map(((proposals.data ?? []) as DbRow[]).map((row) => [`${text(row.lead_id)}|${number(row.version)}`, text(row.id)]));
-  const clientIds = await ensureClients(client, projects.map((project) => ({ ...projectClientDetails(project) })));
-  const payload = projects.map((project) => {
-    const leadDbId = leadIds.get(project.leadId);
-    return {
+  if (collection === "projects") {
+    const project = value as Project;
+    return { row: {
       external_id: project.id,
-      lead_id: leadDbId ?? null,
-      client_id: clientIds.get(clientKey(projectClientDetails(project).companyName, project.clientEmail)) ?? null,
-      proposal_id: leadDbId ? proposalIds.get(`${leadDbId}|${number(project.proposalVersion, 1)}`) ?? null : null,
       title: project.title || "Untitled project",
       client_company: nullable(project.clientCompany),
       client_name: nullable(project.clientName),
@@ -545,8 +493,6 @@ async function persistProjects(client: SupabaseClient, projects: Project[]) {
       billing_structure: project.billingStructure,
       contracted_value: number(project.contractedValue),
       currency: project.currency || "USD",
-      deposit_amount: project.depositAmount ?? null,
-      deposit_status: project.depositStatus ?? null,
       scope_included: nullable(project.scopeIncluded),
       scope_excluded: nullable(project.scopeExcluded),
       assumptions: nullable(project.assumptions),
@@ -555,38 +501,16 @@ async function persistProjects(client: SupabaseClient, projects: Project[]) {
       signed_contract_name: nullable(project.signedContractName),
       signed_contract_data_url: nullable(project.signedContractDataUrl),
       created_at: project.createdAt || new Date().toISOString(),
+    }, leadId: project.leadId || null, proposalVersion: project.proposalVersion,
+      team: project.team.map(member => ({ role: member.role, name: nullable(member.name), allocation_percent: number(member.allocationPercent) })),
+      workItems: (project.workItems ?? []).map(item => ({ external_id: item.id, title: item.title, kind: item.kind, assignee_name: nullable(item.assignee), priority: item.priority, estimated_hours: number(item.estimatedHours), logged_hours: number(item.loggedHours), status: item.status, blocker_reason: nullable(item.blockerReason), proof: item.proof ?? {}, review_notes: nullable(item.reviewNotes), revision_requested: Boolean(item.revisionRequested), timer_started_at: nullable(item.timerStartedAt), created_at: item.createdAt })),
+      links: Object.entries(project.links ?? {}).filter(([,url]) => url).map(([link_type,url]) => ({ link_type, url })),
     };
-  });
-  const upserted = payload.length ? await client.from("projects").upsert(payload, { onConflict: "external_id" }).select("id,external_id") : { data: [], error: null };
-  fail(upserted, "Saving projects");
-  const projectIds = new Map(((upserted.data ?? []) as DbRow[]).map((row) => [text(row.external_id), text(row.id)]));
-  const existing = await client.from("projects").select("id,external_id");
-  fail(existing, "Loading existing projects");
-  const currentIds = new Set(projects.map((project) => project.id));
-  const staleIds = ((existing.data ?? []) as DbRow[]).filter((row) => row.external_id && !currentIds.has(text(row.external_id))).map((row) => text(row.id));
-  if (staleIds.length) fail(await client.from("projects").delete().in("id", staleIds), "Removing deleted projects");
-
-  for (const project of projects) {
-    const projectId = projectIds.get(project.id);
-    if (!projectId) continue;
-    fail(await client.from("project_team_members").delete().eq("project_id", projectId), "Refreshing project team");
-    fail(await client.from("project_work_items").delete().eq("project_id", projectId), "Refreshing project work items");
-    fail(await client.from("project_links").delete().eq("project_id", projectId), "Refreshing project links");
-    if (project.team.length) fail(await client.from("project_team_members").insert(project.team.map((member) => ({ project_id: projectId, role: member.role, name: nullable(member.name), allocation_percent: number(member.allocationPercent) }))), "Saving project team");
-    if (project.workItems?.length) fail(await client.from("project_work_items").insert(project.workItems.map((item) => ({ project_id: projectId, external_id: item.id, title: item.title, kind: item.kind, assignee_name: nullable(item.assignee), priority: item.priority, estimated_hours: number(item.estimatedHours), logged_hours: number(item.loggedHours), status: item.status, blocker_reason: nullable(item.blockerReason), proof: item.proof ?? {}, review_notes: nullable(item.reviewNotes), revision_requested: Boolean(item.revisionRequested), timer_started_at: nullable(item.timerStartedAt), created_at: item.createdAt || new Date().toISOString() }))), "Saving project work items");
-    const links = Object.entries(project.links ?? {}).filter(([, url]) => url).map(([linkType, url]) => ({ project_id: projectId, link_type: linkType, url }));
-    if (links.length) fail(await client.from("project_links").insert(links), "Saving project links");
-    if (project.invoice) fail(await client.from("invoices").upsert(leadInvoiceToRow(project.invoice, { leadId: leadIds.get(project.leadId) ?? null, projectId }), { onConflict: "invoice_number" }), "Saving project invoice");
   }
-}
-
-async function persistManagement(client: SupabaseClient, items: ManagedProject[]) {
-  const projects = await client.from("projects").select("id,external_id");
-  fail(projects, "Loading projects for managed plans");
-  const projectIds = new Map(((projects.data ?? []) as DbRow[]).map((row) => [text(row.external_id, text(row.id)), text(row.id)]));
-  const payload = items.map((item) => ({
+  if (collection === "management") {
+    const item = value as ManagedProject;
+    return { row: {
     external_id: item.id,
-    source_project_id: item.sourceProjectId ? projectIds.get(item.sourceProjectId) ?? null : null,
     project_title: item.projectTitle || "Untitled managed project",
     client_company: nullable(item.clientCompany),
     model: item.model,
@@ -597,35 +521,35 @@ async function persistManagement(client: SupabaseClient, items: ManagedProject[]
     period_end: nullable(item.periodEnd),
     status: item.status,
     created_at: item.createdAt || new Date().toISOString(),
-  }));
-  const upserted = payload.length ? await client.from("managed_projects").upsert(payload, { onConflict: "external_id" }) : { data: [], error: null };
-  fail(upserted, "Saving managed projects");
-  const existing = await client.from("managed_projects").select("id,external_id");
-  fail(existing, "Loading existing managed projects");
-  const currentIds = new Set(items.map((item) => item.id));
-  const staleIds = ((existing.data ?? []) as DbRow[]).filter((row) => row.external_id && !currentIds.has(text(row.external_id))).map((row) => text(row.id));
-  if (staleIds.length) fail(await client.from("managed_projects").delete().in("id", staleIds), "Removing deleted managed projects");
-}
-
-async function persistInvoices(client: SupabaseClient, invoices: StoredInvoice[]) {
-  const leads = await client.from("leads").select("id,external_id");
-  fail(leads, "Loading leads for invoices");
-  const leadIds = new Map(((leads.data ?? []) as DbRow[]).map((row) => [text(row.external_id, text(row.id)), text(row.id)]));
-  const projects = await client.from("projects").select("id,external_id");
-  fail(projects, "Loading projects for invoices");
-  const projectIds = new Map(((projects.data ?? []) as DbRow[]).map((row) => [text(row.external_id, text(row.id)), text(row.id)]));
-
-  for (const invoice of invoices) {
-    const leadDbId = invoice.leadId ? leadIds.get(invoice.leadId) ?? null : null;
-    const projectDbId = invoice.projectId ? projectIds.get(invoice.projectId) ?? null : null;
-    const row = leadInvoiceToRow(invoice, { leadId: leadDbId, projectId: projectDbId });
-    fail(await client.from("invoices").upsert(row, { onConflict: "invoice_number" }), "Saving invoice");
+    }, sourceProjectId: item.sourceProjectId || null };
   }
+  if (collection === "invoices") {
+    const invoice = value as StoredInvoice;
+    return { row: { ...leadInvoiceToRow(invoice, {}), client_name: invoice.clientName || null, client_email: invoice.clientEmail || null, is_deposit: Boolean(invoice.isDeposit) }, leadId: invoice.leadId || null, projectId: invoice.projectId || null };
+  }
+  throw new Error("Unsupported workspace collection");
 }
 
-export async function persistRelationalCollection(client: SupabaseClient, collection: WorkspaceCollection, data: unknown, userId: string) {
-  if (collection === "leads") return persistLeads(client, Array.isArray(data) ? data as Lead[] : [], userId);
-  if (collection === "projects") return persistProjects(client, Array.isArray(data) ? data as Project[] : []);
-  if (collection === "management") return persistManagement(client, Array.isArray(data) ? data as ManagedProject[] : []);
-  if (collection === "invoices") return persistInvoices(client, Array.isArray(data) ? data as StoredInvoice[] : []);
+// Only explicit differences from the last acknowledged snapshot are written.
+export function workspaceChanges(before: Partial<RelationalValues>, after: Partial<RelationalValues>, revisions: Record<string, number>): WorkspaceChange[] {
+  return collections.flatMap(collection => {
+    const previous = new Map(((before[collection] ?? []) as {id:string}[]).map(row => [row.id,row]));
+    const current = new Map(((after[collection] ?? []) as {id:string}[]).map(row => [row.id,row]));
+    const changes: WorkspaceChange[] = [];
+    for (const [id,row] of current) {
+      const data = serializeRecord(collection,row);
+      if (!previous.has(id) || JSON.stringify(data) !== JSON.stringify(serializeRecord(collection,previous.get(id)))) {
+        changes.push({ collection, id, expectedRevision: revisions[`${collection}:${id}`] ?? null, operation: "save", data });
+      }
+    }
+    for (const id of previous.keys()) if (!current.has(id)) changes.push({ collection, id, expectedRevision: revisions[`${collection}:${id}`] ?? null, operation: "delete" });
+    return changes;
+  });
+}
+
+export async function persistWorkspaceChanges(client: SupabaseClient, changes: WorkspaceChange[], requestId = crypto.randomUUID()): Promise<Record<string, number>> {
+  if (!changes.length) return {};
+  const result = await client.rpc("save_workspace_changes", { p_changes: changes, p_request_id:requestId });
+  fail(result, "Saving workspace");
+  return result.data as Record<string, number>;
 }

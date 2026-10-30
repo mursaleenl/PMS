@@ -22,11 +22,7 @@ export function getWorkspaceRole(user: AuthUserLike | null | undefined): Workspa
   const configuredAdminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim().toLowerCase();
   if (email && configuredAdminEmail && email === configuredAdminEmail) return "admin";
 
-  const metadata = user?.user_metadata;
-  if (metadata && typeof metadata === "object" && "role" in metadata) {
-    return normalizeRole((metadata as { role?: unknown }).role) ?? "employee";
-  }
-  return "employee";
+  return "client";
 }
 
 export function canAccessPath(role: WorkspaceRole, pathname: string) {

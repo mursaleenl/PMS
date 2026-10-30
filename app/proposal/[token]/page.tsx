@@ -2,8 +2,8 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useParams } from "next/navigation";
-import { Check, Download, Mail, Printer, Send } from "lucide-react";
-import { readLeads, type Lead, type ProposalVersion, updateLead } from "@/lib/leads";
+import { Check, Download, Printer, Send } from "lucide-react";
+import { type Lead, type ProposalVersion } from "@/lib/leads";
 
 function money(amount: number, currency: string) {
   try { return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(amount); }
@@ -24,36 +24,26 @@ export default function ClientProposalPage() {
   const [responseNote, setResponseNote] = useState("");
   const [responseSaved, setResponseSaved] = useState(false);
   const [error, setError] = useState("");
+  const [submitting,setSubmitting] = useState(false);
 
   useEffect(() => {
-    const refresh = () => {
-      const match = readLeads().find((item) => item.proposals?.some((proposal) => proposal.shareToken === token));
-      const proposal = match?.proposals?.find((item) => item.shareToken === token);
-      if (match && proposal && proposal.status === "SENT" && !proposal.viewedAt) {
-        const proposals = match.proposals?.map((item) => item.shareToken === token ? { ...item, viewedAt: new Date().toISOString() } : item) ?? [];
-        updateLead(match.id, { proposals });
-        setLead({ ...match, proposals });
-      } else {
-        setLead(match ?? null);
-      }
-      setLoading(false);
-    };
-    refresh();
-    window.addEventListener("evecture:leads-updated", refresh);
-    window.addEventListener("storage", refresh);
-    return () => {
-      window.removeEventListener("evecture:leads-updated", refresh);
-      window.removeEventListener("storage", refresh);
-    };
-  }, [token]);
+    const controller=new AbortController();
+    setLoading(true); setResponseSaved(false); setResponseMode(null); setLead(null); setError("");
+    void fetch(`/api/proposals/${encodeURIComponent(token)}`,{signal:controller.signal,cache:"no-store"})
+      .then(async response => { const result=await response.json(); if (!response.ok) throw new Error(result.error); return result; })
+      .then(result => setLead(result.lead))
+      .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Unable to load proposal."); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  },[token]);
 
   const proposal = lead?.proposals?.find((item) => item.shareToken === token);
   const isOpen = proposal?.status === "SENT";
-  const expired = !!proposal && new Date(`${proposal.expiryDate}T23:59:59`).getTime() < Date.now();
+  const expired = !!proposal && new Date(`${proposal.expiryDate}T23:59:59Z`).getTime() < Date.now();
 
-  function respond(event: FormEvent<HTMLFormElement>) {
+  async function respond(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!lead || !proposal) return;
+    if (!lead || !proposal || !isOpen || expired || submitting) return;
     if (responseMode === "accept" && !responseName.trim()) {
       setError("Enter the name of the person approving this proposal.");
       return;
@@ -63,26 +53,20 @@ export default function ClientProposalPage() {
       return;
     }
     const nextStatus: ProposalVersion["status"] = responseMode === "accept" ? "ACCEPTED" : responseMode === "decline" ? "DECLINED" : "CHANGES_REQUESTED";
-    const proposals = lead.proposals?.map((item) => item.shareToken === token ? {
-      ...item,
-      status: nextStatus,
-      respondedAt: new Date().toISOString(),
-      changeRequest: responseMode === "accept" ? undefined : responseNote.trim(),
-    } : item) ?? [];
-    updateLead(lead.id, {
-      proposals,
-      status: responseMode === "accept" ? "ACCEPTED" : responseMode === "decline" ? "LOST" : "PROPOSAL_SENT",
-      acceptedAt: responseMode === "accept" ? new Date().toISOString() : lead.acceptedAt,
-      acceptanceName: responseMode === "accept" ? responseName.trim() : lead.acceptanceName,
-      disqualificationReason: responseMode === "decline" ? `Client declined: ${responseNote.trim()}` : lead.disqualificationReason,
-    });
-    setLead({ ...lead, proposals, status: responseMode === "accept" ? "ACCEPTED" : responseMode === "decline" ? "LOST" : "PROPOSAL_SENT" });
-    setResponseSaved(true);
-    setError("");
+    setSubmitting(true); setError("");
+    try {
+      const response=await fetch(`/api/proposals/${encodeURIComponent(token)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({response:nextStatus,name:responseName.trim(),note:responseNote.trim()})});
+      const result=await response.json();
+      if (!response.ok) throw new Error(result.error || "Response could not be saved.");
+      setLead({...lead,proposals:[{...proposal,status:nextStatus,respondedAt:new Date().toISOString(),changeRequest:responseNote.trim(),responseName:responseName.trim()}]});
+      setResponseSaved(true);
+    } catch(cause) { setError(cause instanceof Error ? cause.message : "Response could not be saved. Please retry."); }
+    finally { setSubmitting(false); }
+
   }
 
   if (loading) return <main className="client-proposal-page"><div className="client-proposal-state">Loading proposal…</div></main>;
-  if (!lead || !proposal) return <main className="client-proposal-page"><div className="client-proposal-state"><h1>Proposal unavailable</h1><p>This proposal link is invalid or is no longer available.</p></div></main>;
+  if (!lead || !proposal) return <main className="client-proposal-page"><div className="client-proposal-state"><h1>Proposal unavailable</h1><p>{error || "This proposal link is invalid or is no longer available."}</p></div></main>;
 
   const templateSections = [
     { id: "challenge", title: "The Challenge", body: proposal.challenge },
@@ -167,13 +151,13 @@ export default function ClientProposalPage() {
       {narrativeSections.length > 0 && <div className="client-proposal-template-grid client-proposal-narrative-grid">{narrativeSections.map((section) => <section id={section.id} className="client-proposal-card client-proposal-template-section" key={section.id}><h2>{section.title}</h2><p className="client-proposal-longform">{section.body}</p></section>)}</div>}
       <div id="scope" className="client-proposal-two-column"><section className="client-proposal-card"><h2>4. Scope and deliverables</h2><h3>Included scope</h3><ul>{lines(proposal.scopeIncluded).map((item) => <li key={item}>{item}</li>)}</ul><h3>Deliverables</h3><ul>{lines(proposal.deliverables).map((item) => <li key={item}>{item}</li>)}</ul>{proposal.scopeExcluded && <><h3>Not included</h3><ul>{lines(proposal.scopeExcluded).map((item) => <li key={item}>{item}</li>)}</ul></>}</section><section id="timeline" className="client-proposal-card"><h2>Timeline and investment</h2><h3>Timeline</h3><ul>{lines(proposal.timeline || "").map((item) => <li key={item}>{item}</li>)}</ul><div className="client-proposal-price"><span>Total investment</span><strong>{money(proposal.quotedAmount, proposal.currency)}</strong><small>{proposal.billingStructure} · {proposal.depositPercent}% deposit{proposal.revisionRounds ? ` · ${proposal.revisionRounds} revision rounds` : ""}</small></div><h3>Payment terms</h3><p>{proposal.paymentTerms || "Payment terms will be confirmed before the project begins."}</p></section></div>
       {detailSections.length > 0 && <div className="client-proposal-template-grid">{detailSections.map((section) => <section id={section.id} className="client-proposal-card client-proposal-template-section" key={section.id}><h2>{section.title}</h2><p className="client-proposal-longform">{section.body}</p></section>)}</div>}
-      <div className="client-proposal-two-column"><section id="working-together" className="client-proposal-card"><h2>Working together</h2><h3>Client requirements</h3><p>{proposal.clientRequirements || "The client will provide timely access, content, feedback, and approvals needed to keep delivery on track."}</p><h3>Assumptions and exclusions</h3><p>{proposal.assumptions || "Any work outside the included scope will be discussed and approved separately."}</p></section><section id="questions" className="client-proposal-card"><h2>Questions</h2><p>For questions about this proposal, contact:</p><div className="client-proposal-contact"><strong>{lead.fullName}</strong><span>{lead.companyName || "EVECTURE"}</span><a href={`mailto:${lead.email}`}><Mail size={14} />{lead.email}</a>{lead.phone && <span>{lead.phone}</span>}</div></section></div>
+      <div className="client-proposal-two-column"><section id="working-together" className="client-proposal-card"><h2>Working together</h2><h3>Client requirements</h3><p>{proposal.clientRequirements || "The client will provide timely access, content, feedback, and approvals needed to keep delivery on track."}</p><h3>Assumptions and exclusions</h3><p>{proposal.assumptions || "Any work outside the included scope will be discussed and approved separately."}</p></section><section id="questions" className="client-proposal-card"><h2>Questions</h2><p>For questions about this proposal, contact:</p><div className="client-proposal-contact"><strong>EVECTURE project team</strong><span>Reply to the email that included this proposal link for questions.</span></div></section></div>
     </div>
 
     <section id="acceptance" className="client-proposal-signature-section"><h2>Acceptance</h2><p>By accepting this proposal, the client confirms the scope, investment, payment terms, and assumptions described above.</p><div className="client-proposal-signature-grid"><span>Client name</span><span>Signature</span><span>Date</span></div></section>
 
-    {isOpen && !responseSaved && <section className="client-proposal-actions"><div><h2>Ready to respond?</h2><p>Accept this proposal, request changes, or let us know if it is not the right fit.</p></div><div className="client-proposal-action-buttons"><button type="button" className="client-proposal-accept" disabled={expired} onClick={() => { setResponseMode("accept"); setError(""); }}><Check size={16} />Accept proposal</button><button type="button" onClick={() => { setResponseMode("changes"); setError(""); }}>Request changes</button><button type="button" onClick={() => { setResponseMode("decline"); setError(""); }}>Decline</button></div></section>}
-    {responseMode && !responseSaved && <div className="client-proposal-response-form"><form onSubmit={respond}><h2>{responseMode === "accept" ? "Accept proposal" : responseMode === "changes" ? "Request changes" : "Decline proposal"}</h2>{responseMode === "accept" ? <label>Name of approving contact<input value={responseName} onChange={(event) => setResponseName(event.target.value)} placeholder="Your full name" autoFocus /></label> : <label>{responseMode === "changes" ? "What would you like changed?" : "Why are you declining?"}<textarea value={responseNote} onChange={(event) => setResponseNote(event.target.value)} placeholder={responseMode === "changes" ? "Add notes for the team" : "Optional context for the team"} autoFocus /></label>}{error && <p className="client-proposal-error">{error}</p>}<div><button type="button" onClick={() => setResponseMode(null)}>Cancel</button><button type="submit" className="client-proposal-accept"><Send size={15} />Submit response</button></div></form></div>}
+    {isOpen && !responseSaved && <section className="client-proposal-actions"><div><h2>Ready to respond?</h2><p>Accept this proposal, request changes, or let us know if it is not the right fit.</p></div><div className="client-proposal-action-buttons"><button type="button" className="client-proposal-accept" disabled={expired || submitting} onClick={() => { setResponseMode("accept"); setError(""); }}><Check size={16} />Accept proposal</button><button type="button" onClick={() => { setResponseMode("changes"); setError(""); }}>Request changes</button><button type="button" onClick={() => { setResponseMode("decline"); setError(""); }}>Decline</button></div></section>}
+    {responseMode && !responseSaved && <div className="client-proposal-response-form"><form onSubmit={respond}><h2>{responseMode === "accept" ? "Accept proposal" : responseMode === "changes" ? "Request changes" : "Decline proposal"}</h2>{responseMode === "accept" ? <label>Name of approving contact<input value={responseName} onChange={(event) => setResponseName(event.target.value)} placeholder="Your full name" autoFocus /></label> : <label>{responseMode === "changes" ? "What would you like changed?" : "Why are you declining?"}<textarea value={responseNote} onChange={(event) => setResponseNote(event.target.value)} placeholder={responseMode === "changes" ? "Add notes for the team" : "Optional context for the team"} autoFocus /></label>}{error && <p className="client-proposal-error">{error}</p>}<div><button type="button" onClick={() => setResponseMode(null)}>Cancel</button><button type="submit" disabled={submitting || expired} className="client-proposal-accept"><Send size={15} />{submitting ? "Saving response…" : "Submit response"}</button></div></form></div>}
     <footer className="client-proposal-footer">EVECTURE · This proposal is private to the recipient of this link.</footer>
   </main>;
 }

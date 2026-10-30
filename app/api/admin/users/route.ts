@@ -17,19 +17,13 @@ async function authorizeAdmin(request: Request) {
   if (error || !user) return { error: NextResponse.json({ error: "Your session expired. Sign in again and retry." }, { status: 401 }) };
 
   let membership = await client.from("workspace_members").select("id,role").eq("user_id", user.id).maybeSingle();
-  if (!membership.data && user.email) membership = await client.from("workspace_members").select("id,role").eq("email", user.email.toLowerCase()).maybeSingle();
+  if (!membership.data && user.email) membership = await client.from("workspace_members").select("id,role").eq("email", user.email.toLowerCase()).is("user_id",null).maybeSingle();
   const configuredAdminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim().toLowerCase();
   const configuredAdmin = user.email?.toLowerCase() === configuredAdminEmail;
   let callerIsAdmin = membership.data?.role === "admin";
-  if (configuredAdmin && membership.data?.role !== "admin") {
-    const { error: bootstrapError } = await client.from("workspace_members").upsert({
-      user_id: user.id,
-      email: user.email!.toLowerCase(),
-      role: "admin",
-      display_name: user.user_metadata?.full_name || null,
-      must_change_password: false,
-    }, { onConflict: "email" });
-    if (bootstrapError) return { error: NextResponse.json({ error: `Could not initialize administrator access: ${bootstrapError.message}` }, { status: 500 }) };
+  if (configuredAdmin && !membership.data && !membership.error) {
+    const {error: bootstrapError} = await client.rpc("bootstrap_workspace_admin", {p_user_id:user.id});
+    if (bootstrapError) return {error:NextResponse.json({error:bootstrapError.message},{status:403})};
     callerIsAdmin = true;
   }
   if (membership.error) return { error: NextResponse.json({ error: membership.error.message }, { status: 500 }) };
@@ -87,6 +81,10 @@ export async function POST(request: Request) {
   if (membershipError) {
     await auth.client.auth.admin.deleteUser(created.user.id);
     return NextResponse.json({ error: `Unable to save the user's workspace role: ${membershipError.message}` }, { status: 500 });
+  }
+  if (role === "client") {
+    const linked = await auth.client.from("clients").update({client_user_id:created.user.id}).ilike("email",email.replace(/[%_]/g,"\\$&"));
+    if (linked.error) return NextResponse.json({error:"Account created, but existing client records could not be linked. Retry account linking before use."},{status:500});
   }
   return NextResponse.json({ success: true });
 }

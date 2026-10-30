@@ -1,0 +1,135 @@
+/* Shared spacing and controls, followed by the phone navigation island. */
+@media screen {
+  .app-shell .main-area .page-content .welcome-row { align-items: center; row-gap: 18px; }
+  .app-shell .main-area .page-content .welcome-subtitle { margin-top: 8px; line-height: 1.6; }
+  .app-shell .main-area .page-content .button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    height: auto !important; min-height: 38px !important; padding: 9px 14px !important; font-size: 12px; font-weight: 550 !important; line-height: 1.25;
+    letter-spacing: 0 !important; text-decoration: none !important; text-transform: none !important;
+    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  }
+  .app-shell .main-area .page-content .button svg { flex: 0 0 auto; width: 16px; height: 16px; }
+  .app-shell .main-area .page-content .button:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .app-shell .main-area .page-content .field { gap: 7px; font-size: 12px; line-height: 1.5; }
+  .app-shell .main-area .page-content .field :is(input:not([type="checkbox"]),select) { min-height: 40px; }
+  .app-shell .main-area .page-content :is(.panel-heading,.welcome-actions,.attendance-actions) { gap: 10px; }
+  .app-shell .main-area .page-content :is(.table-scroll,.user-management-table-wrap) { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+  .app-shell .attendance-profile { display: grid; grid-template-columns: minmax(230px,1fr) minmax(0,2fr); gap: 24px; align-items: center; }
+  .app-shell .main-area .page-content .attendance-profile-person { display: flex; gap: 14px; align-items: center; min-width: 0; }
+  .app-shell .main-area .page-content .attendance-profile-person > div { min-width: 0; }
+  .app-shell .main-area .page-content .attendance-profile-person h2 { margin: 3px 0; font-size: 18px; line-height: 1.4; }
+  .app-shell .main-area .page-content .attendance-profile-person p { margin: 0 0 6px; color: var(--ws-muted); overflow-wrap: anywhere; font-size: 12px; }
+  .attendance-profile-avatar { display: grid; place-items: center; flex: 0 0 48px; height: 48px; border: 1px solid var(--ws-border); background: var(--ws-subtle-surface); color: var(--ws-muted); }
+  .attendance-profile-settings { margin-left: auto; display: grid; place-items: center; min-width: 38px; height: 38px; color: var(--ws-muted); }
+  .app-shell .main-area .page-content .attendance-profile-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
+  .app-shell .main-area .page-content .attendance-profile-stats > div { min-width: 0; border-left: 1px solid var(--ws-border); padding-left: 18px; }
+  .app-shell .main-area .page-content .attendance-profile-stats span { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ws-muted); }
+  .app-shell .main-area .page-content .attendance-profile-stats strong { display: block; font-size: 20px; font-weight: 600; line-height: 1.5; margin: 5px 0; font-variant-numeric: tabular-nums; }
+  .app-shell .main-area .page-content .attendance-profile-stats > div:first-child strong { font-size: 15px; }
+  .app-shell .main-area .page-content .attendance-profile-stats small { display: block; font-size: 10px; color: var(--ws-muted); }
+  .app-shell .main-area .page-content .attendance-profile .section-kicker { font-size: 10px !important; letter-spacing: .06em; color: var(--ws-muted); }
+  .app-shell .main-area .page-content .attendance-profile .user-role-admin { color: #f87171 !important; }
+  .app-shell .main-area .page-content .attendance-profile .user-role-employee { color: #79adff !important; }
+  .attendance-page .attendance-profile .user-role-badge { padding: 0 !important; background: transparent !important; border: 0 !important; }
+  .attendance-camera-dialog {
+    width: min(480px,calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto;
+    margin: auto; padding: 24px; border: 1px solid #363a43; border-radius: 16px !important;
+    color: #e9ebf0; background: #191b20; box-shadow: 0 24px 80px rgb(0 0 0 / 50%);
+    font-family: var(--font-body); font-size: 13px;
+  }
+  .attendance-camera-dialog::backdrop { background: rgb(0 0 0 / 72%); backdrop-filter: blur(8px); }
+  .attendance-camera-dialog > p { color: #9da4b3; line-height: 1.6; }
+  .scanner-heading { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+  .scanner-heading h2 { margin: 5px 0 0; font-size: 19px; font-weight: 600; }
+  .scanner-close { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid #363a43; background: transparent; color: #cbd0dc; cursor: pointer; }
+  .camera-view { position: relative; margin: 20px 0 16px; aspect-ratio: 1; width: 100%; background: #101114; overflow: hidden; }
+  .camera-view video { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
+  .camera-active video { opacity: 1; }
+  .camera-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 30px; color: #9da4b3; text-align: center; font-size: 12px; }
+  .camera-frame { position: absolute; inset: 12%; border: 1px solid rgb(255 255 255 / 45%); pointer-events: none; }
+  .scanner-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .scanner-actions > span { color: #9da4b3; font-size: 11px; }
+  .scanner-link-fallback { margin-top: 20px; border-top: 1px solid #30343e; padding-top: 16px; }
+  .scanner-link-fallback summary { cursor: pointer; color: #cbd0dc; font-size: 12px; }
+  .scanner-link-fallback form { display: grid; gap: 12px; margin-top: 14px; }
+  .scanner-link-fallback input { width: 100%; min-width: 0; padding: 10px; background: #101114; border: 1px solid #363a43; color: #e9ebf0; }
+}
+@media screen and (max-width: 1000px) {
+  .app-shell .attendance-profile { grid-template-columns: 1fr; gap: 22px; }
+  .app-shell .main-area .page-content .attendance-profile-stats > div:first-child { border-left: 0; padding-left: 0; }
+}
+@media screen and (max-width: 700px) {
+  .app-shell .sidebar, .app-shell.sidebar-collapsed .sidebar, .app-shell .mobile-scrim, .app-shell .mobile-menu { display: none !important; }
+  .app-shell .main-area .page-content { padding: 20px 16px calc(110px + env(safe-area-inset-bottom,0px)); }
+  .app-shell .main-area .page-content > * { min-width: 0; max-width: 100%; }
+  .app-shell .main-area .page-content .welcome-row { align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+  .app-shell .main-area .page-content .welcome-row > div { min-width: 0; }
+  .app-shell .main-area .page-content .welcome-row h1 { font-size: 21px; letter-spacing: .02em; }
+  .app-shell .main-area .page-content .welcome-subtitle { font-size: 12px; margin-bottom: 0; }
+  .app-shell .main-area .page-content .button { min-height: 42px !important; height: auto !important; padding: 10px 13px !important; white-space: normal; text-align: center; }
+  .app-shell .main-area .page-content .button:has(>svg:only-child) { min-width: 42px; padding: 10px !important; }
+  .app-shell .main-area .page-content :is(.welcome-actions,.attendance-actions) { width: 100%; display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+  .app-shell .main-area .page-content :is(.welcome-actions,.attendance-actions) > .button { flex: 1 1 auto; }
+  .app-shell .main-area .page-content :is(.form-grid,.role-summary-grid) { grid-template-columns: 1fr; gap: 16px; }
+  .app-shell .main-area .page-content .field :is(input:not([type="checkbox"]),select,textarea) { font-size: 16px; max-width: 100%; min-width: 0; }
+  .app-shell .main-area .attendance-page > .panel { padding: 18px; }
+  .app-shell .main-area .page-content .attendance-profile-stats { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .app-shell .main-area .page-content .attendance-profile-stats > div:first-child { grid-column: 1 / -1; border-bottom: 1px solid var(--ws-border); padding-bottom: 14px; }
+  .app-shell .main-area .page-content .attendance-profile-stats > div:nth-child(2) { padding-left: 0; border: 0; }
+  .app-shell .main-area .page-content :is(.performance-table,.user-management-table) { min-width: 600px; }
+  .app-shell .mobile-navigation-island {
+    width: min(260px,calc(100vw - 32px)); padding: 3px 12px 9px;
+    bottom: calc(16px + env(safe-area-inset-bottom,0px));
+    background: rgb(30 32 38 / 88%); border: 1px solid rgb(255 255 255 / 13%);
+    border-radius: 32px !important; box-shadow: 0 14px 36px rgb(0 0 0 / 48%), inset 0 1px 0 rgb(255 255 255 / 8%);
+    -webkit-backdrop-filter: blur(24px) saturate(120%); backdrop-filter: blur(24px) saturate(120%);
+    transition: width 360ms cubic-bezier(.22,1,.36,1), padding 320ms cubic-bezier(.22,1,.36,1), box-shadow 200ms ease;
+  }
+  .app-shell .mobile-navigation-island .island-handle { height: 13px; min-height: 13px; cursor: pointer; }
+  .app-shell .mobile-navigation-island .island-links { position: relative; gap: 8px; max-height: 48px; scroll-snap-type: x mandatory; touch-action: pan-x; scroll-behavior: smooth; }
+  .app-shell .mobile-navigation-island .island-link { flex: 0 0 calc((100% - 24px) / 4); height: 48px; padding: 0; scroll-snap-align: start; scroll-snap-stop: normal; }
+  .app-shell .mobile-navigation-island .island-label { display: none; }
+  .app-shell .mobile-navigation-island .island-icon { width: 44px; height: 44px; border-radius: 50% !important; color: #a6adbb; }
+  .app-shell .mobile-navigation-island .island-link.active .island-icon { background: rgb(255 255 255 / 11%); color: #ffffff; box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%); }
+  .app-shell .mobile-navigation-island .island-link:active .island-icon { transform: scale(.92); }
+  .app-shell .mobile-navigation-island .island-icon svg { width: 21px; height: 21px; }
+  .app-shell .mobile-navigation-island.island-compact { width: 92px; padding: 12px; }
+  .app-shell .mobile-navigation-island.island-compact .island-handle { height: 24px; }
+  .app-shell .mobile-navigation-island.island-compact .island-links { max-height: 0; }
+  .attendance-camera-dialog { padding: 20px; width: calc(100vw - 24px); max-height: calc(100dvh - 24px); }
+}
+@media screen and (prefers-reduced-motion: reduce) {
+  .app-shell *, .attendance-camera-dialog * { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
+
+@media screen {
+  /* Render outside the blurred topbar so it can use the whole viewport. */
+  .app-shell > .notification-popover { position: fixed; right: auto; width: min(390px,calc(100vw - 24px)); z-index: 150; min-height: 0; overflow: hidden; background: var(--ws-surface); color: var(--ws-text); }
+  .app-shell > .notification-popover :is(.notification-popover-header,.notification-tabs,.notification-popover-footer) { flex: 0 0 auto; }
+  .app-shell > .notification-popover .notification-popover-header { flex-wrap: wrap; gap: 10px; }
+  .app-shell > .notification-popover .notification-popover-title { min-width: 0; flex-wrap: wrap; }
+  .app-shell > .notification-popover .notification-header-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; flex-direction: row-reverse; }
+  .app-shell > .notification-popover .notification-close-btn { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; background: transparent; border: 0; color: var(--ws-muted); cursor: pointer; }
+  .app-shell > .notification-popover .notification-list-scroll { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .app-shell > .notification-popover :is(.notification-item-title,.notification-item-message) { overflow-wrap: anywhere; }
+  .app-shell > .notification-popover .notification-item-title { white-space: normal; }
+  .app-shell > .notification-popover .notification-dismiss-btn { opacity: 1; }
+  .app-shell > .notification-popover .notification-unread-dot { border: 0; padding: 0; background: var(--ws-muted); cursor: pointer; }
+  .app-shell > .notification-popover .notification-item-top { flex-wrap: wrap; }
+  .app-shell > .notification-popover .notification-item-actions { gap: 2px; }
+  .app-shell > .notification-popover .notification-popover-footer { gap: 10px; flex-wrap: wrap; }
+  .app-shell > .notification-popover .notification-item:focus-visible { outline: 2px solid var(--ws-text); outline-offset: -2px; }
+}
+@media screen and (max-width: 700px) {
+  .app-shell > .notification-popover .notification-popover-header { padding: 12px; }
+  .app-shell > .notification-popover .notification-popover-title { gap: 6px; }
+  .app-shell > .notification-popover .notification-quiet-btn span { display: none; }
+  .app-shell > .notification-popover :is(.notification-close-btn,.notification-quiet-btn,.notification-dismiss-btn) { width: 40px; height: 40px; min-width: 40px; padding: 0; justify-content: center; }
+  .app-shell > .notification-popover .notification-tab-btn { min-height: 40px; padding: 8px 12px; }
+  .app-shell > .notification-popover .notification-item { padding: 12px; gap: 8px; }
+  .app-shell > .notification-popover .notification-item-icon { width: 24px; height: 24px; border: 0; background: transparent; }
+  .app-shell > .notification-popover .notification-item-actions { flex-direction: column; margin-top: 0; }
+  .app-shell > .notification-popover .notification-item-title { font-size: 12px; }
+  .app-shell > .notification-popover .notification-item-message { font-size: 12px; line-height: 1.6; }
+  .app-shell > .notification-popover .notification-footer-clear-btn { min-height: 40px; }
+}

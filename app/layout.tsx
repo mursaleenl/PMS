@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "./styles/features.css";
+import "./styles/workspace.css";
+import "./styles/floating-navigation.css";
+import "./styles/premium-workspace.css";
+import "./styles/mobile-polish.css";
 import { WorkspaceShell } from "./_components/workspace-shell";
 import { AppProviders } from "./_components/providers";
 

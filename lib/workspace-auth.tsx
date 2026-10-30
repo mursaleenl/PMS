@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { getWorkspaceRole, type WorkspaceRole } from "@/lib/roles";
+import { flushPendingWorkspaceChanges } from "@/lib/workspace-sync";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type WorkspaceMember = { id: string; email: string; role: WorkspaceRole; display_name?: string | null; user_id?: string | null; created_at: string; must_change_password?: boolean };
@@ -21,6 +22,7 @@ type AuthContextValue = {
   updateMemberRole: (id: string, role: WorkspaceRole) => Promise<void>;
   removeMember: (id: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
+  accessError: string;
   refreshAccess: () => Promise<void>;
 };
 
@@ -44,72 +46,103 @@ export function WorkspaceAuthProvider({ children }: { children: ReactNode }) {
   const [databaseRole, setDatabaseRole] = useState<WorkspaceRole | null>(null);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [accessLoading, setAccessLoading] = useState(false);
+  const [accessError, setAccessError] = useState("");
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
+  const currentUserId = useRef<string | null>(null);
+  const accessRequest = useRef(0);
   const autoClaimAttempted = useRef<string | null>(null);
   const user = session?.user ?? null;
+  const userId = user?.id ?? null;
+  const userEmail = user?.email ?? null;
+  const accessToken = session?.access_token;
+  currentUserId.current = userId;
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
     let mounted = true;
-    void supabase.auth.getSession().then(({ data }) => { if (mounted) { setSession(data.session); setLoading(false); } });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => { if (mounted) setSession(nextSession); });
+    void supabase.auth.getSession().then(({data,error}) => {
+      if (!mounted) return;
+      if (error) setAccessError("Your session could not be loaded. Please sign in again.");
+      setSession(data.session);
+      setLoading(false);
+    }).catch(() => { if (mounted) { setLoading(false); setAccessError("Your session could not be loaded."); } });
+    const {data:listener} = supabase.auth.onAuthStateChange((_event,nextSession) => {
+      if (mounted) { setSession(nextSession); setLoading(false); }
+    });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, []);
 
-  const refreshAccess = async () => {
-    if (!supabase || !user) { setMembers([]); setDatabaseRole(null); setMustChangePassword(false); return; }
+  const refreshAccess = useCallback(async () => {
+    const requestId = ++accessRequest.current;
+    if (!supabase || !userId) {
+      setMembers([]); setDatabaseRole(null); setMustChangePassword(false);
+      setResolvedUserId(null); setAccessLoading(false); setAccessError("");
+      return;
+    }
     setAccessLoading(true);
-    let own = await supabase.from("workspace_members").select("id,email,role,display_name,user_id,must_change_password").eq("user_id", user.id).maybeSingle();
-    if (!own.error && !own.data && user.email) {
-      own = await supabase.from("workspace_members").select("id,email,role,display_name,user_id,must_change_password").eq("email", user.email.toLowerCase()).maybeSingle();
-    }
-    if (!own.error && !own.data && getWorkspaceRole(user) === "admin" && autoClaimAttempted.current !== user.id) {
-      autoClaimAttempted.current = user.id;
-      const claim = await supabase.rpc("claim_initial_admin");
-      if (!claim.error) {
-        own = await supabase.from("workspace_members").select("id,email,role,display_name,user_id,must_change_password").eq("user_id", user.id).maybeSingle();
+    setAccessError("");
+    const current = () => requestId === accessRequest.current && currentUserId.current === userId;
+    try {
+      const columns = "id,email,role,display_name,user_id,must_change_password";
+      let own = await supabase.from("workspace_members").select(columns).eq("user_id",userId).maybeSingle();
+      if (!own.error && !own.data && userEmail) {
+        own = await supabase.from("workspace_members").select(columns).eq("email",userEmail.toLowerCase()).is("user_id",null).maybeSingle();
       }
+      if (own.error) throw new Error("Workspace access could not be verified. Please retry.");
+      if (!own.data && getWorkspaceRole({email:userEmail}) === "admin" && autoClaimAttempted.current !== userId && accessToken) {
+        autoClaimAttempted.current = userId;
+        const response = await fetch("/api/admin/users",{headers:{Authorization:`Bearer ${accessToken}`}});
+        if (response.ok) own = await supabase.from("workspace_members").select(columns).eq("user_id",userId).maybeSingle();
+      }
+      let nextMembers: WorkspaceMember[] = [];
+      if (own.data?.role === "admin") {
+        const list = await supabase.from("workspace_members").select("id,email,role,display_name,user_id,created_at,must_change_password").order("created_at",{ascending:true});
+        if (list.error) throw new Error("Workspace members could not be loaded. Please retry.");
+        nextMembers = (list.data ?? []) as WorkspaceMember[];
+      }
+      if (!current()) return;
+      setDatabaseRole((own.data?.role as WorkspaceRole) ?? null);
+      setMustChangePassword(Boolean(own.data?.must_change_password));
+      setMembers(nextMembers);
+    } catch(error) {
+      if (current()) {
+        setAccessError(error instanceof Error ? error.message : "Unable to verify workspace access.");
+        // Fail closed for a new identity. A transient roster refresh must not
+        // unmount an already-loaded workspace and discard pending edits.
+        if (resolvedUserId !== userId) { setDatabaseRole(null); setMembers([]); }
+      }
+    } finally {
+      if (current()) { setResolvedUserId(userId); setAccessLoading(false); }
     }
-    if (!own.error && own.data) setDatabaseRole(own.data.role as WorkspaceRole);
-    else setDatabaseRole(null);
-    setMustChangePassword(Boolean(own.data?.must_change_password));
-    const fallbackRole = getWorkspaceRole(user);
-    if (own.error && fallbackRole === "employee") console.warn("Supabase workspace_members is not available yet; using employee access.");
-    if (own.data?.role === "admin" || fallbackRole === "admin") {
-      const list = await supabase.from("workspace_members").select("id,email,role,display_name,user_id,created_at,must_change_password").order("created_at", { ascending: true });
-      if (!list.error) setMembers((list.data ?? []) as WorkspaceMember[]);
-    } else setMembers([]);
-    setAccessLoading(false);
-  };
+  }, [userId,userEmail,accessToken,resolvedUserId]);
 
-  useEffect(() => { void refreshAccess(); }, [user?.id]);
+  useEffect(() => { void refreshAccess(); }, [refreshAccess]);
 
-  const role = databaseRole ?? getWorkspaceRole(user);
-  const value = useMemo<AuthContextValue>(() => ({
-    session, user, loading, configured: isSupabaseConfigured, role, databaseRole, mustChangePassword, members, accessLoading,
-    signOut: async () => { if (supabase) await supabase.auth.signOut(); },
-    provisionUser: async (name, email, password, nextRole) => {
-      await userManagementRequest(session, "POST", { name, email, password, role: nextRole });
-      await refreshAccess();
+  const identityResolved = !userId || resolvedUserId === userId;
+  const effectiveRole = identityResolved ? databaseRole : null;
+  const value: AuthContextValue = {
+    session, user, loading: loading || !identityResolved, configured:isSupabaseConfigured,
+    role:effectiveRole ?? "client", databaseRole:effectiveRole, mustChangePassword,
+    members:identityResolved ? members : [], accessLoading, accessError,
+    signOut:async () => {
+      try { await flushPendingWorkspaceChanges(); }
+      catch { if (!window.confirm("Some changes have not been saved. Sign out and discard those changes?")) return; }
+      if (supabase) { const result = await supabase.auth.signOut(); if (result.error) throw result.error; }
     },
-    updateMemberRole: async (id, nextRole) => {
-      await userManagementRequest(session, "PATCH", { id, role: nextRole });
-      await refreshAccess();
-    },
-    removeMember: async (id) => {
-      await userManagementRequest(session, "DELETE", { id });
-      await refreshAccess();
-    },
-    updatePassword: async (password) => {
+    provisionUser:async (name,email,password,role) => { await userManagementRequest(session,"POST",{name,email,password,role}); await refreshAccess(); },
+    updateMemberRole:async (id,role) => { await userManagementRequest(session,"PATCH",{id,role}); await refreshAccess(); },
+    removeMember:async id => { await userManagementRequest(session,"DELETE",{id}); await refreshAccess(); },
+    updatePassword:async password => {
       if (!supabase || !user) throw new Error("Sign in before changing your password.");
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      const result = await supabase.auth.updateUser({password});
+      if (result.error) throw result.error;
       const cleared = await supabase.rpc("clear_password_change_requirement");
       if (cleared.error) throw cleared.error;
       setMustChangePassword(false);
       await refreshAccess();
     },
     refreshAccess,
-  }), [session, user, loading, role, databaseRole, mustChangePassword, members, accessLoading]);
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

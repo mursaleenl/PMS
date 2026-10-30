@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useId } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -66,6 +67,28 @@ export function NotificationCenter() {
   const [filter, setFilter] = useState<"ALL" | "UNREAD">("ALL");
   const [notifications, setNotifications] = useState<WorkspaceNotification[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+  const [position,setPosition] = useState({left:12,top:82,maxHeight:400});
+  const [portalRoot,setPortalRoot] = useState<HTMLElement|null>(null);
+  useEffect(()=>setPortalRoot(document.querySelector<HTMLElement>(".app-shell")),[]);
+  useEffect(()=>{
+    if(!isOpen)return;
+    const place=()=>{
+      const rect=triggerRef.current?.getBoundingClientRect();if(!rect)return;
+      const viewport=window.visualViewport;
+      const width=viewport?.width??window.innerWidth,height=viewport?.height??window.innerHeight;
+      const offsetLeft=viewport?.offsetLeft??0,offsetTop=viewport?.offsetTop??0;
+      const panelWidth=Math.min(390,width-24);
+      const top=Math.min(rect.bottom+18,offsetTop+height-160);
+      const bottomSpace=width<=700?106:12;
+      setPosition({left:Math.max(offsetLeft+12,Math.min(rect.right-panelWidth,offsetLeft+width-panelWidth-12)),top:Math.max(offsetTop+12,top),maxHeight:Math.max(120,offsetTop+height-top-bottomSpace)});
+    };
+    place();window.addEventListener("resize",place);window.visualViewport?.addEventListener("resize",place);window.visualViewport?.addEventListener("scroll",place);
+    return ()=>{window.removeEventListener("resize",place);window.visualViewport?.removeEventListener("resize",place);window.visualViewport?.removeEventListener("scroll",place);};
+  },[isOpen]);
+  function close(){setIsOpen(false);triggerRef.current?.focus();}
 
   useEffect(() => {
     const sync = () => setNotifications(readNotifications());
@@ -87,8 +110,8 @@ export function NotificationCenter() {
   }, []);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+    function handleClickOutside(event: PointerEvent) {
+      if (!containerRef.current?.contains(event.target as Node) && !panelRef.current?.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
@@ -96,14 +119,15 @@ export function NotificationCenter() {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsOpen(false);
+        triggerRef.current?.focus();
       }
     }
 
     if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("pointerdown", handleClickOutside);
       document.addEventListener("keydown", handleKeyDown);
       return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("pointerdown", handleClickOutside);
         document.removeEventListener("keydown", handleKeyDown);
       };
     }
@@ -136,6 +160,9 @@ export function NotificationCenter() {
     <div className="notification-center-container" ref={containerRef}>
       <button
         type="button"
+        ref={triggerRef}
+        aria-controls={isOpen?panelId:undefined}
+        aria-haspopup="dialog"
         className={`icon-button notification-button ${isOpen ? "active" : ""}`}
         aria-label="Notifications"
         aria-expanded={isOpen}
@@ -150,8 +177,8 @@ export function NotificationCenter() {
         )}
       </button>
 
-      {isOpen && (
-        <div className="notification-popover" role="dialog" aria-label="Workspace notifications">
+      {isOpen && portalRoot && createPortal(
+        <div ref={panelRef} id={panelId} className="notification-popover" style={{left:position.left,top:position.top,maxHeight:position.maxHeight}} role="dialog" aria-label="Workspace notifications">
           {/* Header */}
           <div className="notification-popover-header">
             <div className="notification-popover-title">
@@ -161,12 +188,14 @@ export function NotificationCenter() {
               )}
             </div>
             <div className="notification-header-actions">
+              <button type="button" className="notification-close-btn" aria-label="Close notifications" onClick={close}><X size={18}/></button>
               {unreadCount > 0 && (
                 <button
                   type="button"
                   className="notification-quiet-btn"
                   onClick={() => markAllNotificationsRead()}
                   title="Mark all as read"
+                  aria-label="Mark all notifications as read"
                 >
                   <CheckCheck size={14} />
                   <span>Mark all read</span>
@@ -182,14 +211,14 @@ export function NotificationCenter() {
               className={`notification-tab-btn ${filter === "ALL" ? "selected" : ""}`}
               onClick={() => setFilter("ALL")}
             >
-              All ({notifications.length})
+              All <span>{notifications.length}</span>
             </button>
             <button
               type="button"
               className={`notification-tab-btn ${filter === "UNREAD" ? "selected" : ""}`}
               onClick={() => setFilter("UNREAD")}
             >
-              Unread ({unreadCount})
+              Unread <span>{unreadCount}</span>
             </button>
           </div>
 
@@ -217,7 +246,9 @@ export function NotificationCenter() {
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return;
                       if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
                         handleItemClick(item);
                       }
                     }}
@@ -237,7 +268,9 @@ export function NotificationCenter() {
                     </div>
                     <div className="notification-item-actions">
                       {!item.read && (
-                        <span
+                        <button
+                          type="button"
+                          aria-label="Mark notification as read"
                           className="notification-unread-dot"
                           title="Unread"
                           onClick={(e) => handleToggleRead(e, item.id, item.read)}
@@ -274,7 +307,7 @@ export function NotificationCenter() {
               </span>
             </div>
           )}
-        </div>
+        </div>, portalRoot
       )}
     </div>
   );

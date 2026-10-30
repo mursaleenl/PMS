@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, Check, FolderKanban, Handshake, Plus, Trash2, User, Users } from "lucide-react";
+import { ArrowRight, Check, FolderKanban, Handshake, Plus, Receipt, Trash2, User, Users } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
 import { deleteProject, readProjects, type Project, updateProject, getProjectDisplayTitle } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject } from "@/lib/post-sale";
@@ -59,13 +59,17 @@ export default function ProjectsPage() {
         <p className="welcome-subtitle">Keep delivery, assignments, and client work together.</p>
       </div>
       <div className="welcome-actions">
+        <Link className="button button-quiet" href="/invoices">
+          <Receipt size={15} />
+          Invoices
+        </Link>
         <Link className="button button-quiet" href="/projects/assignments">
           <Users size={15} />
           Project assignments
         </Link>
         <Link className="button button-primary" href="/requests">
           <Plus size={15} />
-          From accepted lead
+          Create from lead
         </Link>
       </div>
     </section>
@@ -100,6 +104,14 @@ export default function ProjectsPage() {
           </div>
         </Link>
         <div className={`portfolio-actions${role === "admin" ? " portfolio-actions-admin" : ""}`}>
+          <Link
+            className="button button-quiet portfolio-lifecycle-button"
+            href={project.invoice ? `/invoices?invoice=${project.invoice.invoiceNumber}` : `/invoices?project=${project.id}`}
+            title={project.invoice ? `View invoice ${project.invoice.invoiceNumber}` : "Generate invoice for this project"}
+          >
+            <Receipt size={13} />
+            {project.invoice ? project.invoice.invoiceNumber : "Invoice"}
+          </Link>
           {project.status === "ACTIVE" ? (
             <button className="button button-quiet portfolio-lifecycle-button" type="button" onClick={() => markComplete(project)}>
               <Check size={13} />Mark complete
@@ -131,7 +143,6 @@ export default function ProjectsPage() {
         </div>
       </article>;
     })}</section>}
-    <p className="storage-note">Project workspaces and files are currently stored in this browser. Connect shared team storage before operational use.</p>
     {selectedProject && <ManagedPlanDrawer projects={[selectedProject]} initialProjectId={selectedProject.id} onClose={() => setSelectedProject(null)} onCreated={() => setManagedProjects(readManagedProjects())} />}
   </div>;
 }

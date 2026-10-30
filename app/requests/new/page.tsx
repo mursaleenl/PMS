@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, CircleHelp, ExternalLink } from "lucide-react";
-import { addLead, acquisitionSources, budgetRanges, enquirySources, industries, serviceTypes } from "@/lib/leads";
+import { flushWorkspaceChanges } from "@/lib/workspace-sync";
+import { addLead, acquisitionSources, budgetRanges, industries, serviceTypes } from "@/lib/leads";
 
 export default function ProjectEnquiryPage() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function ProjectEnquiryPage() {
     setServices((current) => current.includes(value) ? current.filter((service) => service !== value) : [...current, value]);
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (services.length === 0) {
       setError("Select at least one service so we can route the enquiry correctly.");
@@ -50,10 +51,10 @@ export default function ProjectEnquiryPage() {
       status: "NEW" as const,
     };
     addLead(lead);
-    setSubmitted(true);
+    try { await flushWorkspaceChanges(); setSubmitted(true); } catch(cause) { setError(cause instanceof Error ? cause.message : "Enquiry could not be saved."); }
   }
 
-  if (submitted) return <div className="page-content enquiry-page"><div className="enquiry-success panel"><span className="success-check"><Check size={25} /></span><h1>Enquiry logged.</h1><p>The record is now available in Leads for first contact and qualification review.</p><div className="success-actions"><button className="button button-primary" onClick={() => router.push("/requests")}>Open leads <ArrowRight size={15} /></button><Link className="button button-quiet" href="/">Back to workspace</Link></div><p className="storage-note">Records are currently saved in this browser during this early build.</p></div></div>;
+  if (submitted) return <div className="page-content enquiry-page"><div className="enquiry-success panel"><span className="success-check"><Check size={25} /></span><h1>Enquiry logged.</h1><p>The record is now available in Leads for first contact and qualification review.</p><div className="success-actions"><button className="button button-primary" onClick={() => router.push("/requests")}>Open leads <ArrowRight size={15} /></button><Link className="button button-quiet" href="/">Back to workspace</Link></div><p className="storage-note">The enquiry has been saved to your workspace database.</p></div></div>;
 
   return <div className="page-content enquiry-page">
     <div className="enquiry-heading"><Link className="back-link" href="/"><ArrowLeft size={15} />Workspace overview</Link><h1>Log a client enquiry</h1></div>
@@ -78,10 +79,9 @@ export default function ProjectEnquiryPage() {
         <div className="form-grid"><label className="field">Estimated budget range<select name="budgetRange" disabled={!budgetShared} defaultValue=""><option value="">Select a range (optional)</option>{budgetRanges.map((range) => <option key={range}>{range}</option>)}</select></label><label className="field">How did the contact hear about EVECTURE?<select name="acquisitionSource" defaultValue=""><option value="">Select (optional)</option>{acquisitionSources.map((source) => <option key={source}>{source}</option>)}</select></label></div>
         <label className="budget-refusal"><input type="checkbox" checked={!budgetShared} onChange={(event) => setBudgetShared(!event.target.checked)} /><span className="custom-check">{!budgetShared && <Check size={11} strokeWidth={2.5} />}</span><span>I’d prefer not to share my budget yet</span></label>
         {!budgetShared && <label className="field budget-note">Optional note<textarea name="budgetNote" rows={2} placeholder="Anything you'd like us to know about budget timing or constraints?" /></label>}
-        <label className="field channel-field">How did this enquiry reach the studio?<select name="source" defaultValue="Website form">{enquirySources.map((source) => <option key={source}>{source}</option>)}</select><small className="field-hint">For studio use when recording an enquiry received outside this form.</small></label>
       </section>
       {error && <p className="form-error" role="alert">{error}</p>}
-      <div className="form-submit"><p><CircleHelp size={14} />Internal lead record. Use the channel field to note how the enquiry reached the studio.</p><button className="button button-primary" type="submit">Save lead record <ArrowRight size={15} /></button></div>
+      <div className="form-submit"><p><CircleHelp size={14} />Internal lead record.</p><button className="button button-primary" type="submit">Save lead record <ArrowRight size={15} /></button></div>
     </form>
     <p className="enquiry-footnote">Employee workspace · <Link href="/requests">Open leads <ExternalLink size={12} /></Link></p>
   </div>;

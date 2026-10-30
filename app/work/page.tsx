@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDownUp, ArrowRight, Check, ChevronDown, CircleAlert, Clock3, FileCheck2, Filter, GripVertical, Kanban, List, MoreHorizontal, Plus, Search, ShieldAlert, Users } from "lucide-react";
+import { ArrowDownUp, ArrowRight, Check, ChevronDown, CircleAlert, FileCheck2, Filter, GripVertical, Kanban, List, MoreHorizontal, Plus, Search, ShieldAlert, Users } from "lucide-react";
 import { EmptyState } from "@/app/_components/empty-state";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { showToast } from "@/app/_components/toast-hub";
@@ -16,12 +16,13 @@ const filters: { value: TaskFilter; label: string }[] = [
 const taskStatusLabels: Record<ProjectWorkItem["status"], string> = { TO_DO: "To do", IN_PROGRESS: "In progress", BLOCKED: "Blocked", UNDER_REVIEW: "In review", DONE: "Completed" };
 const priorityLabels: Record<ProjectWorkItem["priority"], string> = { P1: "Critical", P2: "High", P3: "Normal", P4: "Low" };
 
-type VisibleTaskStatus = "TO_DO" | "IN_PROGRESS" | "BLOCKED" | "DONE";
+type VisibleTaskStatus = ProjectWorkItem["status"];
 const kanbanColumns: { status: VisibleTaskStatus; label: string; dotColor: string }[] = [
-  { status: "TO_DO", label: "To do", dotColor: "#94a3b8" },
-  { status: "IN_PROGRESS", label: "In progress", dotColor: "#0f172a" },
-  { status: "BLOCKED", label: "Blocked", dotColor: "#64748b" },
-  { status: "DONE", label: "Completed", dotColor: "#0f172a" },
+  { status: "TO_DO", label: "To do", dotColor: "#a99aff" },
+  { status: "IN_PROGRESS", label: "In progress", dotColor: "#68d9df" },
+  { status: "UNDER_REVIEW", label: "In review", dotColor: "#c4a0ff" },
+  { status: "BLOCKED", label: "Blocked", dotColor: "#f394a1" },
+  { status: "DONE", label: "Completed", dotColor: "#77d9a8" },
 ];
 
 function updateTask(projectId: string, taskId: string, updates: Partial<ProjectWorkItem>) {
@@ -83,29 +84,31 @@ export default function MyWorkPage() {
     const filtered = allTasks.filter(({ project, task }) => {
       const matchesAssignee = !assignee || task.assignee === assignee;
       const matchesSearch = !needle || [task.title, task.assignee, task.kind, project.title, project.clientCompany, project.id].some((value) => value.toLowerCase().includes(needle));
-      return matchesAssignee && matchesSearch;
+      return (filter === "ALL" || task.status === filter) && matchesAssignee && matchesSearch;
     }).sort((left, right) => (new Date(left.task.createdAt).getTime() - new Date(right.task.createdAt).getTime()) * (sortOldestFirst ? 1 : -1));
 
     const map: Record<VisibleTaskStatus, { project: Project; task: ProjectWorkItem }[]> = {
       TO_DO: [],
       IN_PROGRESS: [],
+      UNDER_REVIEW: [],
       BLOCKED: [],
       DONE: [],
     };
 
     filtered.forEach((item) => {
       if (item.task.status === "TO_DO") map.TO_DO.push(item);
-      else if (item.task.status === "IN_PROGRESS" || item.task.status === "UNDER_REVIEW") map.IN_PROGRESS.push(item);
+      else if (item.task.status === "IN_PROGRESS") map.IN_PROGRESS.push(item);
+      else if (item.task.status === "UNDER_REVIEW") map.UNDER_REVIEW.push(item);
       else if (item.task.status === "BLOCKED") map.BLOCKED.push(item);
       else if (item.task.status === "DONE") map.DONE.push(item);
     });
 
     return map;
-  }, [allTasks, assignee, search, sortOldestFirst]);
+  }, [allTasks, assignee, search, sortOldestFirst, filter]);
 
   const inProgressCount = allTasks.filter(({ task }) => task.status === "IN_PROGRESS").length;
   const completedCount = allTasks.filter(({ task }) => task.status === "DONE").length;
-  const overdueCount = allTasks.filter(({ task }) => task.status === "BLOCKED").length;
+  const blockedCount = allTasks.filter(({ task }) => task.status === "BLOCKED").length;
 
   function handleDragStart(event: React.DragEvent, projectId: string, taskId: string) {
     event.dataTransfer.setData("text/plain", `${projectId}:${taskId}`);
@@ -264,7 +267,7 @@ export default function MyWorkPage() {
       <button type="button" className={`task-stat-card ${filter === "BLOCKED" ? "selected" : ""}`} onClick={() => setFilter("BLOCKED")}>
         <div className="task-stat-copy">
           <small>Blocked</small>
-          <strong>{overdueCount}</strong>
+          <strong>{blockedCount}</strong>
         </div>
         <span className="task-stat-note">Needs attention</span>
       </button>

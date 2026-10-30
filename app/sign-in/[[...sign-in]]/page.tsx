@@ -7,7 +7,8 @@ import { supabase } from "@/lib/supabase";
 function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const from = searchParams.get("from") || "/";
+  const requestedPath = searchParams.get("from") || "/";
+  const from = requestedPath.startsWith("/") && !requestedPath.startsWith("//") && !requestedPath.includes("\\") ? requestedPath : "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

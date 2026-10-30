@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, ChevronDown, ExternalLink, FolderKanban, Handshake, Plus } from "lucide-react";
+import { ChevronDown, ExternalLink, FolderKanban, Handshake, Plus } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
 import { EmptyState } from "@/app/_components/empty-state";
+import { flushWorkspaceChanges } from "@/lib/workspace-sync";
 import { addProject, nextProjectId, readProjects, updateProject, type Project } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject, updateManagedProject } from "@/lib/post-sale";
+import { readLeads } from "@/lib/leads";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { showToast } from "@/app/_components/toast-hub";
 
@@ -56,9 +58,10 @@ export default function PostSalePage() {
     setItems(readManagedProjects());
   }
 
-  function moveToProjects(item: ManagedProject) {
+  async function moveToProjects(item: ManagedProject) {
     if (!window.confirm(`Move "${item.projectTitle}" from Retainers to active Projects?`)) return;
 
+    try {
     const currentProjects = readProjects();
     const linked = item.sourceProjectId ? currentProjects.find((p) => p.id === item.sourceProjectId) : undefined;
 
@@ -68,16 +71,25 @@ export default function PostSalePage() {
       targetProjectId = linked.id;
       showToast({ message: `"${linked.title}" reactivated and moved to active projects.` });
     } else {
-      targetProjectId = nextProjectId(currentProjects);
+      targetProjectId = await nextProjectId();
+      const allLeads = readLeads();
+      const matchingLeads = allLeads.filter((l) => {
+        if (!l.companyName || !item.clientCompany) return false;
+        const c1 = l.companyName.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const c2 = item.clientCompany.toLowerCase().replace(/[^a-z0-9]/g, "");
+        return c1 === c2;
+      });
+
+      const matchingLead = matchingLeads.length === 1 ? matchingLeads[0] : undefined;
       const newProject: Project = {
         id: targetProjectId,
-        leadId: "",
+        leadId: matchingLead?.id || "",
         createdAt: new Date().toISOString(),
         title: item.projectTitle,
         clientCompany: item.clientCompany,
-        clientName: item.clientCompany,
-        clientEmail: "",
-        operatingCompany: "Evecture",
+        clientName: matchingLead?.fullName || item.clientCompany,
+        clientEmail: matchingLead?.email || "",
+        operatingCompany: matchingLead?.operatingCompany || "Evecture",
         services: [item.model || "Maintenance & Retainer"],
         classification: "Repeat Client",
         startDate: item.periodStart || new Date().toISOString().slice(0, 10),
@@ -98,7 +110,9 @@ export default function PostSalePage() {
 
     deleteManagedProject(item.id);
     setItems(readManagedProjects());
+    await flushWorkspaceChanges();
     router.push(`/projects/${targetProjectId}`);
+    } catch(error) { showToast({message:error instanceof Error ? error.message : "Unable to move plan"}); }
   }
 
   return <div className="page-content post-sale-page clients-page">

@@ -33,22 +33,10 @@ alter table public.workspace_members add column if not exists must_change_passwo
 create index if not exists workspace_members_user_id_idx on public.workspace_members(user_id);
 
 create or replace function public.current_workspace_role()
-returns text
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select coalesce(
-    (
-      select role from public.workspace_members
-      where user_id = auth.uid()
-         or lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      limit 1
-    ),
-    'employee'
-  );
-$$;
+returns text language sql stable security definer set search_path = public
+as $$ select role from public.workspace_members where auth.uid() is not null and
+  (user_id = auth.uid() or (user_id is null and lower(email) = lower(auth.jwt()->>'email')))
+  order by (user_id = auth.uid()) desc nulls last limit 1; $$;
 
 create or replace function public.is_workspace_admin()
 returns boolean
@@ -56,7 +44,7 @@ language sql
 stable
 security definer
 set search_path = public
-as $$ select public.current_workspace_role() = 'admin'; $$;
+as $$ select coalesce(public.current_workspace_role() = 'admin',false); $$;
 
 create or replace function public.is_internal_workspace_user()
 returns boolean
@@ -64,7 +52,7 @@ language sql
 stable
 security definer
 set search_path = public
-as $$ select public.current_workspace_role() in ('admin', 'employee'); $$;
+as $$ select coalesce(public.current_workspace_role() in ('admin', 'employee'),false); $$;
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -91,34 +79,9 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 create or replace function public.claim_initial_admin()
-returns uuid
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare new_id uuid;
-declare signed_in_email text;
-begin
-  if auth.uid() is null then raise exception 'Sign in is required'; end if;
-  signed_in_email := lower(coalesce(auth.jwt() ->> 'email', ''));
-  if signed_in_email = '' then raise exception 'Your account needs a verified email address'; end if;
-  if exists (select 1 from public.workspace_members where role = 'admin') then
-    raise exception 'An administrator has already been configured';
-  end if;
-  update public.workspace_members
-    set user_id = auth.uid(), role = 'admin',
-        display_name = coalesce(display_name, auth.jwt() ->> 'user_name', auth.jwt() ->> 'name'),
-        updated_at = now()
-    where lower(email) = signed_in_email
-    returning id into new_id;
-  if new_id is null then
-    insert into public.workspace_members (user_id, email, role, display_name)
-    values (auth.uid(), signed_in_email, 'admin', coalesce(auth.jwt() ->> 'user_name', auth.jwt() ->> 'name'))
-    returning id into new_id;
-  end if;
-  return new_id;
-end;
-$$;
+returns uuid language plpgsql security definer set search_path = public
+as $$ begin raise exception 'Administrator setup requires the server administrator endpoint'; end; $$;
+revoke all on function public.claim_initial_admin() from public, anon, authenticated;
 
 create or replace function public.set_workspace_member_role(member_email text, member_role text, member_display_name text default null)
 returns uuid
@@ -129,7 +92,7 @@ as $$
 declare new_id uuid;
 declare target_user_id uuid;
 begin
-  if not public.is_workspace_admin() then raise exception 'Only administrators can manage workspace roles'; end if;
+  if not coalesce(public.is_workspace_admin(),false) then raise exception 'Only administrators can manage workspace roles'; end if;
   if member_role not in ('admin', 'employee', 'client') then raise exception 'Invalid workspace role'; end if;
   select id into target_user_id from auth.users where lower(email) = lower(member_email) limit 1;
   insert into public.workspace_members (user_id, email, role, display_name)
@@ -527,7 +490,8 @@ create policy "clients read their project links" on public.project_links for sel
 
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on all tables in schema public to authenticated;
-grant execute on function public.claim_initial_admin() to authenticated;
+revoke all on function public.claim_initial_admin() from public,anon,authenticated;
+revoke all on function public.set_workspace_member_role(text,text,text) from public,anon;
 grant execute on function public.set_workspace_member_role(text, text, text) to authenticated;
 grant execute on function public.clear_password_change_requirement() to authenticated;
 grant execute on function public.current_workspace_role() to authenticated;

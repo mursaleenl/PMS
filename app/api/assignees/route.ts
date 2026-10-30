@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getWorkspaceRole } from "@/lib/roles";
 
 export async function GET(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,7 +11,8 @@ export async function GET(request: Request) {
   const accessToken = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   const client = createClient(url, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
-  if (accessToken) {
+  if (!accessToken) return NextResponse.json({error:"Unauthorized"}, {status:401});
+  {
     const { data: { user }, error } = await client.auth.getUser(accessToken);
     if (error || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -20,17 +20,18 @@ export async function GET(request: Request) {
 
     let membership = await client.from("workspace_members").select("role").eq("user_id", user.id).maybeSingle();
     if (!membership.data && user.email) {
-      membership = await client.from("workspace_members").select("role").eq("email", user.email.toLowerCase()).maybeSingle();
+      membership = await client.from("workspace_members").select("role").eq("email", user.email.toLowerCase()).is("user_id",null).maybeSingle();
     }
-    const role = membership.data?.role ?? getWorkspaceRole(user);
-    if (role === "client") {
+    if (membership.error) return NextResponse.json({error:"Unable to verify workspace access"}, {status:503});
+    const role = membership.data?.role;
+    if (role !== "admin" && role !== "employee") {
       return NextResponse.json({ error: "Clients cannot view assignees." }, { status: 403 });
     }
   }
 
   const { data, error } = await client
     .from("workspace_members")
-    .select("id,email,role,display_name")
+    .select("id,user_id,email,role,display_name")
     .in("role", ["admin", "employee"])
     .order("created_at", { ascending: true });
 
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
     const raw = member.display_name?.trim() || member.email.split("@")[0];
     const name = raw.charAt(0).toUpperCase() + raw.slice(1);
     return {
-      id: member.id,
+      id: member.user_id,
       name,
       email: member.email,
       role: member.role as "admin" | "employee",

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Plus, X } from "lucide-react";
 import { addManagedProject, nextManagedProjectId, type ManagedProject, type ManagementBillingCycle, type ManagementModel } from "@/lib/post-sale";
+import { flushWorkspaceChanges } from "@/lib/workspace-sync";
 import type { Project } from "@/lib/projects";
 
 const managementModels: ManagementModel[] = ["Annual maintenance", "Continuous retainer", "Direct-sold software", "Ad-hoc support"];
@@ -16,10 +17,12 @@ export function ManagedPlanDrawer({ projects, onClose, onCreated, initialProject
 }) {
   const [sourceId, setSourceId] = useState(initialProjectId ?? "");
   const [error, setError] = useState("");
+  const [busy,setBusy] = useState(false);
   const selectedProject = projects.find((project) => project.id === sourceId);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
     const data = new FormData(event.currentTarget);
     const amount = Number(data.get("amount"));
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -27,9 +30,11 @@ export function ManagedPlanDrawer({ projects, onClose, onCreated, initialProject
       return;
     }
 
+    setBusy(true);
+    try {
     const today = new Date().toISOString().slice(0, 10);
     const item: ManagedProject = {
-      id: nextManagedProjectId(),
+      id: await nextManagedProjectId(),
       sourceProjectId: selectedProject?.id,
       projectTitle: selectedProject?.title || String(data.get("projectTitle") || "").trim(),
       clientCompany: selectedProject?.clientCompany || selectedProject?.clientName || String(data.get("clientCompany") || "").trim(),
@@ -43,7 +48,10 @@ export function ManagedPlanDrawer({ projects, onClose, onCreated, initialProject
     };
     addManagedProject(item);
     onCreated(item);
+    await flushWorkspaceChanges();
     onClose();
+    } catch(cause) { setError(cause instanceof Error ? cause.message : "The plan could not be saved."); }
+    finally { setBusy(false); }
   }
 
   return <div className="task-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -55,7 +63,7 @@ export function ManagedPlanDrawer({ projects, onClose, onCreated, initialProject
         <label className="field required">Plan type<select name="model" defaultValue="Annual maintenance">{managementModels.map((model) => <option key={model}>{model}</option>)}</select></label>
         <div className="post-sale-project-fields"><label className="field required">Amount<input name="amount" type="number" min="0.01" step="0.01" required placeholder="0.00"/></label><label className="field required">Currency<select name="currency" defaultValue="USD">{["USD", "INR", "EUR", "GBP", "AED", "AUD", "CAD"].map((currency) => <option key={currency}>{currency}</option>)}</select></label><label className="field required">Billing cycle<select name="billingCycle" defaultValue="Monthly">{billingCycles.map((cycle) => <option key={cycle}>{cycle}</option>)}</select></label></div>
         {error && <div className="form-error" role="alert">{error}</div>}
-        <footer><button className="button button-quiet" type="button" onClick={onClose}>Cancel</button><button className="button button-primary" type="submit"><Plus size={14}/>Add retainer plan</button></footer>
+        <footer><button className="button button-quiet" type="button" onClick={onClose}>Cancel</button><button className="button button-primary" type="submit" disabled={busy}><Plus size={14}/>Add retainer plan</button></footer>
       </form>
     </aside>
   </div>;

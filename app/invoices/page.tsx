@@ -1,26 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Building2, Check, CheckCircle2, ChevronDown, Clock3, Download, ExternalLink, FileText, Filter, MoreHorizontal, Plus, Printer, Receipt, Search, Send, Trash2, Users, X } from "lucide-react";
-import { type Lead, type ProposalVersion, readLeads, updateLead } from "@/lib/leads";
+import { ArrowRight, Building2, Check, CheckCircle2, ExternalLink, FileText, FolderKanban, Plus, Printer, Receipt, Search, Send, Trash2, X } from "lucide-react";
 import type { OperatingCompany } from "@/lib/companies";
-import { readProjects, updateProject } from "@/lib/projects";
+import { readProjects, updateProject, type Project } from "@/lib/projects";
 import { deleteInvoice, nextInvoiceNumber as getNextInvoiceNumber, readInvoices, saveInvoice, updateInvoice, type InvoiceStatus, type StoredInvoice } from "@/lib/invoices";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { showToast } from "@/app/_components/toast-hub";
+import { isValidDateValue } from "@/lib/dates";
+import { flushWorkspaceChanges } from "@/lib/workspace-sync";
+import { convertCurrency, formatMoney, getExchangeRates, refreshExchangeRates } from "@/lib/currency";
+import { CalendarPicker } from "@/app/_components/calendar-picker";
 
 const SAMPLE_PAYMENT_TERMS = "Payment due within 7 days of invoice date.";
 const SAMPLE_CONTACT = "billing@vrkspace.example · +91 00000 00000";
 
-function money(amount: number, currency = "USD") {
-  try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(amount);
-  } catch {
-    return `${currency} ${amount.toFixed(2)}`;
-  }
-}
+const money = formatMoney;
+
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -32,10 +30,6 @@ function inSevenDays() {
   return date.toISOString().slice(0, 10);
 }
 
-function acceptedProposal(lead: Lead): ProposalVersion | undefined {
-  return [...(lead.proposals ?? [])].sort((a, b) => b.version - a.version).find((proposal) => proposal.status === "ACCEPTED");
-}
-
 const statusLabels: Record<InvoiceStatus, string> = {
   GENERATED: "Draft",
   SENT: "Sent",
@@ -44,27 +38,31 @@ const statusLabels: Record<InvoiceStatus, string> = {
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<StoredInvoice[]>([]);
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedInvoiceNumber, setSelectedInvoiceNumber] = useState<string | null>(null);
-  const [selectedLeadId, setSelectedLeadId] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | InvoiceStatus>("ALL");
   const [companyFilter, setCompanyFilter] = useState<"ALL" | OperatingCompany>("ALL");
-  const [createMode, setCreateMode] = useState<"proposal" | "custom">("proposal");
+  const [createMode, setCreateMode] = useState<"project" | "custom">("project");
+  const [customProjectId, setCustomProjectId] = useState("");
   const [customCompany, setCustomCompany] = useState<OperatingCompany>("Evecture");
   const [customCurrency, setCustomCurrency] = useState("USD");
   const [gstEnabled, setGstEnabled] = useState(false);
   const [gstRate, setGstRate] = useState<number>(18);
-  const [proposalAmount, setProposalAmount] = useState<number | string>("");
+  const [projectAmount, setProjectAmount] = useState<number | string>("");
   const [customAmount, setCustomAmount] = useState<number | string>("");
   const [assigningCompany, setAssigningCompany] = useState<OperatingCompany>("Evecture");
   const [error, setError] = useState("");
+  const [saving,setSaving] = useState(false);
+  const creating = useRef(false);
+  const pendingInvoice = useRef<StoredInvoice | null>(null);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   const refreshAll = () => {
     setInvoices(readInvoices());
-    setLeads(readLeads());
+    setProjects(readProjects());
   };
 
   useEffect(() => {
@@ -89,64 +87,76 @@ export default function InvoicesPage() {
     const params = new URLSearchParams(window.location.search);
     const queryInv = params.get("invoice");
     const queryLead = params.get("lead");
+    const queryProject = params.get("project");
 
     if (queryInv) {
       setSelectedInvoiceNumber(queryInv);
-    } else if (queryLead) {
-      setSelectedLeadId(queryLead);
+    } else if (queryProject) {
+      setSelectedProjectId(queryProject);
+      setCreateMode("project");
       const allInvs = readInvoices();
-      const match = allInvs.find((inv) => inv.leadId === queryLead);
+      const match = allInvs.find((inv) => inv.projectId === queryProject);
       if (match) {
         setSelectedInvoiceNumber(match.invoiceNumber);
       } else {
         setShowGenerateModal(true);
       }
+    } else if (queryLead) {
+      const allProjects = readProjects();
+      const projectMatch = allProjects.find((p) => p.leadId === queryLead);
+      if (projectMatch) {
+        setSelectedProjectId(projectMatch.id);
+        setCreateMode("project");
+        if (projectMatch.invoice) {
+          setSelectedInvoiceNumber(projectMatch.invoice.invoiceNumber);
+        } else {
+          setShowGenerateModal(true);
+        }
+      } else {
+        const allInvs = readInvoices();
+        const match = allInvs.find((inv) => inv.leadId === queryLead);
+        if (match) {
+          setSelectedInvoiceNumber(match.invoiceNumber);
+        }
+      }
     }
 
     window.addEventListener("evecture:invoices-updated", refreshAll);
-    window.addEventListener("evecture:leads-updated", refreshAll);
     window.addEventListener("evecture:projects-updated", refreshAll);
     window.addEventListener("storage", refreshAll);
 
     return () => {
       window.removeEventListener("evecture:invoices-updated", refreshAll);
-      window.removeEventListener("evecture:leads-updated", refreshAll);
       window.removeEventListener("evecture:projects-updated", refreshAll);
       window.removeEventListener("storage", refreshAll);
     };
   }, []);
 
-  const eligibleLeads = useMemo(() => leads.filter((lead) => acceptedProposal(lead)), [leads]);
-  const activeLead = eligibleLeads.find((item) => item.id === selectedLeadId) ?? null;
-  const activeProposal = activeLead ? acceptedProposal(activeLead) : undefined;
+  const activeProject = projects.find((item) => item.id === selectedProjectId) ?? null;
 
-  // Sync proposal amount when proposal changes
+  // Sync project parameters when active project changes
   useEffect(() => {
-    if (activeProposal) {
-      setProposalAmount(activeProposal.quotedAmount);
-    }
-  }, [activeProposal]);
-
-  // Sync assigned company when active lead changes
-  useEffect(() => {
-    if (activeLead?.operatingCompany) {
-      setAssigningCompany(activeLead.operatingCompany);
-    }
-  }, [activeLead]);
-
-  // Auto-select first accepted proposal when modal opens
-  useEffect(() => {
-    if (showGenerateModal && eligibleLeads.length > 0) {
-      if (!selectedLeadId || !eligibleLeads.some((l) => l.id === selectedLeadId)) {
-        setSelectedLeadId(eligibleLeads[0].id);
+    if (activeProject) {
+      setProjectAmount(activeProject.contractedValue || "");
+      if (activeProject.operatingCompany) {
+        setAssigningCompany(activeProject.operatingCompany);
       }
     }
-  }, [showGenerateModal, eligibleLeads, selectedLeadId]);
+  }, [activeProject]);
+
+  // Auto-select first project when project mode is active
+  useEffect(() => {
+    if (showGenerateModal && createMode === "project" && projects.length > 0) {
+      if (!selectedProjectId || !projects.some((p) => p.id === selectedProjectId)) {
+        setSelectedProjectId(projects[0].id);
+      }
+    }
+  }, [showGenerateModal, createMode, projects, selectedProjectId]);
 
   // Calculation helpers for modal
-  const parsedProposalAmount = Number(proposalAmount) || (activeProposal?.quotedAmount ?? 0);
-  const proposalGstAmount = gstEnabled ? (parsedProposalAmount * gstRate) / 100 : 0;
-  const proposalTotal = parsedProposalAmount + proposalGstAmount;
+  const parsedProjectAmount = Number(projectAmount) || (activeProject?.contractedValue ?? 0);
+  const projectGstAmount = gstEnabled ? (parsedProjectAmount * gstRate) / 100 : 0;
+  const projectTotal = parsedProjectAmount + projectGstAmount;
 
   const parsedCustomAmount = Number(customAmount) || 0;
   const customGstAmount = gstEnabled ? (parsedCustomAmount * gstRate) / 100 : 0;
@@ -173,17 +183,52 @@ export default function InvoicesPage() {
     });
   }, [invoices, search, statusFilter, companyFilter]);
 
-  // Statistics
-  const totalAmount = useMemo(() => invoices.reduce((acc, inv) => acc + (inv.total || inv.depositAmount || 0), 0), [invoices]);
-  const paidInvoices = useMemo(() => invoices.filter((inv) => inv.status === "CONFIRMED_PAID"), [invoices]);
-  const paidAmount = useMemo(() => paidInvoices.reduce((acc, inv) => acc + (inv.total || inv.depositAmount || 0), 0), [paidInvoices]);
-  const sentInvoices = useMemo(() => invoices.filter((inv) => inv.status === "SENT"), [invoices]);
-  const sentAmount = useMemo(() => sentInvoices.reduce((acc, inv) => acc + (inv.total || inv.depositAmount || 0), 0), [sentInvoices]);
-  const draftInvoices = useMemo(() => invoices.filter((inv) => inv.status === "GENERATED"), [invoices]);
-  const draftAmount = useMemo(() => draftInvoices.reduce((acc, inv) => acc + (inv.total || inv.depositAmount || 0), 0), [draftInvoices]);
+  // Live exchange rates to convert all invoice amounts into USD
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>(() => getExchangeRates());
 
-  function handleCreateInvoice(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    refreshExchangeRates().then((rates) => {
+      setExchangeRates(rates);
+    });
+    const onRatesUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<Record<string, number>>;
+      if (customEvent.detail) setExchangeRates(customEvent.detail);
+    };
+    window.addEventListener("evecture:exchange-rates-updated", onRatesUpdated);
+    return () => window.removeEventListener("evecture:exchange-rates-updated", onRatesUpdated);
+  }, []);
+
+  // Statistics: always convert all currencies (INR, EUR, etc.) automatically into USD (dollars)
+  const paidInvoices = useMemo(() => invoices.filter((inv) => inv.status === "CONFIRMED_PAID"), [invoices]);
+  const sentInvoices = useMemo(() => invoices.filter((inv) => inv.status === "SENT"), [invoices]);
+  const draftInvoices = useMemo(() => invoices.filter((inv) => inv.status === "GENERATED"), [invoices]);
+
+  const sumInUsd = useCallback((list: StoredInvoice[]) => {
+    return list.reduce((acc, inv) => {
+      const amt = inv.total ?? inv.depositAmount ?? 0;
+      const cur = inv.currency || "USD";
+      return acc + convertCurrency(amt, cur, "USD", exchangeRates);
+    }, 0);
+  }, [exchangeRates]);
+
+  const totalAmount = useMemo(() => sumInUsd(invoices), [invoices, sumInUsd]);
+  const paidAmount = useMemo(() => sumInUsd(paidInvoices), [paidInvoices, sumInUsd]);
+  const sentAmount = useMemo(() => sumInUsd(sentInvoices), [sentInvoices, sumInUsd]);
+  const draftAmount = useMemo(() => sumInUsd(draftInvoices), [draftInvoices, sumInUsd]);
+
+  async function handleCreateInvoice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (creating.current) return;
+    if (pendingInvoice.current && readInvoices().some(item => item.invoiceNumber === pendingInvoice.current?.invoiceNumber)) {
+      creating.current = true; setSaving(true);
+      try {
+        await flushWorkspaceChanges();
+        setSelectedInvoiceNumber(pendingInvoice.current.invoiceNumber); pendingInvoice.current = null;
+        setShowGenerateModal(false); setError(""); refreshAll();
+      } catch(cause) { setError(cause instanceof Error ? cause.message : "Invoice could not be saved."); }
+      finally { creating.current = false; setSaving(false); }
+      return;
+    }
     const data = new FormData(event.currentTarget);
     const amount = Number(data.get("amount"));
     const isGst = data.get("gstEnabled") === "on";
@@ -197,44 +242,50 @@ export default function InvoicesPage() {
       return;
     }
 
-    const gstAmount = isGst ? (amount * parsedRate) / 100 : 0;
-    const total = amount + gstAmount;
+    if (!Number.isFinite(parsedRate) || parsedRate < 0 || parsedRate > 100 || !isValidDateValue(issueDate) || !isValidDateValue(dueDate) || dueDate < issueDate) {
+      setError("Enter valid dates, a due date on or after the issue date, and tax from 0 to 100."); return;
+    }
+    const gstAmount = isGst ? Math.round(amount * parsedRate) / 100 : 0;
+    const total = Math.round((amount + gstAmount)*100)/100;
+    creating.current = true; setSaving(true);
+    try {
 
-    if (createMode === "proposal") {
-      if (!activeLead || !activeProposal) {
-        setError("Please select a client with an accepted proposal.");
+    if (createMode === "project") {
+      if (!activeProject) {
+        setError("Please select a project workspace.");
         return;
       }
-      const company = (activeLead.operatingCompany || assigningCompany) as OperatingCompany;
-      if (!activeLead.operatingCompany) {
-        updateLead(activeLead.id, { operatingCompany: company });
+      const company = (activeProject.operatingCompany || assigningCompany) as OperatingCompany;
+      if (!activeProject.operatingCompany) {
+        updateProject(activeProject.id, { operatingCompany: company });
       }
 
-      const invNumber = getNextInvoiceNumber(company, invoices);
+      const invNumber = await getNextInvoiceNumber(company);
 
       const newInvoice: StoredInvoice = {
         id: invNumber,
         invoiceNumber: invNumber,
-        leadId: activeLead.id,
-        projectId: activeLead.projectId,
+        projectId: activeProject.id,
+        leadId: activeProject.leadId || undefined,
         operatingCompany: company,
-        billTo: activeLead.companyName || activeLead.fullName,
-        clientName: activeLead.fullName,
-        clientEmail: activeLead.email,
+        billTo: activeProject.clientCompany || activeProject.clientName || "Client",
+        clientName: activeProject.clientName || activeProject.clientCompany,
+        clientEmail: activeProject.clientEmail || undefined,
         description,
         quantity: 1,
         unitPrice: amount,
         subtotal: amount,
         gstEnabled: isGst,
-        gstRate,
+        gstRate: parsedRate,
         gstAmount,
         total,
         issueDate,
         dueDate,
-        contractValue: amount,
-        depositPercent: 100,
+        contractValue: activeProject.contractedValue,
+        isDeposit: data.get("isDeposit") === "on",
+        depositPercent: data.get("isDeposit") === "on" ? 100 : 0,
         depositAmount: total,
-        currency: activeProposal.currency || "USD",
+        currency: activeProject.currency || "USD",
         paymentTerms: SAMPLE_PAYMENT_TERMS,
         paymentInstructions: `Sample account: ${company} Studio · Account no. 0000 0000 0000 · IFSC: SAMPLE0001`,
         status: "GENERATED",
@@ -242,14 +293,18 @@ export default function InvoicesPage() {
         updatedAt: new Date().toISOString(),
       };
 
+      pendingInvoice.current = newInvoice;
       saveInvoice(newInvoice);
+      await flushWorkspaceChanges();
+      pendingInvoice.current = null;
       refreshAll();
       setShowGenerateModal(false);
       setSelectedInvoiceNumber(invNumber);
       setError("");
-      showToast({ message: `Invoice ${invNumber} generated and saved to database` });
+      showToast({ message: `Invoice ${invNumber} generated for ${activeProject.title}` });
     } else {
       // Direct custom invoice
+      const customProject = customProjectId ? projects.find((p) => p.id === customProjectId) : undefined;
       const company = customCompany;
       const billTo = String(data.get("billTo") || "").trim();
       const clientName = String(data.get("clientName") || "").trim();
@@ -261,11 +316,13 @@ export default function InvoicesPage() {
         return;
       }
 
-      const invNumber = getNextInvoiceNumber(company, invoices);
+      const invNumber = await getNextInvoiceNumber(company);
 
       const newInvoice: StoredInvoice = {
         id: invNumber,
         invoiceNumber: invNumber,
+        projectId: customProject?.id,
+        leadId: customProject?.leadId,
         operatingCompany: company,
         billTo,
         clientName: clientName || billTo,
@@ -275,13 +332,14 @@ export default function InvoicesPage() {
         unitPrice: amount,
         subtotal: amount,
         gstEnabled: isGst,
-        gstRate,
+        gstRate: parsedRate,
         gstAmount,
         total,
         issueDate,
         dueDate,
         contractValue: amount,
-        depositPercent: 100,
+        isDeposit: data.get("isDeposit") === "on",
+        depositPercent: data.get("isDeposit") === "on" ? 100 : 0,
         depositAmount: total,
         currency,
         paymentTerms: String(data.get("paymentTerms") || SAMPLE_PAYMENT_TERMS),
@@ -294,41 +352,49 @@ export default function InvoicesPage() {
         updatedAt: new Date().toISOString(),
       };
 
+      pendingInvoice.current = newInvoice;
       saveInvoice(newInvoice);
+      await flushWorkspaceChanges();
+      pendingInvoice.current = null;
       refreshAll();
       setShowGenerateModal(false);
       setSelectedInvoiceNumber(invNumber);
       setError("");
       showToast({ message: `Invoice ${invNumber} generated and saved to database` });
     }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Invoice could not be saved."); }
+    finally { creating.current = false; setSaving(false); }
   }
 
-  function handleMarkSent(inv: StoredInvoice) {
+  async function handleMarkSent(inv: StoredInvoice) {
     const sentAt = new Date().toISOString();
     updateInvoice(inv.invoiceNumber, { status: "SENT", sentAt });
+    try { await flushWorkspaceChanges(); } catch(cause) { showToast({message:cause instanceof Error ? cause.message : "Invoice could not be saved"}); return; }
     refreshAll();
     showToast({ message: `Invoice ${inv.invoiceNumber} marked as sent` });
   }
 
-  function handleConfirmPaid(inv: StoredInvoice) {
+  async function handleConfirmPaid(inv: StoredInvoice) {
     const ref = window.prompt("Enter bank / external payment transaction reference:", inv.transactionReference || "");
-    if (ref === null) return;
+    if (!ref?.trim()) return;
     const confirmedPaidAt = new Date().toISOString();
     updateInvoice(inv.invoiceNumber, {
       status: "CONFIRMED_PAID",
       transactionReference: ref.trim() || undefined,
       confirmedPaidAt,
     });
+    try { await flushWorkspaceChanges(); } catch(cause) { showToast({message:cause instanceof Error ? cause.message : "Invoice could not be saved"}); return; }
     refreshAll();
     showToast({ message: `Invoice ${inv.invoiceNumber} confirmed paid` });
   }
 
-  function handleDelete(inv: StoredInvoice) {
+  async function handleDelete(inv: StoredInvoice) {
     if (!window.confirm(`Delete invoice ${inv.invoiceNumber}? This will remove it from the system and database.`)) return;
     deleteInvoice(inv.invoiceNumber);
     if (selectedInvoiceNumber === inv.invoiceNumber) {
       setSelectedInvoiceNumber(null);
     }
+    try { await flushWorkspaceChanges(); } catch(cause) { showToast({message:cause instanceof Error ? cause.message : "Invoice could not be saved"}); return; }
     refreshAll();
     showToast({ message: `Invoice ${inv.invoiceNumber} deleted` });
   }
@@ -344,7 +410,7 @@ export default function InvoicesPage() {
       <section className="welcome-row">
         <div>
           <h1>Invoices</h1>
-          <p className="welcome-subtitle">Create, track, and store client invoices with database persistence and full transaction history.</p>
+          <p className="welcome-subtitle">Create invoices, track payments, and keep client billing in one place.</p>
         </div>
         <button
           className="button button-primary"
@@ -359,7 +425,7 @@ export default function InvoicesPage() {
         </button>
       </section>
 
-      {/* Summary KPI Cards */}
+      {/* Summary KPI Cards (Converted to USD) */}
       <section className="invoice-stats-grid" aria-label="Invoice statistics">
         <button
           type="button"
@@ -368,9 +434,9 @@ export default function InvoicesPage() {
         >
           <div className="invoice-stat-copy">
             <small>Total invoiced</small>
-            <strong>{money(totalAmount)}</strong>
+            <strong>{formatMoney(totalAmount, "USD")}</strong>
           </div>
-          <span className="invoice-stat-note">{invoices.length} invoices generated</span>
+          <span className="invoice-stat-note">{invoices.length} {invoices.length === 1 ? "invoice" : "invoices"} generated</span>
         </button>
 
         <button
@@ -380,9 +446,9 @@ export default function InvoicesPage() {
         >
           <div className="invoice-stat-copy">
             <small>Confirmed paid</small>
-            <strong>{money(paidAmount)}</strong>
+            <strong>{formatMoney(paidAmount, "USD")}</strong>
           </div>
-          <span className="invoice-stat-note">{paidInvoices.length} paid invoices</span>
+          <span className="invoice-stat-note">{paidInvoices.length} paid {paidInvoices.length === 1 ? "invoice" : "invoices"}</span>
         </button>
 
         <button
@@ -392,7 +458,7 @@ export default function InvoicesPage() {
         >
           <div className="invoice-stat-copy">
             <small>Awaiting payment</small>
-            <strong>{money(sentAmount)}</strong>
+            <strong>{formatMoney(sentAmount, "USD")}</strong>
           </div>
           <span className="invoice-stat-note">{sentInvoices.length} sent to clients</span>
         </button>
@@ -404,7 +470,7 @@ export default function InvoicesPage() {
         >
           <div className="invoice-stat-copy">
             <small>Draft invoices</small>
-            <strong>{money(draftAmount)}</strong>
+            <strong>{formatMoney(draftAmount, "USD")}</strong>
           </div>
           <span className="invoice-stat-note">{draftInvoices.length} not yet logged sent</span>
         </button>
@@ -462,7 +528,7 @@ export default function InvoicesPage() {
             <strong>{invoices.length === 0 ? "No invoices created yet" : "No invoices match your search"}</strong>
             <p>
               {invoices.length === 0
-                ? "Generate an invoice from an accepted proposal or create a direct invoice. All records are saved to the database."
+                ? "Generate an invoice from any project workspace or create a direct invoice. All records are saved to the database."
                 : "Try clearing your filters or search term to see other invoices."}
             </p>
             {invoices.length === 0 ? (
@@ -535,10 +601,10 @@ export default function InvoicesPage() {
                     </td>
                     <td>
                       <div>{inv.issueDate}</div>
-                      {inv.dueDate && <small style={{ color: "#64748b" }}>Due: {inv.dueDate}</small>}
+                      {inv.dueDate && <small style={{ color: "var(--ws-muted, #64748b)" }}>Due: {inv.dueDate}</small>}
                     </td>
                     <td className="invoice-amount-cell">
-                      <strong>{money(inv.total || inv.depositAmount || 0, inv.currency)}</strong>
+                      <strong>{money(inv.total ?? inv.depositAmount ?? 0, inv.currency)}</strong>
                       {inv.gstEnabled && <small>incl. GST ({inv.gstRate}%)</small>}
                     </td>
                     <td>
@@ -582,7 +648,7 @@ export default function InvoicesPage() {
                           className="button button-quiet button-micro"
                           onClick={() => handleDelete(inv)}
                           title="Delete invoice"
-                          style={{ color: "#64748b" }}
+                          style={{ color: "var(--ws-muted, #64748b)" }}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -727,7 +793,7 @@ export default function InvoicesPage() {
                         `Sample account: ${activeInvoice.operatingCompany} Studio · Account no. 0000 0000 0000 · IFSC: SAMPLE0001`}
                     </p>
                     {activeInvoice.transactionReference && (
-                      <p style={{ marginTop: 6, color: "#16a34a", fontWeight: 600 }}>
+                      <p style={{ marginTop: 6, color: "var(--ws-muted, #16a34a)", fontWeight: 600 }}>
                         Reference: {activeInvoice.transactionReference}
                       </p>
                     )}
@@ -781,7 +847,7 @@ export default function InvoicesPage() {
               <div>
                 <span className="section-kicker">COMMERCIAL BILLING</span>
                 <h2 id="generate-invoice-title">Generate invoice</h2>
-                <p>Create a branded invoice from an accepted proposal or create a direct invoice. All records are automatically saved to the database.</p>
+                <p>Create a branded invoice from any project workspace or create a direct invoice. All records are automatically saved to the database.</p>
               </div>
               <button
                 type="button"
@@ -797,15 +863,15 @@ export default function InvoicesPage() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={createMode === "proposal"}
-                className={`invoice-drawer-tab ${createMode === "proposal" ? "active" : ""}`}
+                aria-selected={createMode === "project"}
+                className={`invoice-drawer-tab ${createMode === "project" ? "active" : ""}`}
                 onClick={() => {
-                  setCreateMode("proposal");
+                  setCreateMode("project");
                   setError("");
                 }}
               >
-                <FileText size={14} />
-                From accepted proposal
+                <FolderKanban size={14} />
+                From projects
               </button>
               <button
                 type="button"
@@ -822,16 +888,16 @@ export default function InvoicesPage() {
               </button>
             </div>
 
-            {createMode === "proposal" && (
+            {createMode === "project" && (
               <>
-                {eligibleLeads.length === 0 ? (
+                {projects.length === 0 ? (
                   <div className="invoice-empty-picker-state">
                     <div className="empty-state-icon">
-                      <FileText size={26} strokeWidth={1.5} />
+                      <FolderKanban size={26} strokeWidth={1.5} />
                     </div>
-                    <strong>No accepted proposals available</strong>
+                    <strong>No projects found</strong>
                     <p>
-                      Accepted client proposals from your pipeline will automatically appear here ready for one-click invoice generation.
+                      Active projects and retainers moved to projects will automatically appear here ready for one-click invoice generation.
                     </p>
                     <div className="empty-state-actions">
                       <button
@@ -845,29 +911,29 @@ export default function InvoicesPage() {
                         <Plus size={14} /> Create direct custom invoice
                       </button>
                       <Link
-                        href="/requests"
+                        href="/projects"
                         className="button button-quiet"
                         onClick={() => setShowGenerateModal(false)}
                       >
-                        Open leads pipeline <ArrowRight size={13} />
+                        Open project portfolio <ArrowRight size={13} />
                       </Link>
                     </div>
                   </div>
                 ) : (
                   <form className="invoice-modal-form" onSubmit={handleCreateInvoice}>
+                    <label className="field invoice-deposit-choice"><span><input type="checkbox" name="isDeposit" /> This invoice is a project deposit</span><small>Use this only for the upfront deposit. Milestone and final invoices do not change deposit status.</small></label>
                     <div className="proposal-picker-header">
                       <label className="field-label">
-                        Select accepted proposal
+                        Select project workspace
                       </label>
                       <span className="proposal-count-badge">
-                        {eligibleLeads.length} {eligibleLeads.length === 1 ? "proposal" : "proposals"} ready
+                        {projects.length} {projects.length === 1 ? "project" : "projects"} available
                       </span>
                     </div>
 
                     <div className="proposal-picker-list" role="radiogroup">
-                      {eligibleLeads.map((item) => {
-                        const prop = acceptedProposal(item);
-                        const isSelected = item.id === selectedLeadId;
+                      {projects.map((item) => {
+                        const isSelected = item.id === selectedProjectId;
                         const hasInvoice = !!item.invoice;
                         const company = item.operatingCompany;
 
@@ -879,22 +945,22 @@ export default function InvoicesPage() {
                             tabIndex={0}
                             onClick={() => {
                               if (isSelected) {
-                                setSelectedLeadId("");
+                                setSelectedProjectId("");
                               } else {
-                                setSelectedLeadId(item.id);
+                                setSelectedProjectId(item.id);
                                 setError("");
-                                if (prop) setProposalAmount(prop.quotedAmount);
+                                setProjectAmount(item.contractedValue || "");
                                 if (item.operatingCompany) setAssigningCompany(item.operatingCompany);
                               }
                             }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 if (isSelected) {
-                                  setSelectedLeadId("");
+                                  setSelectedProjectId("");
                                 } else {
-                                  setSelectedLeadId(item.id);
+                                  setSelectedProjectId(item.id);
                                   setError("");
-                                  if (prop) setProposalAmount(prop.quotedAmount);
+                                  setProjectAmount(item.contractedValue || "");
                                   if (item.operatingCompany) setAssigningCompany(item.operatingCompany);
                                 }
                               }
@@ -908,26 +974,26 @@ export default function InvoicesPage() {
                                 </span>
                                 <div>
                                   <strong className="proposal-client-name">
-                                    {item.companyName || item.fullName}
+                                    {item.title}
                                   </strong>
                                   <span className="proposal-client-sub">
-                                    {item.fullName}{item.email ? ` · ${item.email}` : ""}
+                                    {item.clientCompany || item.clientName} · {item.id}
                                   </span>
                                 </div>
                               </div>
                               <div className="proposal-select-price">
-                                <strong>{money(prop?.quotedAmount ?? 0, prop?.currency ?? "USD")}</strong>
-                                <span className="proposal-currency-badge">{prop?.currency || "USD"}</span>
+                                <strong>{money(item.contractedValue || 0, item.currency || "USD")}</strong>
+                                <span className="proposal-currency-badge">{item.currency || "USD"}</span>
                               </div>
                             </div>
 
                             <div className="proposal-select-bottom">
                               <div className="proposal-service-tags">
-                                {item.services.slice(0, 3).map((svc) => (
+                                {(item.services || []).slice(0, 3).map((svc) => (
                                   <span key={svc} className="proposal-service-pill">{svc}</span>
                                 ))}
-                                {item.services.length > 3 && (
-                                  <span className="proposal-service-pill muted">+{item.services.length - 3}</span>
+                                {item.billingStructure && (
+                                  <span className="proposal-service-pill">{item.billingStructure}</span>
                                 )}
                               </div>
                               <div className="proposal-meta-tags">
@@ -950,15 +1016,15 @@ export default function InvoicesPage() {
                       })}
                     </div>
 
-                    {activeLead && activeProposal && (
+                    {activeProject && (
                       <div className="invoice-proposal-details">
-                        {activeLead.invoice && (
+                        {activeProject.invoice && (
                           <div className="invoice-existing-alert">
                             <div className="alert-content">
                               <CheckCircle2 size={16} className="alert-icon" />
                               <div>
-                                <strong>Invoice {activeLead.invoice.invoiceNumber} already exists for this client</strong>
-                                <p>Status: {statusLabels[activeLead.invoice.status] || activeLead.invoice.status} · Generating will record an additional invoice.</p>
+                                <strong>Invoice {activeProject.invoice.invoiceNumber} already recorded for this project</strong>
+                                <p>Status: {statusLabels[activeProject.invoice.status] || activeProject.invoice.status} · Generating will record an updated invoice.</p>
                               </div>
                             </div>
                             <button
@@ -966,7 +1032,7 @@ export default function InvoicesPage() {
                               className="button button-quiet"
                               onClick={() => {
                                 setShowGenerateModal(false);
-                                setSelectedInvoiceNumber(activeLead.invoice!.invoiceNumber);
+                                setSelectedInvoiceNumber(activeProject.invoice!.invoiceNumber);
                               }}
                             >
                               View invoice <ArrowRight size={13} />
@@ -975,7 +1041,7 @@ export default function InvoicesPage() {
                         )}
 
                         {/* Issuing company selector if unassigned */}
-                        {!activeLead.operatingCompany && (
+                        {!activeProject.operatingCompany && (
                           <div className="invoice-company-assign-banner">
                             <div className="assign-header">
                               <Building2 size={15} />
@@ -1010,36 +1076,36 @@ export default function InvoicesPage() {
                               <input
                                 name="description"
                                 required
-                                defaultValue={activeLead.services.join(" & ") || activeProposal.deliverables.split("\n")[0] || "Professional Services Retainer"}
+                                defaultValue={activeProject.scopeIncluded || (activeProject.services || []).join(" & ") || activeProject.title || "Project Retainer Services"}
                               />
                             </label>
                             <label className="field">
-                              Amount ({activeProposal.currency})
+                              Amount ({activeProject.currency || "USD"})
                               <input
                                 name="amount"
                                 type="number"
                                 min="0.01"
                                 step="0.01"
                                 required
-                                value={proposalAmount}
-                                onChange={(e) => setProposalAmount(e.target.value)}
+                                value={projectAmount}
+                                onChange={(e) => setProjectAmount(e.target.value)}
                               />
                             </label>
                             <label className="field">
                               Issuing company
                               <input
                                 disabled
-                                value={activeLead.operatingCompany || assigningCompany}
-                                style={{ background: "#f8fafc", color: "#64748b" }}
+                                value={activeProject.operatingCompany || assigningCompany}
+                                style={{ background: "var(--ws-surface, #f8fafc)", color: "var(--ws-muted, #64748b)" }}
                               />
                             </label>
                             <label className="field">
                               Invoice date
-                              <input name="issueDate" type="date" required defaultValue={today()} />
+                              <CalendarPicker name="issueDate" required defaultValue={today()} />
                             </label>
                             <label className="field">
                               Payment due date
-                              <input name="dueDate" type="date" required defaultValue={inSevenDays()} />
+                              <CalendarPicker name="dueDate" required defaultValue={inSevenDays()} />
                             </label>
                           </div>
 
@@ -1083,18 +1149,18 @@ export default function InvoicesPage() {
                           <div className="invoice-calculation-summary">
                             <div className="calc-row">
                               <span>Subtotal</span>
-                              <strong>{money(parsedProposalAmount, activeProposal.currency)}</strong>
+                              <strong>{money(parsedProjectAmount, activeProject.currency || "USD")}</strong>
                             </div>
                             {gstEnabled && (
                               <div className="calc-row">
                                 <span>GST ({gstRate}%)</span>
-                                <strong>+{money(proposalGstAmount, activeProposal.currency)}</strong>
+                                <strong>+{money(projectGstAmount, activeProject.currency || "USD")}</strong>
                               </div>
                             )}
                             <div className="calc-row total-row">
                               <span>Total invoice value</span>
                               <strong className="grand-total-amount">
-                                {money(proposalTotal, activeProposal.currency)}
+                                {money(projectTotal, activeProject.currency || "USD")}
                               </strong>
                             </div>
                           </div>
@@ -1117,8 +1183,9 @@ export default function InvoicesPage() {
                           <button
                             className="button button-primary"
                             type="submit"
+                            disabled={saving}
                           >
-                            Generate & Save Invoice <ArrowRight size={14} />
+                            {saving ? "Saving…" : pendingInvoice.current ? "Retry saving invoice" : "Generate & Save Invoice"} <ArrowRight size={14} />
                           </button>
                         </div>
                       </div>
@@ -1130,6 +1197,7 @@ export default function InvoicesPage() {
 
             {createMode === "custom" && (
               <form className="invoice-modal-form" onSubmit={handleCreateInvoice}>
+                <label className="field invoice-deposit-choice"><span><input type="checkbox" name="isDeposit" /> This invoice is a project deposit</span><small>Milestone and final invoices do not change deposit status.</small></label>
                 <div className="invoice-config-section" style={{ marginTop: 0, paddingTop: 0, borderTop: "none" }}>
                   <div className="company-selection-group">
                     <label className="field-label" style={{ display: "block", marginBottom: 6, fontWeight: 600, fontSize: 13 }}>
@@ -1157,6 +1225,30 @@ export default function InvoicesPage() {
 
                   <span className="invoice-config-title" style={{ marginTop: 18 }}>Client details</span>
                   <div className="invoice-form-grid">
+                    <label className="field invoice-field-full">
+                      Link to project (optional)
+                      <select
+                        value={customProjectId}
+                        onChange={(e) => {
+                          const pId = e.target.value;
+                          setCustomProjectId(pId);
+                          const p = projects.find((proj) => proj.id === pId);
+                          if (p) {
+                            const billInput = document.querySelector<HTMLInputElement>('input[name="billTo"]');
+                            if (billInput && (p.clientCompany || p.clientName)) billInput.value = p.clientCompany || p.clientName;
+                            const emailInput = document.querySelector<HTMLInputElement>('input[name="clientEmail"]');
+                            if (emailInput && p.clientEmail) emailInput.value = p.clientEmail;
+                            if (p.currency) setCustomCurrency(p.currency);
+                            if (p.operatingCompany) setCustomCompany(p.operatingCompany);
+                          }
+                        }}
+                      >
+                        <option value="">None (standalone / direct)</option>
+                        {projects.map((p) => (
+                          <option key={p.id} value={p.id}>{p.title} · {p.id}</option>
+                        ))}
+                      </select>
+                    </label>
                     <label className="field required">
                       Bill to (Company / Client name)
                       <input name="billTo" required placeholder="e.g. Acme Corporation" />
@@ -1207,11 +1299,11 @@ export default function InvoicesPage() {
                     </label>
                     <label className="field required">
                       Invoice date
-                      <input name="issueDate" type="date" required defaultValue={today()} />
+                      <CalendarPicker name="issueDate" required defaultValue={today()} />
                     </label>
                     <label className="field required">
                       Payment due date
-                      <input name="dueDate" type="date" required defaultValue={inSevenDays()} />
+                      <CalendarPicker name="dueDate" required defaultValue={inSevenDays()} />
                     </label>
                   </div>
 
@@ -1301,8 +1393,8 @@ export default function InvoicesPage() {
                   >
                     Cancel
                   </button>
-                  <button className="button button-primary" type="submit">
-                    Generate & Save to Database <ArrowRight size={14} />
+                  <button className="button button-primary" type="submit" disabled={saving}>
+                    {saving ? "Saving…" : pendingInvoice.current ? "Retry saving invoice" : "Generate & Save to Database"} <ArrowRight size={14} />
                   </button>
                 </div>
               </form>

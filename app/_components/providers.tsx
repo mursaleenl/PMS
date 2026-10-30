@@ -1,92 +1,145 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
-import { applyRemoteCollection, clearLegacyBrowserWorkspaceData, type LocalWorkspaceChange, type WorkspaceCollection } from "@/lib/workspace-sync";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import { applyRemoteCollection, clearLegacyBrowserWorkspaceData, clearWorkspaceMemory, registerWorkspaceSaver, workspaceValues, type WorkspaceCollection } from "@/lib/workspace-sync";
+import { resetNotifications } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 import { WorkspaceAuthProvider, useWorkspaceAuth } from "@/lib/workspace-auth";
-import { persistRelationalCollection, readRelationalWorkspace } from "@/lib/relational-sync";
+import { persistWorkspaceChanges, readRelationalWorkspace, workspaceChanges } from "@/lib/relational-sync";
 
 const collections: WorkspaceCollection[] = ["leads", "projects", "management", "invoices"];
 
-function WorkspaceDataSync({ children }: { children: ReactNode }) {
-  const { user, role } = useWorkspaceAuth();
-  const loaded = useRef(false);
-  const syncAvailable = useRef(false);
-  const remoteSnapshots = useRef<Partial<Record<WorkspaceCollection, string>>>({});
-  const writeQueues = useRef<Partial<Record<WorkspaceCollection, Promise<void>>>>({});
-
-  useEffect(() => {
-    const client = supabase;
-    if (!client || !user || role === "client") return;
-    let cancelled = false;
-    const syncInitialData = async () => {
-      clearLegacyBrowserWorkspaceData();
-      let snapshot;
-      try {
-        snapshot = await readRelationalWorkspace(client);
-      } catch (error) {
-        console.warn("Supabase relational tables are not available; workspace data could not be loaded.", error);
-        loaded.current = true;
-        syncAvailable.current = false;
-        return;
-      }
-      syncAvailable.current = true;
-      for (const collection of collections) {
-        if (cancelled) return;
-        const serverValue = snapshot.values[collection];
-        const serverJson = JSON.stringify(serverValue);
-        remoteSnapshots.current[collection] = serverJson;
-        applyRemoteCollection(collection, serverValue);
-      }
-      loaded.current = true;
-    };
-    void syncInitialData();
-    return () => { cancelled = true; };
-  }, [user?.id, role]);
-
-  async function replaceCollection(collection: WorkspaceCollection, data: unknown) {
-    const client = supabase;
-    if (!client || !user || !syncAvailable.current) return;
-    await persistRelationalCollection(client, collection, data, user.id);
-  }
-
-  function queueCollectionWrite(collection: WorkspaceCollection, data: unknown) {
-    const previous = writeQueues.current[collection] ?? Promise.resolve();
-    const next = previous.catch(() => undefined).then(() => replaceCollection(collection, data));
-    writeQueues.current[collection] = next;
-    void next.finally(() => {
-      if (writeQueues.current[collection] === next) delete writeQueues.current[collection];
-    });
-    return next;
-  }
-
-  useEffect(() => {
-    const handleLocalChange = (event: Event) => {
-      if (!loaded.current || !syncAvailable.current || !supabase || !user || role === "client") return;
-      const detail = (event as CustomEvent<LocalWorkspaceChange>).detail;
-      if (!detail || !collections.includes(detail.collection)) return;
-      const nextJson = JSON.stringify(detail.data);
-      if (remoteSnapshots.current[detail.collection] === nextJson) return;
-      void queueCollectionWrite(detail.collection, detail.data)
-        .then(() => { remoteSnapshots.current[detail.collection] = nextJson; })
-        .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : (error as { message?: string; details?: string })?.message || (error as { details?: string })?.details || "Unknown sync error";
-          console.warn("Supabase workspace sync skipped:", message);
-          syncAvailable.current = false;
-        });
-    };
-    window.addEventListener("evecture:workspace-local-updated", handleLocalChange);
-    return () => window.removeEventListener("evecture:workspace-local-updated", handleLocalChange);
-  }, [user?.id, role]);
-
-  return children;
+type SyncFeedback = { state: "loading"|"ready"|"saving"|"error"; canSave:boolean; message:string; retry:(() => Promise<void>)|null; reload:() => void };
+const SyncContext = createContext<SyncFeedback | null>(null);
+export function WorkspaceSaveIndicator() {
+  const sync = useContext(SyncContext);
+  if (!sync || !sync.canSave) return null;
+  return <span className="workspace-save-status" role="status" aria-live="polite">{sync.state === "saving" ? "Saving…" : sync.state === "error" ? "Not saved" : "Saved"}</span>;
+}
+export function WorkspaceSyncFeedback() {
+  const sync = useContext(SyncContext);
+  if (!sync) return null;
+  return <>{sync.state === "error" && <div className="workspace-sync-notice" role="alert"><span>Your changes have not been saved. {sync.message}</span><button className="button button-quiet" onClick={() => { void sync.retry?.().catch(() => {}); }}>Retry saving</button><button className="button button-quiet" onClick={() => { if (window.confirm("Discard unsaved changes and load the latest database records?")) sync.reload(); }}>Reload latest data</button></div>}</>;
 }
 
-function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
-  const { user, loading, role } = useWorkspaceAuth();
-  return !loading && user && role !== "client" ? <WorkspaceDataSync>{children}</WorkspaceDataSync> : children;
+function WorkspaceDataSync({ children }: { children: ReactNode }) {
+  const { user, databaseRole } = useWorkspaceAuth();
+  const pathname = usePathname();
+  const [state, setState] = useState<"loading"|"ready"|"saving"|"error">("loading");
+  const [message,setMessage] = useState("");
+  const [canSave,setCanSave] = useState(false);
+  const [attempt,setAttempt] = useState(0);
+  const [retry,setRetry] = useState<(() => Promise<void>) | null>(null);
+  const publicPage = pathname.startsWith("/proposal/") || pathname.startsWith("/sign-in");
+  const userId = user?.id;
+  const internal = databaseRole === "admin" || databaseRole === "employee";
+
+  useEffect(() => {
+    const client = supabase;
+    if (!client || !userId || !internal) {
+      clearWorkspaceMemory();
+      resetNotifications();
+      registerWorkspaceSaver();
+      return;
+    }
+    let cancelled = false;
+    let ready = false;
+    let migrationPending = false;
+    let failed = false;
+    let conflict = false;
+    let acknowledged: ReturnType<typeof workspaceValues> = {};
+    let revisions: Record<string,number> = {};
+    const requestIds = new Map<string,string>();
+    let running: Promise<void> | null = null;
+    let scheduled: ReturnType<typeof setTimeout> | undefined;
+    setState("loading");
+    clearWorkspaceMemory();
+    resetNotifications();
+
+    async function save(): Promise<void> {
+      if (cancelled || !ready) throw new Error("Workspace is loading. Retry when it is ready.");
+      if (conflict) throw new Error("Another session changed this record. Reload the latest data before continuing.");
+      if (running) { await running; return save(); }
+      const captured = workspaceValues();
+      const changes = workspaceChanges(acknowledged,captured,revisions);
+      if (!changes.length) { failed = false; setState("ready"); return; }
+      if (migrationPending) {
+        failed = true; setState("error"); setMessage("Workspace setup is incomplete. Contact an administrator before saving changes.");
+        throw new Error("Workspace setup is incomplete. Contact an administrator before saving changes.");
+      }
+      failed = false;
+      setState("saving");
+      running = (async () => {
+        try {
+          const signature = JSON.stringify(changes);
+          const requestId = requestIds.get(signature) ?? crypto.randomUUID();
+          requestIds.set(signature,requestId);
+          const saved = await persistWorkspaceChanges(client!,changes,requestId);
+          requestIds.delete(signature);
+          if (cancelled) return;
+          for (const [key,revision] of Object.entries(saved)) { if (revision < 0) delete revisions[key]; else revisions[key]=revision; }
+          acknowledged = captured;
+          setState("ready");
+        } catch(error) {
+          failed = true;
+          const reason = error instanceof Error ? error.message : "Unable to save your changes.";
+          conflict = reason.includes("CONFLICT");
+          if (!cancelled) { setMessage(reason); setState("error"); }
+          throw error;
+        } finally { running = null; }
+      })();
+      await running;
+      if (!cancelled) await save();
+    }
+    function scheduleSave() {
+      if (!ready || failed || cancelled) return;
+      clearTimeout(scheduled);
+      scheduled = setTimeout(() => { void save().catch(() => {}); },0);
+    }
+    async function load() {
+      try {
+        clearLegacyBrowserWorkspaceData();
+        const snapshot = await readRelationalWorkspace(client!);
+        if (cancelled) return;
+        for (const collection of collections) applyRemoteCollection(collection,snapshot.values[collection]);
+        acknowledged = workspaceValues();
+        revisions = snapshot.revisions;
+        migrationPending = snapshot.requiresMigration;
+        setCanSave(!migrationPending);
+        ready = true;
+        setState("ready");
+        setRetry(() => save);
+        registerWorkspaceSaver(save);
+      } catch(error) {
+        if (!cancelled) { setMessage(error instanceof Error ? error.message : "Unable to load workspace data."); setState("error"); setRetry(null); }
+      }
+    }
+    function beforeUnload(event: BeforeUnloadEvent) {
+      if (ready && (running || workspaceChanges(acknowledged,workspaceValues(),revisions).length)) { event.preventDefault(); event.returnValue = ""; }
+    }
+    function online() { if (ready && !conflict) void save().catch(() => {}); }
+    window.addEventListener("evecture:workspace-local-updated",scheduleSave);
+    window.addEventListener("beforeunload",beforeUnload);
+    window.addEventListener("online",online);
+    void load();
+    return () => {
+      cancelled = true;
+      clearTimeout(scheduled);
+      registerWorkspaceSaver();
+      clearWorkspaceMemory();
+      window.removeEventListener("evecture:workspace-local-updated",scheduleSave);
+      window.removeEventListener("beforeunload",beforeUnload);
+      window.removeEventListener("online",online);
+    };
+  },[userId,internal,attempt]);
+
+  if (publicPage || !user || !internal) return children;
+  if (state === "loading") return <div className="access-denied" role="status"><p>Loading workspace data…</p></div>;
+  if (state === "error" && !retry) return <div className="access-denied"><section className="panel"><h1>Workspace could not load</h1><p role="alert">{message}</p><button className="button button-primary" onClick={() => setAttempt(value=>value+1)}>Retry loading</button></section></div>;
+  return <SyncContext.Provider value={{state,canSave,message,retry,reload:()=>setAttempt(value=>value+1)}}>{children}</SyncContext.Provider>;
 }
 
 export function AppProviders({ children }: { children: ReactNode }) {
-  return <WorkspaceAuthProvider><AuthenticatedWorkspace>{children}</AuthenticatedWorkspace></WorkspaceAuthProvider>;
+  return <WorkspaceAuthProvider><WorkspaceDataSync>{children}</WorkspaceDataSync></WorkspaceAuthProvider>;
 }

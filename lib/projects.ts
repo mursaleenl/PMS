@@ -1,7 +1,8 @@
 import type { Lead, LeadInvoice, ProposalVersion } from "@/lib/leads";
+import { reserveWorkspaceNumber } from "@/lib/numbering";
 import type { OperatingCompany } from "@/lib/companies";
 import { localCollectionValue, publishLocalWorkspaceChange } from "@/lib/workspace-sync";
-import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignees";
+import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignee-names";
 
 export const PROJECTS_STORAGE_KEY = "evecture.projects.v1";
 
@@ -113,13 +114,9 @@ export function deleteProject(id: string) {
   writeProjects(readProjects().filter((project) => project.id !== id));
 }
 
-export function nextProjectId(projects = readProjects()) {
-  const year = new Date().getFullYear();
-  const sequence = projects.map((project) => project.id.match(new RegExp(`^EVE-${year}-(\\d+)$`))?.[1]).filter(Boolean).map(Number);
-  return `EVE-${year}-${String(Math.max(0, ...sequence) + 1).padStart(3, "0")}`;
-}
+export function nextProjectId(): Promise<string> { return reserveWorkspaceNumber("project","Evecture"); }
 
-export function projectFromLead(input: {
+export async function projectFromLead(input: {
   lead: Lead;
   proposal: ProposalVersion;
   title: string;
@@ -127,11 +124,11 @@ export function projectFromLead(input: {
   operatingCompany: OperatingCompany;
   startDate: string;
   team: ProjectTeamMember[];
-}): Project {
+}): Promise<Project> {
   const { lead, proposal } = input;
   const invoice = lead.invoice;
   return {
-    id: nextProjectId(),
+    id: await nextProjectId(),
     leadId: lead.id,
     createdAt: new Date().toISOString(),
     title: input.title,

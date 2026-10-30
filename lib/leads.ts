@@ -58,6 +58,7 @@ export type ProposalVersion = {
   warrantySupport?: string;
   cancellationPolicy?: string;
   changeRequest?: string;
+  responseName?: string;
   expiryDate: string;
   finalFollowUpDate: string;
   quotedAmount: number;
@@ -103,13 +104,6 @@ export type LeadInvoice = {
   transactionReference?: string;
   confirmedPaidAt?: string;
 };
-
-export function nextInvoiceNumber(leads: Lead[], operatingCompany: OperatingCompany) {
-  const year = new Date().getFullYear();
-  const prefix = operatingCompany === "Servn" ? "SER" : "EVE";
-  const values = leads.map((lead) => lead.invoice?.invoiceNumber.match(new RegExp(`^${prefix}-INV-${year}-(\\d+)$`))?.[1]).filter(Boolean).map(Number);
-  return `${prefix}-INV-${year}-${String(Math.max(0, ...values) + 1).padStart(3, "0")}`;
-}
 
 export type Lead = {
   id: string;
