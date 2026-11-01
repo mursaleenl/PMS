@@ -60,7 +60,7 @@ function SignInForm() {
         </label>
         {error && <p className="form-error" role="alert">{error}</p>}
         <button className="button button-primary" type="submit" disabled={submitting}>
-          {submitting ? "Signing inâ€¦" : "Sign in"}
+          {submitting ? "Signing in..." : "Sign in"}
         </button>
       </form>
     </main>
@@ -69,7 +69,7 @@ function SignInForm() {
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={<div className="access-denied"><div className="panel"><p>Loading sign inâ€¦</p></div></div>}>
+    <Suspense fallback={<div className="access-denied"><div className="panel"><p>Loading sign in...</p></div></div>}>
       <SignInForm />
     </Suspense>
   );

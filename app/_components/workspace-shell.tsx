@@ -161,12 +161,12 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
 
   if (pathname.startsWith("/sign-in")) return <>{children}</>;
   if (pathname.startsWith("/proposal/")) {
-    if (loading) return <div className="access-denied" role="status"><p>Loading workspaceÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</p></div>;
+    if (loading) return <div className="access-denied" role="status"><p>Loading workspace...</p></div>;
     if (!user || role !== "employee") return <>{children}</>;
   }
 
   if (!configured) return <div className="access-denied"><div className="panel"><span className="section-kicker">SETUP REQUIRED</span><h1>Connect Supabase to continue.</h1><p>Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment, then restart the app.</p></div></div>;
-  if (loading || !user) return <div className="access-denied" role="status"><p>Loading workspaceÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</p></div>;
+  if (loading || !user) return <div className="access-denied" role="status"><p>Loading workspace...</p></div>;
   if (!databaseRole) return <div className="access-denied"><section className="panel"><h1>{accessError ? "Unable to verify workspace access" : "Workspace access is not assigned"}</h1><p>{accessError || "Ask an administrator to assign your account a workspace role."}</p>{signOutError&&<p role="alert">{signOutError}</p>}<button className="button button-primary" onClick={() => { void refreshAccess(); }}>Retry access check</button><button className="button button-quiet" onClick={()=>void handleSignOut()}>Sign out</button></section></div>;
   if (mustChangePassword && role === "admin" && pathname !== "/settings") return <div className="access-denied"><div className="panel"><span className="section-kicker">PASSWORD UPDATE REQUIRED</span><h1>Set your own password.</h1><p>For account security, update the temporary password before continuing to the workspace.</p><Link className="button button-primary" href="/settings">Change password <ChevronRight size={15} /></Link></div></div>;
 

@@ -289,7 +289,7 @@ export default function MyWorkPage() {
       <div className="task-table-heading">
         <div>
           <h2>All tasks</h2>
-          <p>{viewMode === "LIST" ? `${visibleTasks.length} ${visibleTasks.length === 1 ? "task" : "tasks"} shown Â· ${allTasks.length} total` : `${Object.values(boardTasksByColumn).flat().length} tasks shown on board Â· ${allTasks.length} total`}</p>
+          <p>{viewMode === "LIST" ? `${visibleTasks.length} ${visibleTasks.length === 1 ? "task" : "tasks"} shown | ${allTasks.length} total` : `${Object.values(boardTasksByColumn).flat().length} tasks shown on board Â· ${allTasks.length} total`}</p>
         </div>
         <div className="task-table-tools">
           <div className="task-view-switcher" role="group" aria-label="View mode">
@@ -317,7 +317,7 @@ export default function MyWorkPage() {
 
           <label className="task-table-search">
             <Search size={14} />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks, projects, assigneesâ€¦" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks, projects, assignees..." />
           </label>
           {viewMode === "LIST" && (
             <label className="task-filter-select">
@@ -601,7 +601,7 @@ export default function MyWorkPage() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     updateTask(project.id, task.id, { status: "IN_PROGRESS", blockerReason: undefined });
-                                    showToast({ message: "Blocker resolved Â· In progress" });
+                                    showToast({ message: "Blocker resolved: In progress" });
                                   }}
                                 >
                                   Resolve
