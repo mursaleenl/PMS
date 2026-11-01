@@ -24,8 +24,8 @@ export async function GET(request: Request) {
     }
     if (membership.error) return NextResponse.json({error:"Unable to verify workspace access"}, {status:503});
     const role = membership.data?.role;
-    if (role !== "admin" && role !== "employee") {
-      return NextResponse.json({ error: "Clients cannot view assignees." }, { status: 403 });
+    if (role !== "admin") {
+      return NextResponse.json({ error: "Only administrators can view workspace assignees." }, { status: 403 });
     }
   }
 

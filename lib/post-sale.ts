@@ -1,3 +1,4 @@
+import {retainerEndDate} from "@/lib/retainer-dates";
 import { reserveWorkspaceNumber } from "@/lib/numbering";
 import { localCollectionValue, publishLocalWorkspaceChange } from "@/lib/workspace-sync";
 
@@ -39,7 +40,7 @@ export function writeManagedProjects(items: ManagedProject[]) {
 }
 
 export function addManagedProject(item: ManagedProject) {
-  writeManagedProjects([item, ...readManagedProjects()]);
+  writeManagedProjects([{...item,periodEnd:retainerEndDate(item)}, ...readManagedProjects()]);
 }
 
 export function updateManagedProject(id: string, updates: Partial<ManagedProject>) {

@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, BriefcaseBusiness, Check, Clock3, Inbox, ListTodo, Plus } from "lucide-react";
 import { type Lead, readLeads } from "@/lib/leads";
-import { type Project, readProjects, getProjectDisplayTitle } from "@/lib/projects";
+import { type Project, readProjects, getProjectDisplayTitle, isProjectAssignedToUser, isTaskAssignedToUser } from "@/lib/projects";
 import { readInvoices, type StoredInvoice } from "@/lib/invoices";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
+import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
 export default function OverviewPage() {
+  const { role, user, members } = useWorkspaceAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [invoices, setInvoices] = useState<StoredInvoice[]>([]);
@@ -32,8 +34,10 @@ export default function OverviewPage() {
     };
   }, []);
 
-  const activeProjects = projects.filter((project) => project.status === "ACTIVE");
-  const tasks = useMemo(() => activeProjects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))), [activeProjects]);
+  const employeeName = (members.find((member) => member.user_id === user?.id)?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "").trim().toLowerCase();
+  const visibleProjects = role === "employee" ? projects.filter((project) => isProjectAssignedToUser(project, user?.id, employeeName)) : projects;
+  const activeProjects = visibleProjects.filter((project) => project.status !== "COMPLETED" && project.status !== "AMC");
+  const tasks = useMemo(() => visibleProjects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))).filter(({ task }) => role !== "employee" || isTaskAssignedToUser(task, user?.id, employeeName)), [visibleProjects, role, user?.id, employeeName]);
   const openTasks = tasks.filter(({ task }) => task.status !== "DONE");
   const activeTasks = useMemo(() => {
     return tasks
@@ -47,22 +51,23 @@ export default function OverviewPage() {
   const inProgressCount = useMemo(() => {
     return openTasks.filter(({ task }) => task.status === "IN_PROGRESS").length;
   }, [openTasks]);
+  const completedTaskCount = tasks.filter(({ task }) => task.status === "DONE").length;
   const pendingInvoices = useMemo(() => {
     return invoices.filter((inv) => inv.status !== "CONFIRMED_PAID");
   }, [invoices]);
   const newCount = leads.filter((lead) => lead.status === "NEW").length;
-  return <div className="page-content overview-dashboard">
+  return <div className={`page-content overview-dashboard${role === "employee" ? " employee-dashboard" : ""}`}>
     <section className="welcome-row">
-      <div><h1>Dashboard</h1><p className="welcome-subtitle">See what needs attention across your workspace.</p></div>
+      <div><h1>Dashboard</h1><p className="welcome-subtitle">{role === "employee" ? "Your assigned projects and tasks." : "See what needs attention across your workspace."}</p></div>
       <div className="welcome-actions">
         <Link className="button button-quiet" href="/projects">
           <BriefcaseBusiness size={14} strokeWidth={2} />
           Projects
         </Link>
-        <Link className="button button-primary" href="/requests/new">
+        {role === "admin" && <Link className="button button-primary" href="/requests/new">
           <Plus size={14} strokeWidth={2.5} />
           Log enquiry
-        </Link>
+        </Link>}
       </div>
     </section>
 
@@ -87,7 +92,7 @@ export default function OverviewPage() {
           {inProgressCount > 0 ? `${inProgressCount} in progress` : `${openTasks.length} pending completion`}
         </span>
       </Link>
-      <Link href="/invoices" className="overview-summary-card">
+      {role === "admin" && <Link href="/invoices" className="overview-summary-card">
         <div className="overview-summary-top">
           <small>Pending invoices</small>
           <ArrowRight size={14} className="overview-card-arrow" />
@@ -96,8 +101,8 @@ export default function OverviewPage() {
         <span className="overview-summary-subtext">
           {pendingInvoices.length === 0 ? "All invoices settled" : `${pendingInvoices.length === 1 ? "1 awaiting payment" : `${pendingInvoices.length} awaiting payment`}`}
         </span>
-      </Link>
-      <Link href="/requests" className="overview-summary-card">
+      </Link>}
+      {role === "admin" && <Link href="/requests" className="overview-summary-card">
         <div className="overview-summary-top">
           <small>Needs review</small>
           <ArrowRight size={14} className="overview-card-arrow" />
@@ -106,13 +111,17 @@ export default function OverviewPage() {
         <span className="overview-summary-subtext">
           {newCount === 0 ? "Pipeline up to date" : `${newCount === 1 ? "1 new enquiry" : `${newCount} new enquiries`}`}
         </span>
-      </Link>
+      </Link>}
+      {role === "employee" && <>
+        <Link href="/work" className="overview-summary-card"><div className="overview-summary-top"><small>In progress</small><ArrowRight size={14} className="overview-card-arrow" /></div><strong>{inProgressCount}</strong><span className="overview-summary-subtext">Your active tasks</span></Link>
+        <Link href="/work" className="overview-summary-card"><div className="overview-summary-top"><small>Completed tasks</small><ArrowRight size={14} className="overview-card-arrow" /></div><strong>{completedTaskCount}</strong><span className="overview-summary-subtext">Your finished work</span></Link>
+      </>}
     </section>
 
     <section className="overview-project-section">
-      <div className="overview-section-heading"><div><h2>Project overview</h2><p>Progress and current work across your active projects.</p></div><Link className="text-link" href="/projects">View all projects <ArrowRight size={14} /></Link></div>
-      {activeProjects.length === 0 ? <div className="panel overview-empty"><EmptyState icon={<BriefcaseBusiness size={22} />} title="No active projects" description="Move an accepted lead into its project workspace to start tracking delivery." action={<Link className="button button-quiet" href="/requests">Open requests <ArrowRight size={14} /></Link>} /></div> : <div className="overview-project-grid">{activeProjects.slice(0, 4).map((project) => {
-        const projectTasks = project.workItems ?? [];
+      <div className="overview-section-heading"><div><h2>Project overview</h2><p>{role === "employee" ? "Your assigned projects and task progress." : "Progress and current work across your active projects."}</p></div><Link className="text-link" href="/projects">View all projects <ArrowRight size={14} /></Link></div>
+      {activeProjects.length === 0 ? <div className="panel overview-empty"><EmptyState icon={<BriefcaseBusiness size={22} />} title={role === "employee" ? "No assigned projects" : "No active projects"} description={role === "employee" ? "Projects assigned to you will appear here." : "Move an accepted lead into its project workspace to start tracking delivery."} action={role === "admin" ? <Link className="button button-quiet" href="/requests">Open requests <ArrowRight size={14} /></Link> : undefined} /></div> : <div className="overview-project-grid">{activeProjects.slice(0, 4).map((project) => {
+        const projectTasks = role === "employee" ? (project.workItems ?? []).filter((task) => isTaskAssignedToUser(task, user?.id, employeeName)) : project.workItems ?? [];
         const complete = projectTasks.filter((task) => task.status === "DONE").length;
         const progress = projectTasks.length ? Math.round(complete / projectTasks.length * 100) : 0;
         return <Link href={`/projects/${project.id}`} className="panel overview-project-card" key={project.id}>
@@ -133,7 +142,7 @@ export default function OverviewPage() {
           </div>
           <div className="overview-project-footer">
             <span className="overview-footer-stats">
-              <span className={`portfolio-chip-dot ${projectTasks.length - complete > 0 ? "has-tasks" : ""}`} />
+              <ListTodo className="task-count-icon" size={16} strokeWidth={2} aria-hidden="true"/>
               <span>{complete} of {projectTasks.length} {projectTasks.length === 1 ? "task" : "tasks"} complete</span>
             </span>
             <span className="overview-id-badge">
@@ -145,12 +154,12 @@ export default function OverviewPage() {
       })}</div>}
     </section>
 
-    <section className="overview-lower-grid">
+    <section className={`overview-lower-grid ${role === "employee" ? "employee-overview-lower" : ""}`}>
       <div className="panel overview-task-panel">
         <div className="overview-panel-heading">
           <div>
             <h2>Tasks</h2>
-            <p>To do and in progress across active projects</p>
+            <p>{role === "employee" ? "Your tasks to do and in progress" : "To do and in progress across active projects"}</p>
           </div>
           <Link className="text-link" href="/work">All tasks <ArrowRight size={14} /></Link>
         </div>
@@ -162,7 +171,7 @@ export default function OverviewPage() {
               <Link href={`/projects/${project.id}`} className="overview-task-row" key={`${project.id}-${task.id}`}>
                 <span
                   className="overview-task-indicator"
-                  style={task.status === "IN_PROGRESS" ? { background: "#0f172a", color: "#ffffff" } : { background: "#f1f5f9", color: "#475569" }}
+                  data-status={task.status}
                   title={task.status === "IN_PROGRESS" ? "In progress" : "To do"}
                 >
                   {task.status === "IN_PROGRESS" ? <Clock3 size={14} /> : <ListTodo size={14} />}
@@ -180,9 +189,9 @@ export default function OverviewPage() {
           </div>
         )}
       </div>
-      <div className="panel overview-request-panel"><div className="overview-panel-heading"><div><h2>Leads</h2><p>Latest incoming enquiries</p></div><Link className="text-link" href="/requests">Open leads <ArrowRight size={14} /></Link></div>
+      {role === "admin" && <div className="panel overview-request-panel"><div className="overview-panel-heading"><div><h2>Leads</h2><p>Latest incoming enquiries</p></div><Link className="text-link" href="/requests">Open leads <ArrowRight size={14} /></Link></div>
         {leads.length === 0 ? <div className="overview-inline-empty"><Inbox size={17} />No requests have been recorded yet.</div> : <div className="overview-request-list">{[...leads].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4).map((lead) => <Link href={`/requests#${lead.id}`} className="overview-request-row" key={lead.id}><span className="overview-task-indicator"><Inbox size={14} /></span><span className="overview-task-copy"><strong>{lead.fullName}</strong><small>{lead.companyName || "Individual enquiry"}</small></span><StatusBadge status={lead.status} /></Link>)}</div>}
-      </div>
+      </div>}
     </section>
   </div>;
 }

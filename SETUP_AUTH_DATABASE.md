@@ -4,12 +4,18 @@ The workspace uses Supabase Auth and PostgreSQL with Administrator, Employee, an
 
 1. Configure `.env.local` using the variable names in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` is server-only; never prefix it with `NEXT_PUBLIC_`.
 2. Disable public sign-up in Supabase Authentication when accounts are administrator-managed.
-3. For a new database, run `supabase/schema.sql`, then `supabase/workspace-reliability-migration.sql`.
-4. For an existing database, run `supabase/production-relational-migration.sql` if the normalized tables are not installed, then `supabase/workspace-reliability-migration.sql`.
+3. For a new database, run `supabase/schema.sql`, then `supabase/workspace-reliability-migration.sql`, `supabase/employee-role-access-migration.sql`, `supabase/employee-client-rls-fix.sql`, and `supabase/reviews-migration.sql` in that order.
+4. For an existing database, run `supabase/production-relational-migration.sql` if the normalized tables are not installed, then `supabase/workspace-reliability-migration.sql`, `supabase/employee-role-access-migration.sql`, `supabase/employee-client-rls-fix.sql`, and `supabase/reviews-migration.sql` in that order.
 5. Set `NEXT_PUBLIC_ADMIN_EMAIL` to the intended administrator's verified email. The server bootstraps that account only when no administrator exists. Browser metadata cannot grant a role.
 6. Start the app with `pnpm dev` and sign in. Administrators manage accounts through Users and choose the initial password during account creation.
 
 The reliability migration runs inside a transaction and preserves existing records. It adds revision checks, atomic graph saves, database number allocation, scoped proposal response functions, attendance records, and project conversations. Direct browser writes to the workspace graph are revoked so every write passes the transaction and revision checks. It can be rerun.
+
+The employee role migration scopes employee project, task, and link reads to assigned work; allows employees to update only their own task progress and add or edit the staging link on assigned projects; and provides read-only client data through assigned project workspaces. Employees cannot access Leads, Clients, Users, Retainers, Proposals, or Invoices pages. Admins retain full workspace management. The migration backfills existing project assignments by matching member display names and email names; review assignments where those names do not match.
+
+The employee client RLS fix removes a policy cycle between client, project, and task access checks that can prevent `project_work_items` from loading. Apply it to existing databases after the employee role migration. It also scopes project messages to visible projects. Rerun `supabase/reviews-migration.sql` to ensure submitted reports always start open with no administrator note.
+
+The Reviews page lets admins and employees submit bug and issue reports. Employees can see only their own reports; admins can review all reports, add follow-up notes, and track them as open, in progress, or resolved. Apply `supabase/reviews-migration.sql` to create the table and role policies.
 
 The app remains available for preview when the reliability migration is missing. Preview edits are not persisted. Apply the migration and reload before operational use. Applying SQL to a remote deployment is a separate step; starting the development server does not apply it.
 
@@ -44,3 +50,17 @@ The existing Team performance form remains available for manual daily summaries 
 A rotating QR reduces reuse of old screenshots but does not enforce physical presence: a live code can still be forwarded. This version does not enforce office IP or phone location. Never distribute the administrator's signed-in office-display browser session to employees.
 
 Verify using separate admin and employee accounts: display a QR, scan and confirm arrival, scan again to confirm departure, inspect the summary, and verify a client cannot use attendance. Automated database tests cover expiry, role isolation, repeated submissions, manual overrides, and missing-checkout corrections.
+
+## Client project portal
+
+Apply `supabase/client-portal-access-migration.sql` after the employee migrations. It is safe to rerun. Clients see only projects linked through `clients.client_user_id` to their signed-in account, task completion counts, and assigned team names and roles. The portal excludes proposals, invoices, messages, links, and internal project details. Direct client reads of these tables are removed; `read_client_projects()` returns only the permitted summary and derives identity from Supabase Auth. Account settings remain available for managing sign-in details.
+
+## Project status
+
+Apply `supabase/project-status-migration.sql` to enable the On track and AMC statuses. Each project has a Project status tab immediately before Messages. Admins can move the project between Active, On track, Completed, and AMC. Employees can view the status but cannot change it. Task visibility does not depend on project completion, so assigned tasks from completed projects remain available on Tasks and the dashboard.
+
+Selecting AMC opens retainer setup when a linked plan does not exist. Saving the plan persists the project AMC status and retainer together, then opens Retainers. Admin project listings exclude AMC projects. Employees retain access to their assigned project workspaces and tasks. Existing AMC projects without a plan can use Add retainer plan in Project status.
+
+Apply `supabase/project-assignment-status-migration.sql` after the project status migration. Assigning a task changes an Active project to On track; completed and AMC projects keep their status. Existing Active projects with assigned tasks are updated once. Progress-only task updates do not change the project status.
+
+Retainers support Edit plan for commercial terms and start dates. The available durations are Monthly (1 month), Quarterly (3 months), and Annual (12 months), regardless of plan model. Month-end and leap-day anniversaries clamp to the last valid target date. Existing custom end dates are preserved unless the start date or cycle changes. Legacy one-time records have no recurring term; editing one requires selecting Monthly, Quarterly, or Annual. Existing plans without an end date show the calculated date; new and edited plans persist it in the existing `period_end` column. No additional migration is needed.

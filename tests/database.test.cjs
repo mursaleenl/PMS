@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const {PGlite}=require('@electric-sql/pglite');
 const {createLoader}=require('../scripts/test-loader.cjs');
 const load=createLoader({'@/lib/assignees':{DUMMY_ASSIGNABLE_NAMES:new Set()}});
-const {serializeRecord}=load('lib/relational-sync.ts');
+const {serializeRecord,readRelationalWorkspace}=load('lib/relational-sync.ts');
 const ADMIN='00000000-0000-0000-0000-000000000001';
 const EMPLOYEE='00000000-0000-0000-0000-000000000002';
 const CLIENT='00000000-0000-0000-0000-000000000003';
@@ -126,9 +126,112 @@ test('workspace database migrations and transactional workflows',async t=>{
    await assert.rejects(db.query("insert into attendance_records(user_id,work_date,status) values($1,current_date,'PRESENT')",[CLIENT]),/row-level security/);
    await db.exec('reset role');await identity(ADMIN,'admin@example.com');
  });
+ await t.test('optional proposal attachments persist without creating a generated proposal',async()=>{
+   const attachment={name:'proposal.pdf',dataUrl:'data:application/pdf;base64,JVBERi0='};
+   await save([change('leads',lead('OPTIONAL-UPLOAD',{status:'QUALIFIED',qualification:{proposalAttachment:attachment}})),change('projects',project('WITHOUT-PROPOSAL','OPTIONAL-UPLOAD',{proposalVersion:0}))]);
+   assert.deepEqual((await db.query("select qualification from leads where external_id='OPTIONAL-UPLOAD'")).rows[0].qualification.proposalAttachment,attachment);
+   assert.equal((await db.query("select proposal_id from projects where external_id='WITHOUT-PROPOSAL'")).rows[0].proposal_id,null);
+   assert.equal((await db.query("select count(*)::int n from proposals p join leads l on l.id=p.lead_id where l.external_id='OPTIONAL-UPLOAD'")).rows[0].n,0);
+ });
  await t.test('the final administrator cannot be demoted through direct RPC',async()=>{
    await assert.rejects(db.query("select public.set_workspace_member_role('admin@example.com','employee',null)"),/at least one administrator/);
    assert.equal((await db.query("select role from workspace_members where user_id=$1",[ADMIN])).rows[0].role,'admin');
+ });
+ await t.test('employee migrations isolate assignments and preserve client access without policy recursion',async()=>{
+   for(const file of ['employee-role-access-migration.sql','employee-client-rls-fix.sql','reviews-migration.sql']) {
+     await db.exec(fs.readFileSync(`supabase/${file}`,'utf8'));
+     await db.exec(fs.readFileSync(`supabase/${file}`,'utf8'));
+   }
+   await db.query("update project_work_items set assignee_user_id=$1 where external_id='TASK1'",[EMPLOYEE]);
+   const privateProject=(await db.query("select id from projects where external_id='PRIVATE'")).rows[0].id;
+   await db.query("insert into project_messages(project_id,sender_id,sender_name,body) values($1,$2,'Admin','Private project message')",[privateProject,ADMIN]);
+   await db.query("update projects set status='COMPLETED' where external_id='P1'");
+   await identity(EMPLOYEE,'employee@example.com');await db.exec('set role authenticated');
+   assert.deepEqual((await db.query('select external_id from projects')).rows.map(r=>r.external_id),['P1']);
+   assert.equal((await db.query('select count(*)::int n from project_work_items')).rows[0].n,1);
+   assert.equal((await db.query('select count(*)::int n from clients')).rows[0].n,1);
+   for(const table of ['leads','proposals','invoices']) assert.equal((await db.query(`select count(*)::int n from ${table}`)).rows[0].n,0);
+   const reader={from:table=>({select:columns=>({
+     order:()=>({range:async()=>({data:JSON.parse(JSON.stringify((await db.query(`select * from public.${table} order by id`)).rows)),error:null})}),
+     limit:async()=>({data:(await db.query(`select ${columns} from public.${table} limit 1`)).rows,error:null})
+   })}),rpc:async()=>({data:1,error:null})};
+   const snapshot=await readRelationalWorkspace(reader);
+   const assigned=snapshot.values.projects.find(p=>p.id==='P1');
+   const changed={...assigned,workItems:assigned.workItems.map(task=>({...task,status:'UNDER_REVIEW'}))};
+   await save([change('projects',changed,snapshot.revisions['projects:P1'])]);
+   assert.equal((await db.query("select status from project_work_items where external_id='TASK1'")).rows[0].status,'UNDER_REVIEW');
+   assert.equal((await db.query("select status from projects where external_id='P1'")).rows[0].status,'COMPLETED');
+   await assert.rejects(save([change('projects',{...changed,title:'Unauthorized rename'},snapshot.revisions['projects:P1']+1)]),/own assigned task progress/);
+   await assert.rejects(save([change('projects',{...changed,status:'ACTIVE'},snapshot.revisions['projects:P1']+1)]),/own assigned task progress/);
+   const own=(await db.query("select id from projects where external_id='P1'")).rows[0].id;
+   await db.query('insert into project_messages(project_id,sender_id,sender_name,body) values($1,$2,$3,$4)',[own,EMPLOYEE,'Employee','Assigned project message']);
+   assert.ok(!(await db.query('select body from project_messages')).rows.some(r=>r.body==='Private project message'));
+   await assert.rejects(db.query("insert into project_messages(project_id,sender_id,sender_name,body) values($1,$2,'Employee','Unauthorized message')",[privateProject,EMPLOYEE]),/row-level security/);
+   await db.exec('reset role');await identity(CLIENT,'client@example.com');await db.exec('set role authenticated');
+   assert.ok((await db.query('select external_id from projects')).rows.some(r=>r.external_id==='P1'));
+   assert.ok(!(await db.query('select external_id from projects')).rows.some(r=>r.external_id==='PRIVATE'));
+   await db.query('select * from project_work_items');
+   await db.exec('reset role');await identity(ADMIN,'admin@example.com');
+ });
+ await t.test('reviews prevent employee resolution and isolate reports',async()=>{
+   await identity(EMPLOYEE,'employee@example.com');await db.exec('set role authenticated');
+   const report=(await db.query(`insert into workspace_reviews(reporter_user_id,reporter_name,title,report_type,description,status,admin_note)
+     values($1,'Spoofed','Broken navigation','BUG','The navigation does not open','RESOLVED','Forged admin note') returning *`,[ADMIN])).rows[0];
+   assert.equal(report.reporter_user_id,EMPLOYEE);
+   assert.equal(report.status,'OPEN');assert.equal(report.admin_note,null);
+   await db.query("update workspace_reviews set status='RESOLVED' where id=$1",[report.id]);
+   assert.equal((await db.query('select status from workspace_reviews where id=$1',[report.id])).rows[0].status,'OPEN');
+   await db.exec('reset role');await identity(CLIENT,'client@example.com');await db.exec('set role authenticated');
+   assert.equal((await db.query('select count(*)::int n from workspace_reviews')).rows[0].n,0);
+   await db.exec('reset role');await identity(ADMIN,'admin@example.com');await db.exec('set role authenticated');
+   await db.query("update workspace_reviews set status='RESOLVED',admin_note='Fixed' where id=$1",[report.id]);
+   assert.equal((await db.query('select status from workspace_reviews where id=$1',[report.id])).rows[0].status,'RESOLVED');
+   await db.exec('reset role');await identity(ADMIN,'admin@example.com');
+ });
+ await t.test('client portal exposes associated progress and team only, without direct internal reads',async()=>{
+   await db.query("update project_work_items set assignee_name='Assigned employee' where external_id='TASK1'");
+   const sql=fs.readFileSync('supabase/client-portal-access-migration.sql','utf8');
+   await db.exec(sql);await db.exec(sql);
+   await identity(CLIENT,'client@example.com');await db.exec('set role authenticated');
+   const projects=(await db.query('select read_client_projects() result')).rows[0].result;
+   const own=projects.find(p=>p.external_id==='P1');
+   assert.ok(own);assert.ok(!projects.some(p=>p.external_id==='PRIVATE'));
+   assert.equal(own.total_tasks,1);
+   assert.ok(own.team.some(p=>p.name==='Assigned employee'));
+   assert.deepEqual(Object.keys(own).sort(),['id','external_id','title','status','total_tasks','completed_tasks','team'].sort());
+   for(const table of ['clients','projects','project_work_items','project_links','proposals','invoices','project_messages','project_team_members']) {
+     assert.equal((await db.query(`select count(*)::int n from ${table}`)).rows[0].n,0,table);
+   }
+   await db.exec('reset role');await identity(EMPLOYEE,'employee@example.com');await db.exec('set role authenticated');
+   await assert.rejects(db.query('select read_client_projects()'),/Client access required/);
+   assert.equal((await db.query('select count(*)::int n from projects')).rows[0].n,1);
+   await db.exec('reset role');await identity(ADMIN,'admin@example.com');
+ });
+ await t.test('project status migration is rerunnable and On track persists',async()=>{
+   const sql=fs.readFileSync('supabase/project-status-migration.sql','utf8');
+   await db.exec(sql);await db.exec(sql);
+   const tracked=project('STATUS-FLOW','L2',{status:'ON_TRACK'});
+   await save([change('projects',tracked)]);
+   assert.equal((await db.query("select status from projects where external_id='STATUS-FLOW'")).rows[0].status,'ON_TRACK');
+   await save([change('projects',{...tracked,status:'AMC'},0)]);
+   assert.equal((await db.query("select status from projects where external_id='STATUS-FLOW'")).rows[0].status,'AMC');
+   await save([change('projects',{...tracked,status:'COMPLETED'},1)]);
+   assert.equal((await db.query("select status from projects where external_id='STATUS-FLOW'")).rows[0].status,'COMPLETED');
+ });
+ await t.test('task assignments move only Active projects to On track',async()=>{
+   const work={id:'TRACK-TASK',title:'Assigned task',kind:'FEATURE_DEV',status:'TO_DO',priority:'P3',assignee:'Employee',assigneeId:EMPLOYEE,createdAt:'2026-10-31T00:00:00Z'};
+   await save([change('projects',project('TRACK-EXISTING','L2',{workItems:[work]}))]);
+   const sql=fs.readFileSync('supabase/project-assignment-status-migration.sql','utf8');
+   await db.exec(sql);await db.exec(sql);
+   const existing=(await db.query("select status,revision from projects where external_id='TRACK-EXISTING'")).rows[0];
+   assert.equal(existing.status,'ON_TRACK');assert.equal(existing.revision,1);
+   for(const status of ['ACTIVE','COMPLETED','AMC']) {
+     const id=`ASSIGN-${status}`;
+     await save([change('projects',project(id,'L2',{status,workItems:[work]}))]);
+     assert.equal((await db.query('select status from projects where external_id=$1',[id])).rows[0].status,status==='ACTIVE'?'ON_TRACK':status);
+   }
+   await save([change('projects',project('UNASSIGNED','L2',{workItems:[{...work,assignee:'',assigneeId:undefined}]}))]);
+   assert.equal((await db.query("select status from projects where external_id='UNASSIGNED'")).rows[0].status,'ACTIVE');
  });
  await db.close();
 });

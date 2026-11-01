@@ -1,3 +1,4 @@
+import { createUuid } from "@/lib/uuid";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Lead, LeadInvoice, ProposalVersion } from "@/lib/leads";
 import type { ManagedProject } from "@/lib/post-sale";
@@ -311,6 +312,7 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
       return {
         role: member.role,
         name: isDummy ? "" : memberName,
+        userId: member.user_id || undefined,
         allocationPercent: isDummy ? 0 : number(member.allocation_percent),
       };
     });
@@ -319,6 +321,7 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
       title: text(item.title),
       kind: item.kind,
       assignee: text(item.assignee_name),
+      assigneeId: item.assignee_user_id || undefined,
       priority: item.priority,
       estimatedHours: number(item.estimated_hours),
       loggedHours: number(item.logged_hours),
@@ -336,7 +339,7 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     const proposalVersion = proposalRows.find((proposal) => text(proposal.id) === text(proposalId))?.version;
     return {
       id: text(row.external_id, dbId),
-      leadId: leadExternalId,
+      leadId: leadExternalId || text(row.lead_id),
       createdAt: text(row.created_at),
       title: text(row.title),
       clientCompany: text(row.client_company),
@@ -502,8 +505,8 @@ export function serializeRecord(collection: WorkspaceCollection, value: unknown)
       signed_contract_data_url: nullable(project.signedContractDataUrl),
       created_at: project.createdAt || new Date().toISOString(),
     }, leadId: project.leadId || null, proposalVersion: project.proposalVersion,
-      team: project.team.map(member => ({ role: member.role, name: nullable(member.name), allocation_percent: number(member.allocationPercent) })),
-      workItems: (project.workItems ?? []).map(item => ({ external_id: item.id, title: item.title, kind: item.kind, assignee_name: nullable(item.assignee), priority: item.priority, estimated_hours: number(item.estimatedHours), logged_hours: number(item.loggedHours), status: item.status, blocker_reason: nullable(item.blockerReason), proof: item.proof ?? {}, review_notes: nullable(item.reviewNotes), revision_requested: Boolean(item.revisionRequested), timer_started_at: nullable(item.timerStartedAt), created_at: item.createdAt })),
+      team: project.team.map(member => ({ role: member.role, name: nullable(member.name), user_id: nullable(member.userId), allocation_percent: number(member.allocationPercent) })),
+      workItems: (project.workItems ?? []).map(item => ({ external_id: item.id, title: item.title, kind: item.kind, assignee_name: nullable(item.assignee), assignee_user_id: nullable(item.assigneeId), priority: item.priority, estimated_hours: number(item.estimatedHours), logged_hours: number(item.loggedHours), status: item.status, blocker_reason: nullable(item.blockerReason), proof: item.proof ?? {}, review_notes: nullable(item.reviewNotes), revision_requested: Boolean(item.revisionRequested), timer_started_at: nullable(item.timerStartedAt), created_at: item.createdAt })),
       links: Object.entries(project.links ?? {}).filter(([,url]) => url).map(([link_type,url]) => ({ link_type, url })),
     };
   }
@@ -547,7 +550,7 @@ export function workspaceChanges(before: Partial<RelationalValues>, after: Parti
   });
 }
 
-export async function persistWorkspaceChanges(client: SupabaseClient, changes: WorkspaceChange[], requestId = crypto.randomUUID()): Promise<Record<string, number>> {
+export async function persistWorkspaceChanges(client: SupabaseClient, changes: WorkspaceChange[], requestId = createUuid()): Promise<Record<string, number>> {
   if (!changes.length) return {};
   const result = await client.rpc("save_workspace_changes", { p_changes: changes, p_request_id:requestId });
   fail(result, "Saving workspace");

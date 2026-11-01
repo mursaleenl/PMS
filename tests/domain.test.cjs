@@ -63,3 +63,54 @@ test('editable user metadata never grants an application role',()=>{
  const {getWorkspaceRole}=load('lib/roles.ts');
  assert.equal(getWorkspaceRole({email:'outsider@example.com',user_metadata:{role:'admin'}}),'client');
 });
+
+test('record IDs remain valid and unique when randomUUID is unavailable',()=>{
+ const {createUuid}=load('lib/uuid.ts');
+ const {webcrypto}=require('node:crypto');
+ const provider={getRandomValues:bytes=>webcrypto.getRandomValues(bytes)};
+ const ids=Array.from({length:1000},()=>createUuid(provider));
+ assert.equal(new Set(ids).size,1000);
+ for(const id of ids) assert.match(id,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+ assert.equal(createUuid({randomUUID:()=> 'native-id'}),'native-id');
+});
+
+test('assigning work starts project tracking without changing completed or AMC projects',()=>{
+ const {updateProject,readProjects}=load('lib/projects.ts');
+ const base={id:'ASSIGN',title:'Assignment test',status:'ACTIVE',team:[],workItems:[]};
+ const task={id:'assigned',assignee:'Employee',assigneeId:'employee-id',status:'TO_DO'};
+ for(const status of ['ACTIVE','COMPLETED','AMC']) {
+  sync.applyRemoteCollection('projects',[{...base,status}]);
+  updateProject(base.id,{workItems:[task]});
+  assert.equal(readProjects()[0].status,status==='ACTIVE'?'ON_TRACK':status);
+ }
+ sync.applyRemoteCollection('projects',[{...base,workItems:[task]}]);
+ updateProject(base.id,{workItems:[{...task,status:'IN_PROGRESS'}]});
+ assert.equal(readProjects()[0].status,'ACTIVE');
+ sync.applyRemoteCollection('projects',[base]);
+ updateProject(base.id,{workItems:[{...task,assignee:'',assigneeId:undefined}]});
+ assert.equal(readProjects()[0].status,'ACTIVE');
+});
+
+test('status colours meet normal-text contrast on white and states have distinct icons',()=>{
+ const {statusColors,getStatusAppearance}=load('lib/status-appearance.ts');
+ const luminance=hex=>{
+  const rgb=hex.slice(1).match(/../g).map(value=>parseInt(value,16)/255).map(value=>value<=0.04045?value/12.92:((value+0.055)/1.055)**2.4);
+  return rgb[0]*0.2126+rgb[1]*0.7152+rgb[2]*0.0722;
+ };
+ for(const [name,hex] of Object.entries(statusColors)) assert.ok(1.05/(luminance(hex)+0.05)>=4.5,`${name} must be legible on white`);
+ assert.notEqual(getStatusAppearance('NEW').icon,getStatusAppearance('CONVERTED').icon);
+ assert.notEqual(getStatusAppearance('ACTIVE').icon,getStatusAppearance('COMPLETED').icon);
+ assert.equal(getStatusAppearance('On track').color,statusColors.teal);
+});
+
+test('retainer dates follow the selected cycle and clamp monthly anniversaries safely',()=>{
+ const {calculateRetainerEndDate,retainerEndDate}=load('lib/retainer-dates.ts');
+ assert.equal(calculateRetainerEndDate('2026-10-31','Monthly'),'2026-11-30');
+ assert.equal(calculateRetainerEndDate('2026-01-31','Monthly'),'2026-02-28');
+ assert.equal(calculateRetainerEndDate('2024-01-31','Monthly'),'2024-02-29');
+ assert.equal(calculateRetainerEndDate('2026-11-30','Quarterly'),'2027-02-28');
+ assert.equal(calculateRetainerEndDate('2024-02-29','Annual'),'2025-02-28');
+ assert.equal(calculateRetainerEndDate('2026-02-30','Annual'),undefined);
+ assert.equal(calculateRetainerEndDate('2026-10-31','One-time'),undefined);
+ assert.equal(retainerEndDate({periodStart:'2026-10-31',periodEnd:'2027-12-31',model:'Annual maintenance',billingCycle:'Monthly'}),'2027-12-31');
+});

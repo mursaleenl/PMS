@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ChevronDown, ExternalLink, FolderKanban, Handshake, Plus } from "lucide-react";
+import { ChevronDown, ExternalLink, FolderKanban, Handshake, Plus, Pencil } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
 import { EmptyState } from "@/app/_components/empty-state";
 import { flushWorkspaceChanges } from "@/lib/workspace-sync";
 import { addProject, nextProjectId, readProjects, updateProject, type Project } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject, updateManagedProject } from "@/lib/post-sale";
 import { readLeads } from "@/lib/leads";
+import {retainerEndDate} from "@/lib/retainer-dates";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { showToast } from "@/app/_components/toast-hub";
 
@@ -18,7 +19,8 @@ function planStatus(item: ManagedProject) {
   if (item.status === "ENDED") return "ENDED";
   const today = new Date().toISOString().slice(0, 10);
   if (item.periodStart > today) return "UPCOMING";
-  if (item.periodEnd && item.periodEnd < today) return "EXPIRED";
+  const end=retainerEndDate(item);
+  if (end && end < today) return "EXPIRED";
   return "ACTIVE";
 }
 
@@ -32,6 +34,7 @@ export default function PostSalePage() {
   const [items, setItems] = useState<ManagedProject[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingPlan,setEditingPlan]=useState<ManagedProject|null>(null);
   const [filter, setFilter] = useState("ALL");
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
 
@@ -150,6 +153,7 @@ export default function PostSalePage() {
         {shownItems.map((item) => {
           const status = planStatus(item);
           const isExpanded = expandedPlan === item.id;
+          const endDate=retainerEndDate(item);
           const linked = item.sourceProjectId ? projects.find((project) => project.id === item.sourceProjectId) : undefined;
           return (
             <article
@@ -179,11 +183,13 @@ export default function PostSalePage() {
               {isExpanded && (
                 <div className="client-card-details">
                   <section>
-                    <h2>Plan model & duration</h2>
-                    <strong>{item.model}</strong>
-                    <span>Billing: {item.billingCycle}</span>
-                    <span>{item.periodStart ? `Started ${new Date(`${item.periodStart}T12:00:00`).toLocaleDateString()}` : "Ongoing"}</span>
-                    <span>{item.periodEnd ? `Ends ${new Date(`${item.periodEnd}T12:00:00`).toLocaleDateString()}` : "No expiration set"}</span>
+                    <h2>Plan details</h2>
+                    <dl className="retainer-plan-facts">
+                      <div><dt>Plan model</dt><dd>{item.model}</dd></div>
+                      <div><dt>Billing cycle</dt><dd>{item.billingCycle}</dd></div>
+                      <div><dt>Started</dt><dd>{item.periodStart ? new Date(`${item.periodStart}T12:00:00`).toLocaleDateString() : "Ongoing"}</dd></div>
+                      <div><dt>Ends</dt><dd>{endDate ? new Date(`${endDate}T12:00:00`).toLocaleDateString() : "Not applicable (one-time)"}</dd></div>
+                    </dl>
                   </section>
                   <section>
                     <h2>Linked project</h2>
@@ -202,6 +208,7 @@ export default function PostSalePage() {
                   <section>
                     <h2>Plan management</h2>
                     <div className="post-sale-actions">
+                      <button type="button" className="button button-quiet" onClick={()=>setEditingPlan(item)}><Pencil size={14}/>Edit plan</button>
                       {status === "PAUSED" ? (
                         <button type="button" className="button button-quiet" onClick={() => setStatus(item, "ACTIVE")}>
                           Resume plan
@@ -234,6 +241,7 @@ export default function PostSalePage() {
       </div>
     )}
 
+    {editingPlan && <ManagedPlanDrawer projects={projects} plan={editingPlan} onClose={()=>setEditingPlan(null)} onCreated={()=>setItems(readManagedProjects())}/>}
     {showCreate && <ManagedPlanDrawer projects={projects} onClose={() => setShowCreate(false)} onCreated={() => setItems(readManagedProjects())} />}
   </div>;
 }

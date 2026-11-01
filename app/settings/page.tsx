@@ -24,6 +24,10 @@ export default function SettingsPage() {
   async function changePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPasswordMessage("");
+    if (workspaceRole === "employee") {
+      setPasswordMessage("Password changes are managed by an administrator.");
+      return;
+    }
     if (password.length < 8) {
       setPasswordMessage("Use at least 8 characters for your new password.");
       return;
@@ -49,7 +53,7 @@ export default function SettingsPage() {
       <section className="welcome-row">
         <div>
           <h1>Account settings</h1>
-          <p className="welcome-subtitle">Manage your profile, sign-in email, password, and security options.</p>
+          <p className="welcome-subtitle">{workspaceRole === "employee" ? "View your account details." : "Manage your profile, sign-in email, password, and security options."}</p>
         </div>
       </section>
 
@@ -66,7 +70,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <form className="password-change-card" onSubmit={changePassword}>
+        {workspaceRole !== "employee" && <form className="password-change-card" onSubmit={changePassword}>
           <div className="password-card-header">
             <div className="password-card-title-row">
               <KeyRound size={16} className="password-header-icon" />
@@ -119,7 +123,7 @@ export default function SettingsPage() {
               </p>
             )}
           </div>
-        </form>
+        </form>}
       </div>
     </div>
   );

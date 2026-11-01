@@ -142,6 +142,63 @@ create table if not exists public.workspace_mutations (
 create index if not exists workspace_mutations_created_idx on public.workspace_mutations(created_at);
 alter table public.workspace_mutations enable row level security;
 revoke all on public.workspace_mutations from anon,authenticated;
+
+create or replace function public.employee_project_task_update_allowed(p_project_id uuid, p_data jsonb)
+returns boolean language plpgsql stable security definer set search_path = public
+as $$
+declare existing_row jsonb; item jsonb; old_item jsonb; field_name text; row_id uuid; mutable_field boolean;
+  current_lead_external text; current_lead_internal uuid;
+begin
+  if jsonb_typeof(p_data->'row') <> 'object' then return false; end if;
+  select to_jsonb(p) into existing_row from public.projects p where p.id=p_project_id;
+  if existing_row is null then return false; end if;
+  select l.external_id,p.lead_id into current_lead_external,current_lead_internal from public.projects p left join public.leads l on l.id=p.lead_id where p.id=p_project_id;
+  if coalesce(p_data->>'leadId','') not in (coalesce(current_lead_external,''),coalesce(current_lead_internal::text,'')) then return false; end if;
+  for field_name in select jsonb_object_keys(p_data->'row') loop
+    if field_name='created_at' then
+      if (p_data->'row'->>field_name)::timestamptz is distinct from (existing_row->>field_name)::timestamptz then return false; end if;
+    elsif field_name in ('client_company','client_name','client_email','operating_company','start_date','scope_included','scope_excluded','assumptions','signed_contract_name','signed_contract_data_url') then
+      if nullif(p_data->'row'->>field_name,'') is distinct from nullif(existing_row->>field_name,'') then return false; end if;
+    elsif (p_data->'row'->field_name) is distinct from (existing_row->field_name) then return false; end if;
+  end loop;
+  if jsonb_array_length(coalesce(p_data->'team','[]'::jsonb)) <> (select count(*) from public.project_team_members where project_id=p_project_id)
+    or (select count(*) from jsonb_array_elements(coalesce(p_data->'links','[]'::jsonb)) where value->>'link_type'<>'staging') <> (select count(*) from public.project_links where project_id=p_project_id and link_type<>'staging')
+    or (select count(*) from jsonb_array_elements(coalesce(p_data->'links','[]'::jsonb)) where value->>'link_type'='staging') > 1
+    or jsonb_array_length(coalesce(p_data->'workItems','[]'::jsonb)) <> (select count(*) from public.project_work_items where project_id=p_project_id)
+    or (select count(distinct value) from jsonb_array_elements(coalesce(p_data->'team','[]'::jsonb))) <> jsonb_array_length(coalesce(p_data->'team','[]'::jsonb))
+    or (select count(distinct value->>'link_type') from jsonb_array_elements(coalesce(p_data->'links','[]'::jsonb))) <> jsonb_array_length(coalesce(p_data->'links','[]'::jsonb))
+    or (select count(distinct value->>'external_id') from jsonb_array_elements(coalesce(p_data->'workItems','[]'::jsonb))) <> jsonb_array_length(coalesce(p_data->'workItems','[]'::jsonb)) then return false; end if;
+  for item in select value from jsonb_array_elements(coalesce(p_data->'team','[]'::jsonb)) loop
+    if not exists(select 1 from public.project_team_members t where t.project_id=p_project_id and t.role=item->>'role'
+      and nullif(t.name,'') is not distinct from nullif(item->>'name','')
+      and t.user_id is not distinct from nullif(item->>'user_id','')::uuid
+      and t.allocation_percent is not distinct from (item->>'allocation_percent')::numeric) then return false; end if;
+  end loop;
+  for item in select value from jsonb_array_elements(coalesce(p_data->'links','[]'::jsonb)) loop
+    if item->>'link_type'='staging' then
+      if nullif(item->>'url','') is null or item->>'url' !~* '^https?://' then return false; end if;
+    elsif not exists(select 1 from public.project_links l where l.project_id=p_project_id and l.link_type=item->>'link_type' and l.url=item->>'url') then return false; end if;
+  end loop;
+  for item in select value from jsonb_array_elements(coalesce(p_data->'workItems','[]'::jsonb)) loop
+    select to_jsonb(w),w.id into old_item,row_id from public.project_work_items w where w.project_id=p_project_id and w.external_id=item->>'external_id';
+    if old_item is null then return false; end if;
+    for field_name in select jsonb_object_keys(item) loop
+      mutable_field := field_name in ('status','logged_hours','blocker_reason','proof','review_notes','revision_requested','timer_started_at');
+      if mutable_field and (select assignee_user_id from public.project_work_items where id=row_id) = auth.uid() then
+        continue;
+      end if;
+      if field_name='created_at' then
+        if (item->>field_name)::timestamptz is distinct from (old_item->>field_name)::timestamptz then return false; end if;
+      elsif field_name='assignee_name' then
+        if nullif(item->>field_name,'') is distinct from nullif(old_item->>field_name,'') then return false; end if;
+      elsif (item->field_name) is distinct from (old_item->field_name) then return false; end if;
+    end loop;
+  end loop;
+  return true;
+exception when others then return false;
+end; $$;
+revoke all on function public.employee_project_task_update_allowed(uuid,jsonb) from public,anon,authenticated;
+
 drop function if exists public.save_workspace_changes(jsonb);
 create or replace function public.save_workspace_changes(p_changes jsonb, p_request_id uuid default gen_random_uuid())
 returns jsonb language plpgsql security definer set search_path = public
@@ -172,6 +229,15 @@ begin
     if (root_id is not null and (expected is null or expected<>existing_revision)) or (root_id is null and expected is not null) then
       raise exception 'CONFLICT: % was changed or deleted in another session. Reload the latest data.',external_key using errcode='40001';
     end if;
+    if not public.is_workspace_admin() then
+      if collection_name<>'projects' or change->>'operation'<>'save' or root_id is null
+        or not exists(select 1 from public.projects p where p.id=root_id and (
+          exists(select 1 from public.project_team_members t where t.project_id=p.id and t.user_id=auth.uid())
+          or exists(select 1 from public.project_work_items w where w.project_id=p.id and w.assignee_user_id=auth.uid())
+        )) or not public.employee_project_task_update_allowed(root_id,change->'data') then
+        raise exception 'Employees can update only their own assigned task progress.';
+      end if;
+    end if;
     if change->>'operation'='delete' then
       if collection_name='projects' and not public.is_workspace_admin() then raise exception 'Only administrators can delete projects'; end if;
       execute format('delete from public.%I where id=$1',table_name) using root_id;
@@ -186,10 +252,14 @@ begin
       client_id_value=public.workspace_client(coalesce(payload->>'company_name',payload->>'full_name'),payload->>'full_name',payload->>'email');
       payload=payload||jsonb_build_object('client_id',client_id_value,'created_by',auth.uid());
     elsif collection_name='projects' then
-      select id into lead_id_value from public.leads where external_id=data->>'leadId';
-      if nullif(data->>'leadId','') is not null and lead_id_value is null then raise exception 'Linked lead does not exist'; end if;
-      select id into proposal_id_value from public.proposals where lead_id=lead_id_value and version=(data->>'proposalVersion')::integer;
-      client_id_value=public.workspace_client(coalesce(payload->>'client_company',payload->>'client_name'),payload->>'client_name',payload->>'client_email');
+      if public.is_workspace_admin() then
+        select id into lead_id_value from public.leads where external_id=data->>'leadId';
+        if nullif(data->>'leadId','') is not null and lead_id_value is null then raise exception 'Linked lead does not exist'; end if;
+        select id into proposal_id_value from public.proposals where lead_id=lead_id_value and version=(data->>'proposalVersion')::integer;
+        client_id_value=public.workspace_client(coalesce(payload->>'client_company',payload->>'client_name'),payload->>'client_name',payload->>'client_email');
+      else
+        select lead_id,proposal_id,client_id into lead_id_value,proposal_id_value,client_id_value from public.projects where id=root_id;
+      end if;
       payload=(payload-'deposit_amount'-'deposit_status')||jsonb_build_object('lead_id',lead_id_value,'proposal_id',proposal_id_value,'client_id',client_id_value);
     elsif collection_name='management' then
       select id into project_id_value from public.projects where external_id=data->>'sourceProjectId';

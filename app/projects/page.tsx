@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, Check, FolderKanban, Handshake, Plus, Receipt, Trash2, User, Users } from "lucide-react";
+import { ArrowRight, Check, ListTodo, FolderKanban, Handshake, Plus, Receipt, Trash2, User, Users } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
-import { deleteProject, readProjects, type Project, updateProject, getProjectDisplayTitle } from "@/lib/projects";
+import { deleteProject, readProjects, type Project, updateProject, getProjectDisplayTitle, isProjectAssignedToUser, isTaskAssignedToUser } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject } from "@/lib/post-sale";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
@@ -13,7 +13,7 @@ import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignees";
 import { showToast } from "@/app/_components/toast-hub";
 
 export default function ProjectsPage() {
-  const { role } = useWorkspaceAuth();
+  const { role, user, members } = useWorkspaceAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [managedProjects, setManagedProjects] = useState<ManagedProject[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -32,6 +32,9 @@ export default function ProjectsPage() {
     };
   }, []);
 
+  const employeeName = (members.find((member) => member.user_id === user?.id)?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "").trim();
+  const visibleProjects = role === "employee" ? projects.filter((project) => isProjectAssignedToUser(project, user?.id, employeeName)) : projects.filter(project=>project.status!=="AMC");
+
   function markComplete(project: Project) {
     updateProject(project.id, { status: "COMPLETED" });
     setProjects(readProjects());
@@ -47,6 +50,7 @@ export default function ProjectsPage() {
   }
 
   function removeProject(project: Project) {
+    if (role !== "admin") return;
     if (!window.confirm(`Delete “${project.title}”? This will permanently remove its workspace and tasks.`)) return;
     deleteProject(project.id);
     setProjects(readProjects());
@@ -59,22 +63,23 @@ export default function ProjectsPage() {
         <p className="welcome-subtitle">Keep delivery, assignments, and client work together.</p>
       </div>
       <div className="welcome-actions">
-        <Link className="button button-quiet" href="/invoices">
+        {role === "admin" && <Link className="button button-quiet" href="/invoices">
           <Receipt size={15} />
           Invoices
-        </Link>
-        <Link className="button button-quiet" href="/projects/assignments">
+        </Link>}
+        {role === "admin" && <Link className="button button-quiet" href="/projects/assignments">
           <Users size={15} />
           Project assignments
-        </Link>
-        <Link className="button button-primary" href="/requests">
+        </Link>}
+        {role === "admin" && <Link className="button button-primary" href="/requests">
           <Plus size={15} />
           Create from lead
-        </Link>
+        </Link>}
       </div>
     </section>
-    {projects.length === 0 ? <EmptyState icon={<FolderKanban size={22} />} title="No project workspaces yet" description="Move an accepted lead here from Leads to create its project workspace." action={<Link className="button button-primary" href="/requests">Open leads <ArrowRight size={15} /></Link>} /> : <section className="project-portfolio">{projects.map((project) => {
-      const openWork = (project.workItems ?? []).filter((item) => item.status !== "DONE").length;
+    {visibleProjects.length === 0 ? <EmptyState icon={<FolderKanban size={22} />} title={role === "admin" ? "No project workspaces yet" : "No projects assigned"} description={role === "admin" ? "Move an accepted lead here from Leads to create its project workspace." : "Projects assigned to you will appear here."} action={role === "admin" ? <Link className="button button-primary" href="/requests">Open leads <ArrowRight size={15} /></Link> : undefined} /> : <section className="project-portfolio">{visibleProjects.map((project) => {
+      const visibleTasks = role === "employee" ? (project.workItems ?? []).filter((task) => isTaskAssignedToUser(task, user?.id, employeeName)) : project.workItems ?? [];
+      const openWork = visibleTasks.filter((item) => item.status !== "DONE").length;
       const managedPlan = managedProjects.find((item) => item.sourceProjectId === project.id);
       const pmMember = project.team.find((member) => member.role === "Project Manager");
       const pmName = pmMember?.name && !DUMMY_ASSIGNABLE_NAMES.has(pmMember.name.toLowerCase().trim()) ? pmMember.name : "PM unassigned";
@@ -89,7 +94,7 @@ export default function ProjectsPage() {
           <h2 className="portfolio-card-title">{getProjectDisplayTitle(project)}</h2>
           <p className="portfolio-card-subtitle">{project.clientCompany || project.clientName} · {project.services.join(", ")}</p>
           <div className="portfolio-task-row">
-            <span className={`portfolio-chip-dot ${openWork > 0 ? "has-tasks" : ""}`} />
+            <ListTodo className="task-count-icon" size={16} strokeWidth={2} aria-hidden="true"/>
             <span>{openWork} open {openWork === 1 ? "task" : "tasks"}</span>
           </div>
           <div className="portfolio-card-meta">
@@ -104,19 +109,12 @@ export default function ProjectsPage() {
           </div>
         </Link>
         <div className={`portfolio-actions${role === "admin" ? " portfolio-actions-admin" : ""}`}>
-          <Link
-            className="button button-quiet portfolio-lifecycle-button"
-            href={project.invoice ? `/invoices?invoice=${project.invoice.invoiceNumber}` : `/invoices?project=${project.id}`}
-            title={project.invoice ? `View invoice ${project.invoice.invoiceNumber}` : "Generate invoice for this project"}
-          >
-            <Receipt size={13} />
-            {project.invoice ? project.invoice.invoiceNumber : "Invoice"}
-          </Link>
-          {project.status === "ACTIVE" ? (
+          {role === "admin" && (project.invoice ? <Link className="button button-quiet portfolio-lifecycle-button" href={`/invoices?invoice=${project.invoice.invoiceNumber}`} title={`View invoice ${project.invoice.invoiceNumber}`}><Receipt size={13}/>{project.invoice.invoiceNumber}</Link> : <Link className="button button-quiet portfolio-lifecycle-button" href={`/invoices?project=${project.id}`} title="Generate invoice for this project"><Receipt size={13}/>Invoice</Link>)}
+          {role === "admin" && project.status !== "COMPLETED" ? (
             <button className="button button-quiet portfolio-lifecycle-button" type="button" onClick={() => markComplete(project)}>
               <Check size={13} />Mark complete
             </button>
-          ) : managedPlan ? (
+          ) : role === "admin" && managedPlan ? (
             <>
               <Link className="button button-quiet portfolio-lifecycle-button" href="/post-sale" title="View retainer plan">
                 <Handshake size={13} />In retainer · {managedPlan.id}
@@ -130,11 +128,11 @@ export default function ProjectsPage() {
                 <FolderKanban size={13} />Move to projects
               </button>
             </>
-          ) : (
-            <button className="button button-primary portfolio-lifecycle-button" type="button" onClick={() => setSelectedProject(project)}>
+          ) : role === "admin" ? (
+            <button className="button button-quiet portfolio-lifecycle-button" type="button" onClick={() => setSelectedProject(project)}>
               <Handshake size={13} />Move to retainer
             </button>
-          )}
+          ) : null}
           {role === "admin" && (
             <button className="portfolio-delete-icon-button" type="button" title="Delete project" onClick={() => removeProject(project)}>
               <Trash2 size={13} />
@@ -143,6 +141,6 @@ export default function ProjectsPage() {
         </div>
       </article>;
     })}</section>}
-    {selectedProject && <ManagedPlanDrawer projects={[selectedProject]} initialProjectId={selectedProject.id} onClose={() => setSelectedProject(null)} onCreated={() => setManagedProjects(readManagedProjects())} />}
+    {role === "admin" && selectedProject && <ManagedPlanDrawer projects={[selectedProject]} initialProjectId={selectedProject.id} onClose={() => setSelectedProject(null)} onCreated={() => setManagedProjects(readManagedProjects())} />}
   </div>;
 }

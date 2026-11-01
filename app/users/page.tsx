@@ -258,7 +258,7 @@ export default function UsersPage() {
                   onChange={(event) => setInitialPassword(event.target.value)}
                   placeholder="At least 8 characters"
                 />
-                <small>The user can change this password in Account settings.</small>
+                <small>{accessRole === "employee" ? "Password changes are managed by an administrator." : "The user can change this password in Account settings."}</small>
               </label>
               <label className="field">
                 Role
@@ -333,7 +333,7 @@ export default function UsersPage() {
                   onChange={(event) => setEditingRole(event.target.value as WorkspaceRole)}
                 >
                   <option value="admin">Admin — Full workspace access & settings</option>
-                  <option value="employee">Employee — Projects, tasks, and leads access</option>
+                  <option value="employee">Employee — Assigned projects and tasks</option>
                   <option value="client">Client — Client portal access only</option>
                 </select>
               </label>

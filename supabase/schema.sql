@@ -295,7 +295,7 @@ create table if not exists public.projects (
   scope_excluded text,
   assumptions text,
   revision_rounds integer not null default 0,
-  status text not null default 'ACTIVE' check (status in ('ACTIVE', 'COMPLETED')),
+  status text not null default 'ACTIVE' check (status in ('ACTIVE', 'ON_TRACK', 'COMPLETED', 'AMC')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

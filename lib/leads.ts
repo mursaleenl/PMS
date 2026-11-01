@@ -12,6 +12,7 @@ export const budgetRanges = ["Under $2,500", "$2,500–$5,000", "$5,000–$10,00
 export type LeadStatus = "NEW" | "QUALIFIED" | "PROPOSAL_SENT" | "ACCEPTED" | "CONVERTED" | "LOST" | "DISQUALIFIED";
 
 export type Qualification = {
+  proposalAttachment?: { name: string; dataUrl: string };
   discoveryCallAt?: string;
   callNotes: string;
   actualProblem: string;

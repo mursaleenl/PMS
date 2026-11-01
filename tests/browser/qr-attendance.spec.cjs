@@ -16,25 +16,21 @@ async function attendanceMocks(page,{role='employee',open=null,fail=false}={}){
  });
  return scans;
 }
-test('scanning waits for confirmation and saves only one explicit arrival',async({page})=>{
+test('scanning automatically saves only one arrival',async({page})=>{
  const scans=await attendanceMocks(page);
  await page.setViewportSize({width:390,height:844});
  await page.goto(`/work/attendance/${token}`);
- await expect(page.getByRole('button',{name:'Confirm check-in',exact:true})).toBeVisible();
- expect(scans).toHaveLength(0);
- await page.getByRole('button',{name:'Confirm check-in',exact:true}).click();
  await expect(page.getByRole('status').filter({hasText:'Checked in at'})).toBeVisible();
  expect(scans).toEqual([{p_token:token,p_action:'check_in'}]);
  await expect(page.getByRole('button',{name:'Confirm check-out',exact:true})).toHaveCount(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth)).toBeLessThanOrEqual(1);
 });
-test('an open visit offers checkout and expired QR failures remain visible',async({page})=>{
+test('an open visit attempts checkout and expired QR failures remain visible',async({page})=>{
  const scans=await attendanceMocks(page,{open:visit,fail:true});
  await page.goto(`/work/attendance/${token}`);
- await page.getByRole('button',{name:'Confirm check-out',exact:true}).click();
  await expect(page.locator('.attendance-scan [role=alert]')).toContainText('QR expired');
  expect(scans[0].p_action).toBe('check_out');
- await expect(page.getByRole('button',{name:'Confirm check-out',exact:true})).toBeEnabled();
+ await expect(page.getByRole('button',{name:/Confirm check/})).toHaveCount(0);
 });
 test('employee history has no admin actions and office QR is admin-only',async({page})=>{
  await attendanceMocks(page,{open:visit});await page.goto('/work/attendance');
@@ -80,14 +76,13 @@ test('a reused arrival code cannot report a completed visit as a new check-in',a
  await attendanceMocks(page);
  await page.route('**/rest/v1/rpc/scan_attendance',route=>route.fulfill({json:{...visit,checked_out_at:new Date().toISOString()}}));
  await page.goto(`/work/attendance/${token}`);
- await page.getByRole('button',{name:'Confirm check-in',exact:true}).click();
  await expect(page.locator('.attendance-scan [role=alert]')).toContainText('already recorded a completed visit');
  await expect(page.getByRole('status').filter({hasText:'Checked in at'})).toHaveCount(0);
 });
 test('a previous-day open visit requires admin correction before another scan',async({page})=>{
  const scans=await attendanceMocks(page,{open:{...visit,work_date:'2000-01-01'}});
  await page.goto(`/work/attendance/${token}`);
- await expect(page.getByRole('heading',{name:'Missing checkout',exact:true})).toBeVisible();
+ await expect(page.locator('.attendance-scan [role=alert]')).toContainText('Missing checkout');
  await expect(page.getByRole('button',{name:/Confirm check/})).toHaveCount(0);
  expect(scans).toHaveLength(0);
 });
@@ -95,20 +90,20 @@ test('a previous-day open visit requires admin correction before another scan',a
 test('performance shows completed duration without inventing hours for an open visit',async({page})=>{
  await attendanceMocks(page,{role:'admin'});
  const arrival='2026-10-29T04:00:00Z',departure='2026-10-29T04:15:00Z';
- await page.route('**/rest/v1/attendance_sessions?*',route=>route.fulfill({json:[{...visit,id:'closed',work_date:'2026-10-29',checked_in_at:arrival,checked_out_at:departure},{...visit,id:'open',work_date:'2026-10-29',checked_in_at:'2026-10-29T05:00:00Z'}]}));
+ await page.route('**/rest/v1/attendance_sessions?*',route=>route.fulfill({json:route.request().url().includes('checked_out_at=is.null')?null:[{...visit,id:'closed',work_date:'2026-10-29',checked_in_at:arrival,checked_out_at:departure},{...visit,id:'open',work_date:'2026-10-29',checked_in_at:'2026-10-29T05:00:00Z'}]}));
  await page.route('**/rest/v1/attendance_records?*',route=>route.fulfill({json:[{id:'daily',user_id:visit.user_id,work_date:'2026-10-29',status:'PRESENT',hours_logged:0.25,notes:null}]}));
- await page.goto('/work/performance');
+ await page.goto('/work/attendance');
  await page.getByLabel('From',{exact:true}).fill('2026-10-01');
- await page.getByLabel('To',{exact:true}).fill('2026-10-31');
- const table=page.getByRole('table').filter({has:page.getByRole('columnheader',{name:'Recorded hours',exact:true})});
- await expect(table.getByRole('cell',{name:'0.25',exact:true})).toHaveCount(2);
+ await page.getByLabel('To',{exact:true}).fill(new Date().toISOString().slice(0,10));
+ const table=page.getByRole('table').filter({has:page.getByRole('columnheader',{name:'Hours',exact:true})});
+ await expect(table.getByRole('cell',{name:'0.25',exact:true})).toHaveCount(1);
  await expect(table.getByRole('cell',{name:'—',exact:true})).toHaveCount(2); // No departure or notes for the open visit.
  await expect(table.getByRole('columnheader',{name:'Arrival',exact:true})).toBeVisible();
 });
 
-test('in-app camera decodes the office QR and stops before explicit confirmation',async({page})=>{
+test('mobile camera decodes the office QR and records attendance automatically',async({page})=>{
  const QRCode=require('qrcode');
- const qr=await QRCode.toDataURL(`http://localhost:3000/work/attendance/${token}`,{width:480,margin:4});
+ const qr=await QRCode.toDataURL(`${new URL(process.env.PMS_TEST_URL||"http://localhost:3000").origin}/work/attendance/${token}`,{width:480,margin:4});
  const scans=await attendanceMocks(page);
  await page.addInitScript(({qr})=>{
   Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>{
@@ -120,33 +115,23 @@ test('in-app camera decodes the office QR and stops before explicit confirmation
    return stream;
   }});
  },{qr});
+ await page.setViewportSize({width:390,height:844});
  await page.goto('/work/attendance');
  await expect(page.getByRole('region',{name:'My attendance profile'})).toContainText('Alex Morgan');
  await page.getByRole('button',{name:'Scan attendance',exact:true}).click();
- await page.getByRole('button',{name:'Start camera',exact:true}).click();
- await expect(page).toHaveURL(new RegExp(`/work/attendance/${token}$`));
- await expect(page.getByRole('button',{name:'Confirm check-in',exact:true})).toBeVisible();
- expect(scans).toHaveLength(0);
+ await expect(page).toHaveURL(new RegExp(`/work/attendance/${token}$`),{timeout:15000});
  expect(await page.evaluate(()=>window.attendanceCameraStopped)).toBe(true);
- await page.getByRole('button',{name:'Confirm check-in',exact:true}).click();
  await expect(page.getByRole('status').filter({hasText:'Checked in at'})).toBeVisible();
  expect(scans).toHaveLength(1);
 });
-test('camera denial allows a safe office link fallback without changing attendance',async({page})=>{
+test('camera denial shows the error without a fallback attendance form',async({page})=>{
  const scans=await attendanceMocks(page);
+ await page.setViewportSize({width:390,height:844});
  await page.addInitScript(()=>Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>{throw new DOMException('Denied','NotAllowedError');}}));
  await page.goto('/work/attendance');await page.getByRole('button',{name:'Scan attendance',exact:true}).click();
- await page.getByRole('button',{name:'Start camera',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Scan attendance QR'});
  await expect(dialog.getByRole('alert')).toContainText('Camera permission was denied');
- await dialog.getByText('Use an attendance link instead').click();
- await dialog.getByLabel('Office attendance link').fill(`https://another-app.example/work/attendance/${token}`);
- await dialog.getByRole('button',{name:'Continue to confirmation'}).click();
- await expect(dialog.getByRole('alert')).toContainText('Use the attendance QR displayed by your office');
- expect(scans).toHaveLength(0);
- await dialog.getByLabel('Office attendance link').fill(`http://localhost:3000/work/attendance/${token}`);
- await dialog.getByRole('button',{name:'Continue to confirmation'}).click();
- await expect(page).toHaveURL(new RegExp(`/work/attendance/${token}$`));
+ await expect(dialog.locator('input, button')).toHaveCount(0);
  expect(scans).toHaveLength(0);
 });
 

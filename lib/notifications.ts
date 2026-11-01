@@ -111,7 +111,7 @@ export function generateInitialNotifications(): WorkspaceNotification[] {
     });
 
     const projects = readProjects();
-    const activeProjects = projects.filter((p) => p.status === "ACTIVE");
+    const activeProjects = projects.filter((p) => p.status !== "COMPLETED");
     if (activeProjects.length > 0) {
       const proj = activeProjects[0];
       const tasks = proj.workItems ?? [];

@@ -20,6 +20,10 @@ export function useAssignableUsers(): { users: AssignableUser[]; loading: boolea
 
   useEffect(() => {
     let mounted = true;
+    if (userRole !== "admin") {
+      setApiUsers([]);
+      return () => { mounted = false; };
+    }
     async function fetchAssignees() {
       try {
         setLoading(true);
@@ -42,7 +46,7 @@ export function useAssignableUsers(): { users: AssignableUser[]; loading: boolea
     return () => {
       mounted = false;
     };
-  }, [session?.access_token]);
+  }, [session?.access_token, userRole]);
 
   const rosterMap = new Map<string, AssignableUser>();
 

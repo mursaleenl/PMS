@@ -9,8 +9,8 @@
   --blue-dark: #0c4da2;
   --blue-soft: #e9f2ff;
   --green: #16875b;
-  --font-body: var(--font-inter, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-display: var(--font-inter, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-body: var(--font-roboto), "Roboto", Arial, sans-serif;
+  --font-display: var(--font-roboto), "Roboto", Arial, sans-serif;
 }
 
 * {
@@ -3548,7 +3548,7 @@ button.button-primary:active {
   color: var(--ws-muted, #64748b) !important;
   font-size: 11px !important;
   font-weight: 600 !important;
-  font-family: var(--font-system-sans) !important;
+  font-family: var(--font-body) !important;
   line-height: 1 !important;
   transition: background-color 0.15s ease, color 0.15s ease !important;
 }
@@ -7360,7 +7360,7 @@ button.button-primary:active {
 }
 
 .mono-meta {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-body);
   font-size: .92em;
   font-variant-numeric: tabular-nums;
   letter-spacing: .015em;
@@ -8255,7 +8255,7 @@ button.button-primary:active {
 }
 
 .overview-id-badge .mono-meta {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-body) !important;
   font-size: 11.5px !important;
   font-weight: 600 !important;
   color: inherit !important;
@@ -9393,7 +9393,7 @@ body { font-size: 13px; }
 .invoice-sample-details b { margin-top: 5px; color: var(--ws-muted, #ef493e); font-size: 15px; }
 .invoice-sample-signature { justify-items: center; padding-top: 17px; }
 .invoice-sample-signature { justify-items: end; text-align: right; }
-.invoice-sample-signature span { color: var(--ws-accent, #405aa5); font-family: cursive; font-size: 25px; font-style: italic; transform: rotate(-6deg); }
+.invoice-sample-signature span { color: var(--ws-accent, #405aa5); font-family: var(--font-body); font-size: 25px; font-style: italic; transform: rotate(-6deg); }
 .invoice-sample-signature strong { padding-top: 8px; border-top: 1px dotted var(--ws-border, #777); }
 .invoice-reference-layout .invoice-reference { margin-top: 20px; font-size: 10px; }
 .invoice-generated-footer { display: flex; justify-content: flex-end; margin-top: 12px; font-size: 12px; }
@@ -9423,7 +9423,7 @@ body { font-size: 13px; }
 
 /* Product typography system: one typeface, a compact scale, and explicit roles. */
 :root {
-  --font-display: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font-roboto), "Roboto", Arial, sans-serif;
   --type-xs: 11px;
   --type-sm: 12px;
   --type-md: 13px;
@@ -9899,7 +9899,7 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: 0.06em !important;
   line-height: 1.2 !important;
   margin: 0 !important;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  font-family: var(--font-body) !important;
 }
 
 .overview-dashboard .overview-card-arrow {
@@ -9916,7 +9916,7 @@ h1, h2, h3, h4, h5, h6 {
 .overview-dashboard .overview-summary-card strong {
   display: block !important;
   color: var(--ws-text, #0f172a) !important;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  font-family: var(--font-body) !important;
   font-size: 32px !important;
   font-weight: 700 !important;
   line-height: 1 !important;
@@ -10511,11 +10511,11 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--ws-text, #111);
 }
 
-/* Professional Typography System: Clean Inter font hierarchy with distinct scale and weights */
+/* Professional Typography System: Roboto font hierarchy with distinct scale and weights */
 :root {
-  --font-body: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-display: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-body: var(--font-roboto), "Roboto", Arial, sans-serif;
+  --font-display: var(--font-roboto), "Roboto", Arial, sans-serif;
+  --font-mono: var(--font-body);
   --type-2xs: 9px;
   --type-xs: 10px;
   --type-sub: 12px;
@@ -11146,7 +11146,7 @@ textarea {
   color: var(--ws-muted, #64748b) !important;
   font-size: 11px !important;
   font-weight: 600 !important;
-  font-family: var(--font-system-sans) !important;
+  font-family: var(--font-body) !important;
   line-height: 1 !important;
   transition: background-color 0.15s ease, color 0.15s ease !important;
 }
@@ -11567,7 +11567,7 @@ textarea {
 }
 
 .main-area .projects-page .portfolio-id-badge .mono-meta {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-body) !important;
   font-size: 11.5px !important;
   font-weight: 600 !important;
   color: inherit !important;
@@ -11848,7 +11848,7 @@ textarea {
   font-weight: 700;
   color: var(--ws-text, #0f172a);
   line-height: 1.1;
-  font-family: var(--font-display, Inter, sans-serif);
+  font-family: var(--font-body);
 }
 
 .main-area .task-management-page .task-stat-note {
@@ -12239,7 +12239,7 @@ textarea {
 
 .main-area .task-management-page .task-project-link small.mono-meta {
   font-size: 11px !important;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-body);
   color: var(--ws-muted, #64748b);
   background: var(--ws-subtle-surface, #f1f5f9);
   border: 1px solid var(--ws-border, #e2e8f0);
@@ -12646,7 +12646,7 @@ textarea {
 }
 
 .main-area .task-management-page .project-pill-id {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-body);
   font-size: 10.5px;
   font-weight: 600;
   color: var(--ws-text, #475569);
@@ -14283,7 +14283,7 @@ button.button:hover {
   background: none;
   border: 0;
   padding: 0;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-body);
   font-size: 12.5px;
   font-weight: 600;
   color: var(--ws-text, #0f172a);
@@ -15044,7 +15044,7 @@ button.button:hover {
 
 /* Universal normal sans-serif font for numbers, statistics, and counters across the site */
 :root {
-  --font-system-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-system-sans: var(--font-body);
 }
 
 .overview-summary-card strong,
@@ -15059,7 +15059,7 @@ button.button:hover {
 .overview-progress-label strong,
 .task-stat-badge,
 .overview-summary-number {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  font-family: var(--font-body) !important;
   font-variant-numeric: normal !important;
   font-feature-settings: normal !important;
 }
@@ -15130,7 +15130,7 @@ button.button:hover {
   display: inline-block;
   border: none !important;
   line-height: 1;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  font-family: var(--font-body) !important;
   box-shadow: none !important;
   pointer-events: none;
 }
@@ -15473,7 +15473,7 @@ button.button,
   height: 36px !important;
   padding: 0 15px !important;
   border-radius: 0 !important;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-family: var(--font-body) !important;
   font-size: 13px !important;
   font-weight: 550 !important;
   line-height: 1 !important;

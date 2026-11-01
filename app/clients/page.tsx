@@ -767,7 +767,7 @@ export default function ClientsPage() {
                                     )}
                                   </div>
                                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12, color: "var(--ws-muted, #64748b)" }}>
-                                    <span style={{ fontFamily: "monospace", fontWeight: 600, color: "var(--ws-text, #334155)" }}>
+                                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, color: "var(--ws-text, #334155)" }}>
                                       {project.id}
                                     </span>
                                     {project.status && (

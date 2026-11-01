@@ -1,5 +1,6 @@
 "use client";
 
+import { createUuid } from "@/lib/uuid";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -30,7 +31,7 @@ export default function ProjectEnquiryPage() {
     const rawWebsite = String(form.get("companyWebsite") || "").trim();
     const companyWebsite = rawWebsite ? (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(rawWebsite) ? rawWebsite : `https://${rawWebsite}`) : "";
     const lead = {
-      id: crypto.randomUUID(), createdAt: now,
+      id: createUuid(), createdAt: now,
       fullName: String(form.get("fullName") || "").trim(),
       designation: String(form.get("designation") || "").trim(),
       companyName: String(form.get("companyName") || "").trim(),
@@ -76,7 +77,7 @@ export default function ProjectEnquiryPage() {
       </section>
 
       <section className="form-section"><div className="form-section-title"><span>03</span><div><h2>Budget & source</h2><p>This helps us assess fit and prepare the right next steps.</p></div></div>
-        <div className="form-grid"><label className="field">Estimated budget range<select name="budgetRange" disabled={!budgetShared} defaultValue=""><option value="">Select a range (optional)</option>{budgetRanges.map((range) => <option key={range}>{range}</option>)}</select></label><label className="field">How did the contact hear about EVECTURE?<select name="acquisitionSource" defaultValue=""><option value="">Select (optional)</option>{acquisitionSources.map((source) => <option key={source}>{source}</option>)}</select></label></div>
+        <div className="form-grid"><label className="field">Estimated budget range<select name="budgetRange" disabled={!budgetShared} defaultValue=""><option value="">Select a range (optional)</option>{budgetRanges.map((range) => <option key={range}>{range}</option>)}</select></label><label className="field">How did the contact hear about us?<select name="acquisitionSource" defaultValue=""><option value="">Select (optional)</option>{acquisitionSources.map((source) => <option key={source}>{source}</option>)}</select></label></div>
         <label className="budget-refusal"><input type="checkbox" checked={!budgetShared} onChange={(event) => setBudgetShared(!event.target.checked)} /><span className="custom-check">{!budgetShared && <Check size={11} strokeWidth={2.5} />}</span><span>I’d prefer not to share my budget yet</span></label>
         {!budgetShared && <label className="field budget-note">Optional note<textarea name="budgetNote" rows={2} placeholder="Anything you'd like us to know about budget timing or constraints?" /></label>}
       </section>

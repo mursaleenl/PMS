@@ -7,6 +7,7 @@ import { EmptyState } from "@/app/_components/empty-state";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { showToast } from "@/app/_components/toast-hub";
 import { readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
+import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
 type TaskFilter = "ALL" | ProjectWorkItem["status"];
 const filters: { value: TaskFilter; label: string }[] = [
@@ -17,12 +18,12 @@ const taskStatusLabels: Record<ProjectWorkItem["status"], string> = { TO_DO: "To
 const priorityLabels: Record<ProjectWorkItem["priority"], string> = { P1: "Critical", P2: "High", P3: "Normal", P4: "Low" };
 
 type VisibleTaskStatus = ProjectWorkItem["status"];
-const kanbanColumns: { status: VisibleTaskStatus; label: string; dotColor: string }[] = [
-  { status: "TO_DO", label: "To do", dotColor: "#a99aff" },
-  { status: "IN_PROGRESS", label: "In progress", dotColor: "#68d9df" },
-  { status: "UNDER_REVIEW", label: "In review", dotColor: "#c4a0ff" },
-  { status: "BLOCKED", label: "Blocked", dotColor: "#f394a1" },
-  { status: "DONE", label: "Completed", dotColor: "#77d9a8" },
+const kanbanColumns: { status: VisibleTaskStatus; label: string }[] = [
+  { status: "TO_DO", label: "To do" },
+  { status: "IN_PROGRESS", label: "In progress" },
+  { status: "UNDER_REVIEW", label: "In review" },
+  { status: "BLOCKED", label: "Blocked" },
+  { status: "DONE", label: "Completed" },
 ];
 
 function updateTask(projectId: string, taskId: string, updates: Partial<ProjectWorkItem>) {
@@ -33,6 +34,7 @@ function updateTask(projectId: string, taskId: string, updates: Partial<ProjectW
 }
 
 export default function MyWorkPage() {
+  const {role,user,members}=useWorkspaceAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [assignee, setAssignee] = useState("");
   const [filter, setFilter] = useState<TaskFilter>("ALL");
@@ -66,7 +68,8 @@ export default function MyWorkPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const allTasks = useMemo(() => projects.filter((project) => project.status === "ACTIVE").flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))), [projects]);
+  const employeeName=(members.find((member)=>member.user_id===user?.id)?.display_name||user?.user_metadata?.full_name||user?.email?.split("@")[0]||"").trim().toLowerCase();
+  const allTasks = useMemo(() => projects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))).filter(({task})=>role!=="employee"||(task.assigneeId?task.assigneeId===user?.id:task.assignee.trim().toLowerCase()===employeeName)), [projects,role,user?.id,employeeName]);
   const assignees = [...new Set(allTasks.map(({ task }) => task.assignee).filter(Boolean))].sort();
 
   const visibleTasks = useMemo(() => {
@@ -222,9 +225,10 @@ export default function MyWorkPage() {
     <section className="welcome-row task-page-welcome">
       <div>
         <h1>Tasks</h1>
-        <p className="welcome-subtitle">Manage and track work across active projects.</p>
+        <p className="welcome-subtitle">Manage and track assigned work across projects.</p>
       </div>
       <div className="task-page-actions">
+        {role !== "employee" && <>
         <div className="work-assignee-filter">
           <span className="filter-label">Assignee</span>
           <div className="filter-select-wrap">
@@ -239,6 +243,7 @@ export default function MyWorkPage() {
         <Link className="button button-primary" href="/projects">
           <Plus size={15} />Add from project
         </Link>
+        </>}
       </div>
     </section>
 
@@ -248,7 +253,7 @@ export default function MyWorkPage() {
           <small>Total tasks</small>
           <strong>{allTasks.length}</strong>
         </div>
-        <span className="task-stat-note">Across active projects</span>
+        <span className="task-stat-note">Across projects</span>
       </button>
       <button type="button" className={`task-stat-card ${filter === "IN_PROGRESS" ? "selected" : ""}`} onClick={() => setFilter("IN_PROGRESS")}>
         <div className="task-stat-copy">
@@ -273,7 +278,7 @@ export default function MyWorkPage() {
       </button>
     </section>
 
-    {allTasks.length === 0 ? <EmptyState icon={<FileCheck2 size={22} />} title="No dispatched tasks yet" description="Dispatch a task from any project workspace to see it on the Tasks board." action={<Link className="button button-primary" href="/projects"><Plus size={14} />Open projects</Link>} /> : <section className="panel task-table-panel">
+    {allTasks.length === 0 ? <EmptyState icon={<FileCheck2 size={22} />} title={role === "employee" ? "No tasks assigned" : "No dispatched tasks yet"} description={role === "employee" ? "Tasks assigned to you will appear here." : "Dispatch a task from any project workspace to see it on the Tasks board."} action={<Link className="button button-primary" href="/projects"><Plus size={14} />Open projects</Link>} /> : <section className="panel task-table-panel">
       <div className="task-table-heading">
         <div>
           <h2>All tasks</h2>
@@ -362,6 +367,7 @@ export default function MyWorkPage() {
                 <thead>
                   <tr>
                     <th className="task-check-col">
+                      {role !== "employee" && <>
                       <button
                         type="button"
                         className={`task-row-check ${allVisibleDone ? "checked" : ""}`}
@@ -373,6 +379,7 @@ export default function MyWorkPage() {
                       >
                         {allVisibleDone && <Check size={11} strokeWidth={2.5} />}
                       </button>
+                      </>}
                     </th>
                     <th>Task name</th>
                     <th>Project</th>
@@ -485,7 +492,7 @@ export default function MyWorkPage() {
         </>
       ) : (
         <div className="task-kanban-board" role="region" aria-label="Tasks Kanban Board">
-          {kanbanColumns.map(({ status, label, dotColor }) => {
+          {kanbanColumns.map(({ status, label }) => {
             const colTasks = boardTasksByColumn[status];
             const isOver = dragOverColumn === status;
             return (
@@ -499,8 +506,7 @@ export default function MyWorkPage() {
               >
                 <header className="task-kanban-column-header">
                   <div className="task-kanban-column-title">
-                    <span className="task-kanban-column-dot" style={{ background: dotColor }} />
-                    <h3>{label}</h3>
+                    <h3><StatusBadge status={status}>{label}</StatusBadge></h3>
                   </div>
                   <span className="task-kanban-column-count">{colTasks.length}</span>
                 </header>

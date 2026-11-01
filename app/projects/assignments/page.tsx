@@ -16,9 +16,11 @@ function AssignmentCard({ project, assignableUsers }: { project: Project; assign
     const data = new FormData(event.currentTarget);
     const team = roles.map((role, index) => {
       const key = `role-${index}`;
+      const name = String(data.get(`${key}-name`) || "").trim();
       return {
         role,
-        name: String(data.get(`${key}-name`) || "").trim(),
+        name,
+        userId: assignableUsers.find((person) => person.name === name)?.id || project.team.find((person) => person.role === role && person.name === name)?.userId,
         allocationPercent: Number(data.get(`${key}-allocation`) || 0),
       };
     });
@@ -71,7 +73,7 @@ export default function ProjectAssignmentsPage() {
     };
   }, []);
 
-  const active = projects.filter((project) => project.status === "ACTIVE");
+  const active = projects.filter((project) => project.status !== "COMPLETED");
   const roster = new Map<string, { roles: Set<string>; projects: Set<string>; allocation: number }>();
   active.forEach((project) => project.team.forEach((member) => {
     const name = member.name.trim();

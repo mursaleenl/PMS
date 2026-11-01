@@ -1,5 +1,6 @@
 "use client";
 
+import { createUuid } from "@/lib/uuid";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { applyRemoteCollection, clearLegacyBrowserWorkspaceData, clearWorkspaceMemory, registerWorkspaceSaver, workspaceValues, type WorkspaceCollection } from "@/lib/workspace-sync";
@@ -73,7 +74,7 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
       running = (async () => {
         try {
           const signature = JSON.stringify(changes);
-          const requestId = requestIds.get(signature) ?? crypto.randomUUID();
+          const requestId = requestIds.get(signature) ?? createUuid();
           requestIds.set(signature,requestId);
           const saved = await persistWorkspaceChanges(client!,changes,requestId);
           requestIds.delete(signature);
@@ -115,6 +116,28 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
         if (!cancelled) { setMessage(error instanceof Error ? error.message : "Unable to load workspace data."); setState("error"); setRetry(null); }
       }
     }
+    let refreshing = false;
+    async function refreshRemote() {
+      if (cancelled || !ready || refreshing || running || failed || conflict || document.hidden) return;
+      if (workspaceChanges(acknowledged, workspaceValues(), revisions).length) return;
+      refreshing = true;
+      const previous = acknowledged;
+      try {
+        const snapshot = await readRelationalWorkspace(client!);
+        // Never replace edits or an acknowledgement made while the request was in flight.
+        if (cancelled || running || failed || conflict || acknowledged !== previous || workspaceChanges(acknowledged, workspaceValues(), revisions).length) return;
+        if (snapshot.requiresMigration || JSON.stringify(snapshot.revisions) === JSON.stringify(revisions)) return;
+        for (const collection of collections) applyRemoteCollection(collection, snapshot.values[collection]);
+        acknowledged = workspaceValues();
+        revisions = snapshot.revisions;
+      } catch {
+        // Keep the last loaded data during a temporary outage; the next refresh retries.
+      } finally { refreshing = false; }
+    }
+    const refreshTimer = setInterval(() => { void refreshRemote(); }, 5000);
+    const refreshOnFocus = () => { void refreshRemote(); };
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnFocus);
     function beforeUnload(event: BeforeUnloadEvent) {
       if (ready && (running || workspaceChanges(acknowledged,workspaceValues(),revisions).length)) { event.preventDefault(); event.returnValue = ""; }
     }
@@ -126,6 +149,9 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
       clearTimeout(scheduled);
+      clearInterval(refreshTimer);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
       registerWorkspaceSaver();
       clearWorkspaceMemory();
       window.removeEventListener("evecture:workspace-local-updated",scheduleSave);
@@ -135,7 +161,7 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
   },[userId,internal,attempt]);
 
   if (publicPage || !user || !internal) return children;
-  if (state === "loading") return <div className="access-denied" role="status"><p>Loading workspace data…</p></div>;
+  if (state === "loading") return <div className="access-denied" role="status"><p>Loading workspace…</p></div>;
   if (state === "error" && !retry) return <div className="access-denied"><section className="panel"><h1>Workspace could not load</h1><p role="alert">{message}</p><button className="button button-primary" onClick={() => setAttempt(value=>value+1)}>Retry loading</button></section></div>;
   return <SyncContext.Provider value={{state,canSave,message,retry,reload:()=>setAttempt(value=>value+1)}}>{children}</SyncContext.Provider>;
 }

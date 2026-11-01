@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Clock3, ExternalLink, Mail, MapPin, Phone, Plus, Search, UserRoundCheck } from "lucide-react";
+import { ArrowRight, Clock3, ExternalLink, Mail, MapPin, Phone, Plus, Search, UserRoundCheck, X } from "lucide-react";
 import { formatLeadId, type Lead, type Qualification, readLeads, updateLead } from "@/lib/leads";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
+import { operatingCompanies, type OperatingCompany } from "@/lib/companies";
+import { isValidDateValue } from "@/lib/dates";
 import { CalendarPicker } from "@/app/_components/calendar-picker";
+import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
 const disqualificationReasons = ["Budget too low", "Not a fit", "Spam", "No response"];
 const blankChecks = { genuine: "", budget: "", fit: "", capacity: "" };
@@ -27,6 +30,7 @@ const statusOptions: [string, string][] = [
 ];
 
 export default function RequestsPage() {
+  const { role } = useWorkspaceAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [now, setNow] = useState(Date.now());
   const [query, setQuery] = useState("");
@@ -38,6 +42,7 @@ export default function RequestsPage() {
   const [callFields, setCallFields] = useState<Record<string, typeof blankCall>>({});
   const [contactPickerLeadId, setContactPickerLeadId] = useState<string | null>(null);
   const [contactDateTime, setContactDateTime] = useState<string>("");
+  const [contactError, setContactError] = useState("");
 
   useEffect(() => {
     const refresh = () => setLeads(readLeads());
@@ -62,11 +67,13 @@ export default function RequestsPage() {
     const term = query.trim().toLowerCase();
     const matchesQuery = !term || [lead.fullName, lead.companyName, lead.email, lead.services.join(" "), lead.industry].some((text) => text.toLowerCase().includes(term));
     return matchesStatus && matchesQuery;
-  }), [leads, query, status]);
+  }).sort((left,right)=>(Date.parse(right.createdAt)||0)-(Date.parse(left.createdAt)||0)), [leads, query, status]);
 
   function openContactPicker(lead: Lead) {
     setContactPickerLeadId(lead.id);
-    const existing = lead.firstContactAt ? new Date(lead.firstContactAt) : new Date();
+    setContactError("");
+    setNow(Date.now());
+    const existing = lead.firstContactAt && Number.isFinite(Date.parse(lead.firstContactAt)) ? new Date(lead.firstContactAt) : new Date();
     const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
     const y = existing.getFullYear();
     const m = pad(existing.getMonth() + 1);
@@ -77,8 +84,11 @@ export default function RequestsPage() {
   }
 
   function saveManualFirstContact(leadId: string) {
-    const dateObj = contactDateTime ? new Date(contactDateTime) : new Date();
-    updateLead(leadId, { firstContactAt: Number.isNaN(dateObj.getTime()) ? new Date().toISOString() : dateObj.toISOString() });
+    const dateObj = new Date(contactDateTime);
+    if (!isValidDateValue(contactDateTime,true) || Number.isNaN(dateObj.getTime()) || dateObj.getTime()>Date.now()) {
+      setContactError("Choose a valid contact date and time up to now.");return;
+    }
+    updateLead(leadId, { firstContactAt: dateObj.toISOString() });
     setContactPickerLeadId(null);
   }
 
@@ -91,6 +101,7 @@ export default function RequestsPage() {
     const answer = checks[lead.id] ?? blankChecks;
     const call = callFields[lead.id] ?? blankCall;
     return {
+      ...lead.qualification,
       discoveryCallAt: new Date().toISOString(),
       callNotes: notes[lead.id]?.trim() || "",
       actualProblem: call.problem.trim(),
@@ -117,6 +128,12 @@ export default function RequestsPage() {
     if (!reason) return;
     updateLead(lead.id, { status: "DISQUALIFIED", disqualificationReason: reason, qualification: makeQualification(lead), qualificationNote: notes[lead.id]?.trim() || undefined });
   }
+
+  if (role === "employee") return <div className="page-content requests-page">
+    <section className="welcome-row requests-welcome"><div><h1>Leads</h1><p className="welcome-subtitle">Browse enquiry details and proposal progress.</p></div></section>
+    <div className="pipeline-toolbar"><div className="pipeline-tabs" role="tablist" aria-label="Filter leads by status">{statusOptions.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={status === key} className={status === key ? "selected" : ""} onClick={() => setStatus(key)}>{label}<span>{counts[key]}</span></button>)}</div><label className="pipeline-search"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search leads" /></label></div>
+    {visibleLeads.length === 0 ? <EmptyState icon={<Mail size={22} />} title={leads.length === 0 ? "No leads available" : "No matching leads"} description="Try another search or status filter." /> : <div className="lead-record-list">{visibleLeads.map((lead) => <article className="lead-record panel" key={lead.id}><Link className="lead-record-summary" href={`/requests/${lead.id}`}><span className="lead-main"><strong>{lead.fullName}{lead.designation ? <small> · {lead.designation}</small> : null}</strong><span>{lead.companyName || "Individual enquiry"} · {lead.services.join(", ")}</span></span><StatusBadge status={lead.status} /><span className="lead-received"><Clock3 size={13} />{ageSince(lead.createdAt, now)}<small>received</small></span><ArrowRight size={16} /></Link></article>)}</div>}
+  </div>;
 
   return <div className="page-content requests-page">
     <section className="welcome-row requests-welcome">
@@ -150,6 +167,7 @@ export default function RequestsPage() {
       {visibleLeads.map((lead) => {
         const answer = checks[lead.id] ?? blankChecks;
         const call = callFields[lead.id] ?? blankCall;
+        const companyLocked = Boolean(lead.operatingCompany && (lead.projectId || lead.invoice || (lead.proposals ?? []).some(proposal => ["SENT", "ACCEPTED", "SUPERSEDED"].includes(proposal.status))));
         return <article className={`lead-record panel ${expanded === lead.id ? "lead-expanded" : ""}`} id={lead.id} key={lead.id}>
           <button className="lead-record-summary" onClick={() => setExpanded(expanded === lead.id ? null : lead.id)} aria-expanded={expanded === lead.id}>
             <span className="lead-main"><strong>{lead.fullName}<small>{lead.designation ? ` · ${lead.designation}` : ""}</small></strong><span>{lead.companyName || "Individual enquiry"} · {lead.services.join(", ")}</span></span>
@@ -175,6 +193,12 @@ export default function RequestsPage() {
                     )}
                   </div>
                   <p>{lead.firstContactAt ? `Contact logged ${new Date(lead.firstContactAt).toLocaleString()}.` : "Record when the team first reaches out to this lead."}</p>
+                  {contactPickerLeadId === lead.id && <form className="first-contact-editor" aria-label="First contact date" onSubmit={event=>{event.preventDefault();saveManualFirstContact(lead.id);}}>
+                    <div className="first-contact-editor-heading"><h4>{lead.firstContactAt ? "Edit contact date & time" : "Log first contact"}</h4><button className="icon-button" type="button" aria-label="Close contact date editor" onClick={()=>setContactPickerLeadId(null)}><X size={16}/></button></div>
+                    <label className="field">First contact date & time<input type="datetime-local" required value={contactDateTime} max={new Date(now-new Date(now).getTimezoneOffset()*60000).toISOString().slice(0,16)} onChange={event=>{setContactDateTime(event.target.value);setContactError("");}}/><small>Use your local date and time.</small></label>
+                    {contactError && <p className="form-error" role="alert">{contactError}</p>}
+                    <div className="first-contact-editor-actions"><button type="submit" className="button button-primary">Save date & time</button><button type="button" className="button button-quiet" onClick={()=>logNowFirstContact(lead.id)}>Log now</button><button type="button" className="button button-quiet" onClick={()=>setContactPickerLeadId(null)}>Cancel</button></div>
+                  </form>}
                   <div className="first-contact-budget-source">
                     <div className="first-contact-budget-heading"><h4>Budget &amp; source</h4></div>
                     <div className="first-contact-meta">
@@ -182,79 +206,20 @@ export default function RequestsPage() {
                       <span><b>Source</b>{lead.source || "Not provided"}</span>
                       <span><b>Found via</b>{lead.acquisitionSource || "Not provided"}</span>
                     </div>
-                    <div className="first-contact-company"><span>Operating company</span><strong>{lead.operatingCompany || "Not selected"}</strong><Link href={`/requests/${lead.id}#workflow-company`}>{lead.operatingCompany ? "Review selection" : "Choose before proposal"}<ArrowRight size={12} /></Link><small>Choose the responsible studio before drafting a proposal.</small></div>
+                    <section className="lead-company-section" aria-labelledby={`company-heading-${lead.id}`}>
+                      <div><h4 id={`company-heading-${lead.id}`}>Operating company</h4><p>Choose the studio responsible for this lead and its project.</p></div>
+                      <label className="field">Choose operating company<select value={lead.operatingCompany ?? ""} disabled={companyLocked} onChange={event=>{const value=event.target.value;if(operatingCompanies.some(company=>company===value))updateLead(lead.id,{operatingCompany:value as OperatingCompany});}}><option value="" disabled>Select an operating company</option>{operatingCompanies.map(company=><option key={company} value={company}>{company}</option>)}</select></label>
+                      {companyLocked && <small>The company is fixed once a proposal is sent, an invoice is created, or the lead becomes a project.</small>}
+                    </section>
                     {lead.budgetNote && <p className="budget-note-display">{lead.budgetNote}</p>}
                   </div>
                 </div>
 
-                {contactPickerLeadId === lead.id && (
-                  <div
-                    className="manual-contact-picker-panel"
-                    style={{
-                      marginTop: "12px",
-                      padding: "14px",
-                      background: "#ffffff",
-                      border: "1.5px solid #0f172a",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "10px",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <strong style={{ fontSize: "13px", color: "#0f172a" }}>
-                        {lead.firstContactAt ? "Edit contact date & time" : "Log first contact"}
-                      </strong>
-                      <button
-                        type="button"
-                        onClick={() => setContactPickerLeadId(null)}
-                        style={{ border: "none", background: "transparent", cursor: "pointer", color: "#64748b", fontSize: "14px", padding: "2px" }}
-                      >
-                        ✕
-                      </button>
-                    </div>
 
-                    <label style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px", color: "#475569" }}>
-                      <span>Select or enter date &amp; time</span>
-                      <CalendarPicker
-                        mode="datetime"
-                        value={contactDateTime}
-                        onChange={setContactDateTime}
-                        placeholder="YYYY-MM-DD HH:mm"
-                      />
-                    </label>
-
-                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
-                      <button
-                        type="button"
-                        className="button button-primary"
-                        style={{ height: "32px", fontSize: "12px" }}
-                        onClick={() => saveManualFirstContact(lead.id)}
-                      >
-                        Save date &amp; time
-                      </button>
-                      <button
-                        type="button"
-                        className="button button-quiet"
-                        style={{ height: "32px", fontSize: "12px" }}
-                        onClick={() => logNowFirstContact(lead.id)}
-                      >
-                        Log with current time (Now)
-                      </button>
-                      <button
-                        type="button"
-                        className="button button-quiet"
-                        style={{ height: "32px", fontSize: "12px" }}
-                        onClick={() => setContactPickerLeadId(null)}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
               {lead.status === "NEW" && <div className="qualification-box">
-                <div><h3>Discovery call & qualification</h3><p>Record the call and confirm fit before moving to proposal preparation.</p></div>
-                <div className="qualification-fields">{([["genuine", "Real enquiry, not spam"], ["budget", "Budget aligns with scope"], ["fit", "Good fit for EVECTURE"], ["capacity", "Team capacity available"]] as const).map(([key, label]) => <label key={key}>{label}<select value={answer[key]} onChange={(event) => setChecks((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankChecks), [key]: event.target.value } }))}><option value="">Unreviewed</option><option value="yes">Yes</option><option value="no">No</option><option value="unknown">Need more information</option></select></label>)}</div>
+                <div><h3>Discovery call & qualification</h3><p>Record the call and confirm fit before setting up the project.</p></div>
+                <div className="qualification-fields">{([["genuine", "Real enquiry, not spam"], ["budget", "Budget aligns with scope"], ["fit", "Good fit"], ["capacity", "Team capacity available"]] as const).map(([key, label]) => <label key={key}>{label}<select value={answer[key]} onChange={(event) => setChecks((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankChecks), [key]: event.target.value } }))}><option value="">Unreviewed</option><option value="yes">Yes</option><option value="no">No</option><option value="unknown">Need more information</option></select></label>)}</div>
                 <div className="qualification-call-grid">
                   <label className="field">Actual problem<textarea rows={2} value={call.problem} onChange={(event) => setCallFields((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankCall), problem: event.target.value } }))} placeholder="What is the client trying to solve?" /></label>
                   <label className="field">Desired outcome<textarea rows={2} value={call.outcome} onChange={(event) => setCallFields((current) => ({ ...current, [lead.id]: { ...(current[lead.id] ?? blankCall), outcome: event.target.value } }))} placeholder="What result would make this successful?" /></label>

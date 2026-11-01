@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Roboto } from "next/font/google";
 import "./globals.css";
 import "./styles/features.css";
 import "./styles/workspace.css";
@@ -9,7 +9,7 @@ import "./styles/mobile-polish.css";
 import { WorkspaceShell } from "./_components/workspace-shell";
 import { AppProviders } from "./_components/providers";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const roboto = Roboto({ subsets: ["latin"], variable: "--font-roboto", weight: "variable", style: ["normal", "italic"], display: "swap" });
 
 export const metadata: Metadata = {
   title: "EVECTURE · Project Workspace",
@@ -18,8 +18,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className={`${inter.variable} ${inter.className}`}>
+    <html lang="en" className={roboto.variable}>
+      <body className={`${roboto.variable} ${roboto.className}`}>
         <AppProviders>
           <WorkspaceShell>{children}</WorkspaceShell>
         </AppProviders>

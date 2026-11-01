@@ -28,7 +28,8 @@ export function getWorkspaceRole(user: AuthUserLike | null | undefined): Workspa
 export function canAccessPath(role: WorkspaceRole, pathname: string) {
   if (role === "admin") return true;
   if (role === "client") {
-    return pathname === "/client" || pathname.startsWith("/client/") || pathname.startsWith("/proposal/") || pathname.startsWith("/settings");
+    return pathname === "/client" || pathname === "/client/projects" || pathname.startsWith("/settings");
   }
-  return !pathname.startsWith("/admin") && !pathname.startsWith("/client");
+  if (pathname.startsWith("/admin") || pathname.startsWith("/client") || pathname === "/clients" || pathname.startsWith("/clients/") || pathname === "/users" || pathname.startsWith("/users/") || pathname === "/post-sale" || pathname.startsWith("/post-sale/") || pathname === "/proposals" || pathname.startsWith("/proposals/") || pathname === "/proposal" || pathname.startsWith("/proposal/") || pathname === "/invoices" || pathname.startsWith("/invoices/") || pathname === "/requests" || pathname.startsWith("/requests/") || pathname === "/projects/assignments" || pathname.startsWith("/projects/assignments/")) return false;
+  return true;
 }

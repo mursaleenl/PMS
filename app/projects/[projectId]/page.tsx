@@ -1,19 +1,22 @@
 "use client";
 
+import { createUuid } from "@/lib/uuid";
 import Link from "next/link";
+import {StatusBadge} from "@/app/_components/status-badge";
+import { ProjectStatusBoard } from "@/app/_components/project-status-board";
 import { ProjectConversation } from "@/app/_components/project-conversation";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, Download, ExternalLink, FileText, FolderKanban, Handshake, Link2, Plus, Receipt, Trash2, Users, X } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
-import { deleteProject, readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
+import { deleteProject, readProjects, type Project, type ProjectWorkItem, updateProject, isProjectAssignedToUser, isTaskAssignedToUser } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject } from "@/lib/post-sale";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 import { showToast } from "@/app/_components/toast-hub";
 import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignees";
 
-type ProjectTab = "Overview" | "Staging & Links" | "Messages";
-const projectTabs: ProjectTab[] = ["Overview", "Staging & Links", "Messages"];
+type ProjectTab = "Overview" | "Staging & Links" | "Project status" | "Messages";
+const projectTabs: ProjectTab[] = ["Overview", "Staging & Links", "Project status", "Messages"];
 
 type AssigneeOption = {
   id?: string;
@@ -47,7 +50,7 @@ function TaskDispatchDrawer({ project, onClose, onDispatch }: { project: Project
       .forEach((m) => {
         const raw = m.display_name?.trim() || m.email.split("@")[0];
         const name = raw.charAt(0).toUpperCase() + raw.slice(1);
-        add(name, m.role === "admin" ? "Admin" : "Employee", m.email, m.id);
+        add(name, m.role === "admin" ? "Admin" : "Employee", m.email, m.user_id || undefined);
       });
 
     // 2. Current authenticated user if admin or employee
@@ -128,16 +131,18 @@ function TaskDispatchDrawer({ project, onClose, onDispatch }: { project: Project
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const assignee = String(data.get("assignee") || "").trim();
-    if (!assignee) {
+    const selectedAssignee = String(data.get("assignee") || "").trim();
+    if (!selectedAssignee) {
       setError("Assign this task to a workspace admin or employee.");
       return;
     }
+    const selectedUser = assignees.find((item) => item.id === selectedAssignee || item.name === selectedAssignee);
     onDispatch({
-      id: crypto.randomUUID(),
+      id: createUuid(),
       title: String(data.get("title") || "").trim(),
       kind,
-      assignee,
+      assignee: selectedUser?.name || selectedAssignee,
+      assigneeId: selectedUser?.id,
       priority: String(data.get("priority")) as ProjectWorkItem["priority"],
       estimatedHours: 0,
       loggedHours: 0,
@@ -190,7 +195,7 @@ function TaskDispatchDrawer({ project, onClose, onDispatch }: { project: Project
                   : "No assignable members available"}
               </option>
               {assignees.map((item) => (
-                <option key={item.id || item.name} value={item.name}>
+                <option key={item.id || item.name} value={item.id || item.name}>
                   {item.name}
                   {item.role ? ` · ${item.role}` : ""}
                 </option>
@@ -214,7 +219,7 @@ function TaskDispatchDrawer({ project, onClose, onDispatch }: { project: Project
             <button className="button button-quiet" type="button" onClick={onClose}>
               Cancel
             </button>
-            <button className="button button-primary" type="submit">
+            <button className="button button-primary dispatch-submit-button" type="submit">
               <ArrowRight size={14} />
               Dispatch to tasks
             </button>
@@ -228,18 +233,20 @@ function TaskDispatchDrawer({ project, onClose, onDispatch }: { project: Project
 export default function ProjectWorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>();
   const router = useRouter();
-  const { role } = useWorkspaceAuth();
+  const { role, user, members } = useWorkspaceAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ProjectTab>("Overview");
   const [showDispatch, setShowDispatch] = useState(false);
   const [showManagedPlan, setShowManagedPlan] = useState(false);
   const [managedPlan, setManagedPlan] = useState<ManagedProject | null>(null);
+  const employeeName = (members.find((member) => member.user_id === user?.id)?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "").trim();
 
   useEffect(() => {
     const refresh = () => {
-      setProject(readProjects().find((item) => item.id === projectId) ?? null);
-      setManagedPlan(readManagedProjects().find((item) => item.sourceProjectId === projectId) ?? null);
+      const candidate = readProjects().find((item) => item.id === projectId) ?? null;
+      setProject(candidate && (role !== "employee" || isProjectAssignedToUser(candidate, user?.id, employeeName)) ? candidate : null);
+      setManagedPlan(role === "admin" ? readManagedProjects().find((item) => item.sourceProjectId === projectId) ?? null : null);
       setLoading(false);
     };
     refresh();
@@ -251,20 +258,21 @@ export default function ProjectWorkspacePage() {
       window.removeEventListener("evecture:post-sale-updated", refresh);
       window.removeEventListener("storage", refresh);
     };
-  }, [projectId]);
+  }, [projectId, role, user?.id, employeeName]);
 
   function save(updates: Partial<Project>) {
-    if (!project) return;
+    if (!project || role !== "admin") return;
     updateProject(project.id, updates);
-    setProject({ ...project, ...updates });
+    setProject(readProjects().find(item => item.id === project.id) ?? null);
   }
 
   function markProjectComplete() {
+    if (role !== "admin") return;
     save({ status: "COMPLETED" });
   }
 
   function moveFromRetainerToProjects() {
-    if (!project) return;
+    if (!project || role !== "admin") return;
     if (!window.confirm(`Move "${project.title}" out of Retainers and back to active Projects?`)) return;
     if (managedPlan) {
       deleteManagedProject(managedPlan.id);
@@ -282,6 +290,7 @@ export default function ProjectWorkspacePage() {
   }
 
   function dispatchTask(task: ProjectWorkItem) {
+    if (role !== "admin") return;
     save({ workItems: [task, ...(project?.workItems ?? [])] });
     setShowDispatch(false);
     setActiveTab("Overview");
@@ -289,31 +298,36 @@ export default function ProjectWorkspacePage() {
   }
 
   function setProjectLink(key: "staging" | "repository" | "design" | "other") {
-    if (!project) return;
+    if (!project || (role !== "admin" && !(role === "employee" && key === "staging"))) return;
     const labels = { staging: "Staging URL", repository: "Repository URL", design: "Design file URL", other: "Other project link" };
     const value = window.prompt(labels[key], project.links?.[key] || "");
     if (value === null) return;
     if (value.trim() && !/^https?:\/\//i.test(value.trim())) { showToast({message:"Enter a link starting with https:// or http://"}); return; }
-    save({ links: { ...project.links, [key]: value.trim() || undefined } });
+    const updates = { links: { ...project.links, [key]: value.trim() || undefined } };
+    if (role === "admin") save(updates);
+    else {
+      updateProject(project.id, updates);
+      setProject(readProjects().find(item => item.id === project.id) ?? null);
+    }
   }
 
   if (loading) return <div className="page-content"><div className="panel pipeline-empty"><p>Loading project workspace…</p></div></div>;
   if (!project) return <div className="page-content"><div className="panel pipeline-empty"><h2>Project workspace not found</h2><p>This project may have been removed or you may not have access to it.</p><Link className="button button-quiet" href="/projects"><ArrowLeft size={14} />Project portfolio</Link></div></div>;
 
-  const workItems = project.workItems ?? [];
+  const workItems = role === "employee" ? (project.workItems ?? []).filter((task) => isTaskAssignedToUser(task, user?.id, employeeName)) : project.workItems ?? [];
   const clientBlocked = workItems.some((task) => task.status === "BLOCKED");
   const marginAlert = workItems.some((task) => task.estimatedHours > 0 && task.loggedHours / task.estimatedHours >= 0.85);
-  const health = clientBlocked ? { label: "Blocked work", className: "health-blocked" } : marginAlert ? { label: "Margin alert", className: "health-risk" } : { label: "On track", className: "health-good" };
+  const health = clientBlocked ? "Blocked work" : marginAlert ? "Margin alert" : null;
 
   return <div className="page-content project-detail-page">
     <Link className="back-link" href="/projects"><ArrowLeft size={15} />Project portfolio</Link>
-    <header className="record-heading project-room-heading"><div><h1>{project.title}</h1></div><div className="project-lifecycle-actions"><span className={`health-pill ${health.className}`}>{health.label}</span>{project.invoice ? <Link className="button button-quiet" href={`/invoices?invoice=${project.invoice.invoiceNumber}`} title="View invoice"><Receipt size={14} />{project.invoice.invoiceNumber}</Link> : <Link className="button button-quiet" href={`/invoices?project=${project.id}`} title="Generate invoice for this project"><Receipt size={14} />Create invoice</Link>}{project.status === "COMPLETED" ? managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-primary" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>}{role === "admin" && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></header>
+    <header className="record-heading project-room-heading"><div><h1>{project.title}</h1></div><div className="project-lifecycle-actions"><StatusBadge status={project.status}/>{health && <StatusBadge status={health}/>}{role === "admin" && (project.invoice ? <Link className="button button-quiet" href={`/invoices?invoice=${project.invoice.invoiceNumber}`} title="View invoice"><Receipt size={14} />{project.invoice.invoiceNumber}</Link> : <Link className="button button-quiet" href={`/invoices?project=${project.id}`} title="Generate invoice for this project"><Receipt size={14} />Create invoice</Link>)}{role === "admin"&&((project.status === "COMPLETED" || project.status === "AMC") ? managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-quiet" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>)}{role === "admin" && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></header>
 
     <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{project.status === "COMPLETED" ? "Completed" : "Active"}</strong></div><div><small>OPEN WORK ITEMS</small><strong><Link href="/work" style={{ textDecoration: "none", color: "inherit" }}>{workItems.filter((task) => task.status !== "DONE").length} · In Tasks</Link></strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim() && !DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim())).length}</strong></div></section>
 
     <nav className="project-room-tabs" aria-label="Project room sections">
       {projectTabs.map((tab) => <button key={tab} type="button" className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>)}
-      <button type="button" className="button button-primary room-dispatch-button" onClick={() => setShowDispatch(true)}><Plus size={14} />Dispatch task</button>
+      {role === "admin" && <button type="button" className="button button-primary room-dispatch-button" onClick={() => setShowDispatch(true)}><Plus size={14} />Dispatch task</button>}
     </nav>
 
     {activeTab === "Overview" && <>
@@ -346,23 +360,35 @@ export default function ProjectWorkspacePage() {
               </div>
             </article>
           )}
-          <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Commercial & scope</h2><p>Carried over from accepted proposal</p></div></div><div className="project-commercial-list"><div><small>Operating company</small><strong>{project.operatingCompany ?? "Evecture"}</strong></div><div><small>Billing structure</small><strong>{project.billingStructure}</strong></div><div><small>Payment terms</small><p>{project.invoice?.paymentTerms || "No additional terms recorded."}</p></div><div><small>Included revision rounds</small><strong>{project.revisionRounds}</strong></div><div><small>Included scope</small><p>{project.scopeIncluded}</p></div><div><small>Excluded scope</small><p>{project.scopeExcluded || "None specified"}</p></div><div><small>Assumptions</small><p>{project.assumptions || "None specified"}</p></div></div></article>
+          <article className="panel project-data-panel project-scope-panel">
+            <div className="panel-heading"><div><h2>Project scope</h2><p>Delivery details for this workspace</p></div></div>
+            <div className="project-commercial-list">
+              <div><small>Operating company</small><strong data-company={project.operatingCompany}>{project.operatingCompany ?? "Not selected"}</strong></div>
+              <div><small>Billing structure</small><strong>{project.billingStructure}</strong></div>
+              <div><small>Included revision rounds</small><strong>{project.revisionRounds}</strong></div>
+              {role === "admin" && <div className="project-scope-copy"><small>Payment terms</small><p>{project.invoice?.paymentTerms || "No additional terms recorded."}</p></div>}
+              <div className="project-scope-copy"><small>Included scope</small><p>{project.scopeIncluded || "Not recorded"}</p></div>
+              <div className="project-scope-copy"><small>Excluded scope</small><p>{project.scopeExcluded || "None specified"}</p></div>
+              <div className="project-scope-copy"><small>Assumptions</small><p>{project.assumptions || "None specified"}</p></div>
+            </div>
+          </article>
         </div>
         <aside className="project-detail-side"><article className="panel project-data-panel"><div className="panel-heading"><div><h2>Team</h2><p>Assigned roles and allocation</p></div><Users size={16} /></div><div className="team-assignment-list">{project.team.map((member, index) => {
           const isDummy = DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim());
           const displayName = !member.name || isDummy ? "Unassigned" : member.name;
           const allocation = isDummy ? "—" : (member.name ? `${member.allocationPercent}%` : "—");
           return <div className="team-assignment" key={`${member.role}-${index}`}><span className="team-role-icon"><Users size={14} /></span><div><strong>{member.role}</strong><small>{displayName}</small></div><b>{allocation}</b></div>;
-        })}</div><Link className="assignment-inline-link" href="/projects/assignments">Manage project assignments <ArrowRight size={13} /></Link></article>
-          <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Project documents</h2><p>Signed commercial records</p></div><FileText size={16} /></div><div className="document-links">{project.signedContractDataUrl && project.signedContractName ? <a href={project.signedContractDataUrl} download={project.signedContractName}><Download size={14} />{project.signedContractName}</a> : <span className="document-pending">Signed SOW not attached</span>}{project.invoice ? <Link href={`/invoices?invoice=${project.invoice.invoiceNumber}`}><ExternalLink size={14} />{project.invoice.invoiceNumber} · invoice record</Link> : <Link className="document-pending" href={`/invoices?project=${project.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px", color: "inherit" }}><Receipt size={13} />No invoice recorded · Create invoice</Link>}</div></article></aside>
+        })}</div>{role === "admin" && <Link className="assignment-inline-link" href="/projects/assignments">Manage project assignments <ArrowRight size={13} /></Link>}</article>
+          <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Project documents</h2><p>Signed project records</p></div><FileText size={16} /></div><div className="document-links">{project.signedContractDataUrl && project.signedContractName ? <a href={project.signedContractDataUrl} download={project.signedContractName}><Download size={14} />{project.signedContractName}</a> : <span className="document-pending">Signed SOW not attached</span>}{role === "admin" && (project.invoice ? <Link href={`/invoices?invoice=${project.invoice.invoiceNumber}`}><ExternalLink size={14} />{project.invoice.invoiceNumber} · invoice record</Link> : <Link className="document-pending" href={`/invoices?project=${project.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px", color: "inherit" }}><Receipt size={13} />No invoice recorded · Create invoice</Link>)}</div></article></aside>
       </section>
     </>}
 
+    {activeTab === "Project status" && <ProjectStatusBoard project={project} />}
     {activeTab === "Messages" && <section className="panel portal-record"><ProjectConversation projectId={project.id}/></section>}
-    {activeTab === "Staging & Links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"]] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16} /></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12} /></a> : <strong>Not added</strong>}</div><button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button></article>; })}</div><p className="storage-note">Project links are saved to your workspace. Repository and hosting permissions are managed by their providers.</p></section>}
+    {activeTab === "Staging & Links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"]] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16} /></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12} /></a> : <strong>Not added</strong>}</div>{(role === "admin" || (role === "employee" && key === "staging")) && <button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button>}</article>; })}</div><p className="storage-note">Project links are saved to your workspace. Repository and hosting permissions are managed by their providers.</p></section>}
 
-    {showDispatch && <TaskDispatchDrawer project={project} onClose={() => setShowDispatch(false)} onDispatch={dispatchTask} />}
-    {showManagedPlan && <ManagedPlanDrawer projects={[project]} initialProjectId={project.id} onClose={() => setShowManagedPlan(false)} onCreated={(item) => setManagedPlan(item)} />}
+    {role === "admin" && showDispatch && <TaskDispatchDrawer project={project} onClose={() => setShowDispatch(false)} onDispatch={dispatchTask} />}
+    {role === "admin" && showManagedPlan && <ManagedPlanDrawer projects={[project]} initialProjectId={project.id} onClose={() => setShowManagedPlan(false)} onCreated={(item) => setManagedPlan(item)} />}
     <p className="storage-note">Changes are saved to your workspace database.</p>
   </div>;
 }

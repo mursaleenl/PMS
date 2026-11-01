@@ -91,8 +91,9 @@
     opacity: 0; visibility: hidden; pointer-events: none; animation: none;
     transition: transform 300ms var(--navigation-ease), opacity 220ms ease, visibility 0s linear 300ms;
   }
-  .app-shell .sidebar.sidebar-open {
-    transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto;
+  .app-shell .sidebar.sidebar-open,
+  .app-shell .sidebar.mobile-sidebar-open {
+    transform: translateX(0) !important; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important;
     transition-delay: 0s;
   }
   .app-shell.sidebar-collapsed .sidebar .workspace-sidebar-heading { max-height: 74px; padding: 0 12px 24px; opacity: 1; }

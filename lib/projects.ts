@@ -12,6 +12,7 @@ export type BillingStructure = "Fixed" | "Hourly" | "Retainer";
 export type ProjectTeamMember = {
   role: "Project Manager" | "Lead Designer" | "Lead Developer" | "QA Owner" | "Supporting team member";
   name: string;
+  userId?: string;
   allocationPercent: number;
 };
 
@@ -20,6 +21,7 @@ export type ProjectWorkItem = {
   title: string;
   kind: "FEATURE_DEV" | "CLIENT_FEEDBACK_TODO" | "QA_BUG";
   assignee: string;
+  assigneeId?: string;
   priority: "P1" | "P2" | "P3" | "P4";
   estimatedHours: number;
   loggedHours: number;
@@ -62,8 +64,23 @@ export type Project = {
   team: ProjectTeamMember[];
   workItems?: ProjectWorkItem[];
   links?: ProjectLinks;
-  status: "ACTIVE" | "COMPLETED";
+  status: "ACTIVE" | "ON_TRACK" | "COMPLETED" | "AMC";
 };
+
+export function isProjectAssignedToUser(project: Project, userId?: string | null, userName?: string) {
+  const normalizedName = userName?.trim().toLocaleLowerCase();
+  const matches = (assignedId?: string, assignedName?: string) => assignedId
+    ? Boolean(userId && assignedId === userId)
+    : Boolean(normalizedName && assignedName?.trim().toLocaleLowerCase() === normalizedName);
+  return project.team.some((member) => matches(member.userId, member.name))
+    || (project.workItems ?? []).some((task) => matches(task.assigneeId, task.assignee));
+}
+
+export function isTaskAssignedToUser(task: ProjectWorkItem, userId?: string | null, userName?: string) {
+  if (task.assigneeId) return Boolean(userId && task.assigneeId === userId);
+  const normalizedName = userName?.trim().toLocaleLowerCase();
+  return Boolean(normalizedName && task.assignee.trim().toLocaleLowerCase() === normalizedName);
+}
 
 export function readProjects(): Project[] {
   if (typeof window === "undefined") return [];
@@ -107,7 +124,15 @@ export function addProject(project: Project) {
 }
 
 export function updateProject(id: string, updates: Partial<Project>) {
-  writeProjects(readProjects().map((project) => project.id === id ? { ...project, ...updates } : project));
+  writeProjects(readProjects().map((project) => {
+    if (project.id !== id) return project;
+    const assignedTaskChanged = updates.workItems?.some(task => {
+      if (!task.assigneeId && !task.assignee?.trim()) return false;
+      const previous = project.workItems?.find(item => item.id === task.id);
+      return !previous || (previous.assigneeId || "") !== (task.assigneeId || "") || previous.assignee.trim() !== task.assignee.trim();
+    });
+    return { ...project, ...updates, ...(updates.status === undefined && project.status === "ACTIVE" && assignedTaskChanged ? {status: "ON_TRACK" as const} : {}) };
+  }));
 }
 
 export function deleteProject(id: string) {
@@ -118,7 +143,10 @@ export function nextProjectId(): Promise<string> { return reserveWorkspaceNumber
 
 export async function projectFromLead(input: {
   lead: Lead;
-  proposal: ProposalVersion;
+  proposal?: ProposalVersion;
+  contractedValue?: number;
+  currency?: string;
+  billingStructure?: BillingStructure;
   title: string;
   classification: ProjectClassification;
   operatingCompany: OperatingCompany;
@@ -139,19 +167,19 @@ export async function projectFromLead(input: {
     services: lead.services,
     classification: input.classification,
     startDate: input.startDate,
-    billingStructure: proposal.billingStructure,
-    contractedValue: proposal.quotedAmount,
-    currency: proposal.currency,
+    billingStructure: proposal?.billingStructure ?? input.billingStructure ?? "Fixed",
+    contractedValue: proposal?.quotedAmount ?? input.contractedValue ?? 0,
+    currency: proposal?.currency ?? input.currency ?? "USD",
     depositAmount: invoice?.depositAmount,
     depositStatus: invoice?.status === "CONFIRMED_PAID" ? "CONFIRMED_PAID" : undefined,
     invoice,
-    proposalVersion: proposal.version,
+    proposalVersion: proposal?.version ?? 0,
     signedContractName: lead.acceptanceDocumentName,
     signedContractDataUrl: lead.acceptanceDocumentDataUrl,
-    scopeIncluded: proposal.scopeIncluded,
-    scopeExcluded: proposal.scopeExcluded,
-    assumptions: proposal.assumptions,
-    revisionRounds: proposal.revisionRounds,
+    scopeIncluded: proposal?.scopeIncluded ?? "",
+    scopeExcluded: proposal?.scopeExcluded ?? "",
+    assumptions: proposal?.assumptions ?? "",
+    revisionRounds: proposal?.revisionRounds ?? 0,
     team: input.team,
     workItems: [],
     status: "ACTIVE",

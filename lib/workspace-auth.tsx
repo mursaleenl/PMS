@@ -17,7 +17,7 @@ type AuthContextValue = {
   mustChangePassword: boolean;
   members: WorkspaceMember[];
   accessLoading: boolean;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<boolean>;
   provisionUser: (name: string, email: string, password: string, role: WorkspaceRole) => Promise<void>;
   updateMemberRole: (id: string, role: WorkspaceRole) => Promise<void>;
   removeMember: (id: string) => Promise<void>;
@@ -83,7 +83,7 @@ export function WorkspaceAuthProvider({ children }: { children: ReactNode }) {
     setAccessError("");
     const current = () => requestId === accessRequest.current && currentUserId.current === userId;
     try {
-      const columns = "id,email,role,display_name,user_id,must_change_password";
+      const columns = "id,email,role,display_name,user_id,must_change_password,created_at";
       let own = await supabase.from("workspace_members").select(columns).eq("user_id",userId).maybeSingle();
       if (!own.error && !own.data && userEmail) {
         own = await supabase.from("workspace_members").select(columns).eq("email",userEmail.toLowerCase()).is("user_id",null).maybeSingle();
@@ -99,7 +99,7 @@ export function WorkspaceAuthProvider({ children }: { children: ReactNode }) {
         const list = await supabase.from("workspace_members").select("id,email,role,display_name,user_id,created_at,must_change_password").order("created_at",{ascending:true});
         if (list.error) throw new Error("Workspace members could not be loaded. Please retry.");
         nextMembers = (list.data ?? []) as WorkspaceMember[];
-      }
+      } else if (own.data) nextMembers = [own.data as WorkspaceMember];
       if (!current()) return;
       setDatabaseRole((own.data?.role as WorkspaceRole) ?? null);
       setMustChangePassword(Boolean(own.data?.must_change_password));
@@ -126,13 +126,15 @@ export function WorkspaceAuthProvider({ children }: { children: ReactNode }) {
     members:identityResolved ? members : [], accessLoading, accessError,
     signOut:async () => {
       try { await flushPendingWorkspaceChanges(); }
-      catch { if (!window.confirm("Some changes have not been saved. Sign out and discard those changes?")) return; }
+      catch { if (!window.confirm("Some changes have not been saved. Sign out and discard those changes?")) return false; }
       if (supabase) { const result = await supabase.auth.signOut(); if (result.error) throw result.error; }
+      return true;
     },
     provisionUser:async (name,email,password,role) => { await userManagementRequest(session,"POST",{name,email,password,role}); await refreshAccess(); },
     updateMemberRole:async (id,role) => { await userManagementRequest(session,"PATCH",{id,role}); await refreshAccess(); },
     removeMember:async id => { await userManagementRequest(session,"DELETE",{id}); await refreshAccess(); },
     updatePassword:async password => {
+      if (databaseRole === "employee") throw new Error("Password changes are managed by an administrator.");
       if (!supabase || !user) throw new Error("Sign in before changing your password.");
       const result = await supabase.auth.updateUser({password});
       if (result.error) throw result.error;
