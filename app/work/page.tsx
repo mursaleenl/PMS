@@ -9,6 +9,8 @@ import { showToast } from "@/app/_components/toast-hub";
 import { readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
+import { useAssignableUsers } from "@/lib/assignees";
+
 type TaskFilter = "ALL" | ProjectWorkItem["status"];
 const filters: { value: TaskFilter; label: string }[] = [
   { value: "ALL", label: "All tasks" }, { value: "TO_DO", label: "To do" }, { value: "IN_PROGRESS", label: "In progress" },
@@ -35,6 +37,7 @@ function updateTask(projectId: string, taskId: string, updates: Partial<ProjectW
 
 export default function MyWorkPage() {
   const {role,user,members}=useWorkspaceAuth();
+  const { users: assignableUsers } = useAssignableUsers();
   const [projects, setProjects] = useState<Project[]>([]);
   const [assignee, setAssignee] = useState("");
   const [filter, setFilter] = useState<TaskFilter>("ALL");
@@ -70,22 +73,26 @@ export default function MyWorkPage() {
 
   const employeeName=(members.find((member)=>member.user_id===user?.id)?.display_name||user?.user_metadata?.full_name||user?.email?.split("@")[0]||"").trim().toLowerCase();
   const allTasks = useMemo(() => projects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))).filter(({task})=>role!=="employee"||(task.assigneeId?task.assigneeId===user?.id:task.assignee.trim().toLowerCase()===employeeName)), [projects,role,user?.id,employeeName]);
-  const assignees = [...new Set(allTasks.map(({ task }) => task.assignee).filter(Boolean))].sort();
+  const assignees = [...new Set([
+    ...assignableUsers.map((member) => member.name),
+    ...allTasks.map(({ task }) => task.assignee),
+  ].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const selectedAssigneeId = assignableUsers.find((member) => member.name === assignee)?.id;
 
   const visibleTasks = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return allTasks.filter(({ project, task }) => {
       const matchesStatus = filter === "ALL" || task.status === filter;
-      const matchesAssignee = !assignee || task.assignee === assignee;
+      const matchesAssignee = !assignee || (selectedAssigneeId && task.assigneeId ? task.assigneeId === selectedAssigneeId : task.assignee.trim().toLowerCase() === assignee.trim().toLowerCase());
       const matchesSearch = !needle || [task.title, task.assignee, task.kind, project.title, project.clientCompany, project.id].some((value) => value.toLowerCase().includes(needle));
       return matchesStatus && matchesAssignee && matchesSearch;
     }).sort((left, right) => (new Date(left.task.createdAt).getTime() - new Date(right.task.createdAt).getTime()) * (sortOldestFirst ? 1 : -1));
-  }, [allTasks, assignee, filter, search, sortOldestFirst]);
+  }, [allTasks, assignee, selectedAssigneeId, filter, search, sortOldestFirst]);
 
   const boardTasksByColumn = useMemo(() => {
     const needle = search.trim().toLowerCase();
     const filtered = allTasks.filter(({ project, task }) => {
-      const matchesAssignee = !assignee || task.assignee === assignee;
+      const matchesAssignee = !assignee || (selectedAssigneeId && task.assigneeId ? task.assigneeId === selectedAssigneeId : task.assignee.trim().toLowerCase() === assignee.trim().toLowerCase());
       const matchesSearch = !needle || [task.title, task.assignee, task.kind, project.title, project.clientCompany, project.id].some((value) => value.toLowerCase().includes(needle));
       return (filter === "ALL" || task.status === filter) && matchesAssignee && matchesSearch;
     }).sort((left, right) => (new Date(left.task.createdAt).getTime() - new Date(right.task.createdAt).getTime()) * (sortOldestFirst ? 1 : -1));
@@ -107,7 +114,7 @@ export default function MyWorkPage() {
     });
 
     return map;
-  }, [allTasks, assignee, search, sortOldestFirst, filter]);
+  }, [allTasks, assignee, selectedAssigneeId, search, sortOldestFirst, filter]);
 
   const inProgressCount = allTasks.filter(({ task }) => task.status === "IN_PROGRESS").length;
   const completedCount = allTasks.filter(({ task }) => task.status === "DONE").length;
@@ -282,7 +289,7 @@ export default function MyWorkPage() {
       <div className="task-table-heading">
         <div>
           <h2>All tasks</h2>
-          <p>{viewMode === "LIST" ? `${visibleTasks.length} ${visibleTasks.length === 1 ? "task" : "tasks"} shown · ${allTasks.length} total` : `${Object.values(boardTasksByColumn).flat().length} tasks shown on board · ${allTasks.length} total`}</p>
+          <p>{viewMode === "LIST" ? `${visibleTasks.length} ${visibleTasks.length === 1 ? "task" : "tasks"} shown Â· ${allTasks.length} total` : `${Object.values(boardTasksByColumn).flat().length} tasks shown on board Â· ${allTasks.length} total`}</p>
         </div>
         <div className="task-table-tools">
           <div className="task-view-switcher" role="group" aria-label="View mode">
@@ -291,6 +298,7 @@ export default function MyWorkPage() {
               className={`view-switcher-button ${viewMode === "LIST" ? "active" : ""}`}
               onClick={() => setViewMode("LIST")}
               title="List view"
+              aria-pressed={viewMode === "LIST"}
             >
               <List size={14} />
               <span>List</span>
@@ -300,6 +308,7 @@ export default function MyWorkPage() {
               className={`view-switcher-button ${viewMode === "BOARD" ? "active" : ""}`}
               onClick={() => setViewMode("BOARD")}
               title="Kanban Board view"
+              aria-pressed={viewMode === "BOARD"}
             >
               <Kanban size={14} />
               <span>Board</span>
@@ -308,7 +317,7 @@ export default function MyWorkPage() {
 
           <label className="task-table-search">
             <Search size={14} />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks, projects, assignees…" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks, projects, assigneesâ€¦" />
           </label>
           {viewMode === "LIST" && (
             <label className="task-filter-select">
@@ -592,7 +601,7 @@ export default function MyWorkPage() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     updateTask(project.id, task.id, { status: "IN_PROGRESS", blockerReason: undefined });
-                                    showToast({ message: "Blocker resolved · In progress" });
+                                    showToast({ message: "Blocker resolved Â· In progress" });
                                   }}
                                 >
                                   Resolve
@@ -626,7 +635,7 @@ export default function MyWorkPage() {
         {viewMode === "LIST" ? (
           <span>Showing {visibleTasks.length} {visibleTasks.length === 1 ? "task" : "tasks"}</span>
         ) : (
-          <span>Showing {Object.values(boardTasksByColumn).flat().length} tasks across 4 columns · Drag cards between columns to change status</span>
+          <span>Showing {Object.values(boardTasksByColumn).flat().length} tasks across {kanbanColumns.length} columns — Drag cards between columns to change status</span>
         )}
         <span>Task changes sync automatically</span>
       </footer>

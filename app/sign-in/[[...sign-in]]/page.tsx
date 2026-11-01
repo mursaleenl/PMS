@@ -36,6 +36,7 @@ function SignInForm() {
       </div>
       <form className="auth-card" onSubmit={submit}>
         <h1>Sign in</h1>
+        {searchParams.get("reason") === "access-changed" && <p role="status">Your role or permissions have changed. Please sign in again to continue.</p>}
         <p>Use the email and password provided by your administrator.</p>
         <label className="field">
           Email address
@@ -59,7 +60,7 @@ function SignInForm() {
         </label>
         {error && <p className="form-error" role="alert">{error}</p>}
         <button className="button button-primary" type="submit" disabled={submitting}>
-          {submitting ? "Signing in…" : "Sign in"}
+          {submitting ? "Signing inâ€¦" : "Sign in"}
         </button>
       </form>
     </main>
@@ -68,7 +69,7 @@ function SignInForm() {
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={<div className="access-denied"><div className="panel"><p>Loading sign in…</p></div></div>}>
+    <Suspense fallback={<div className="access-denied"><div className="panel"><p>Loading sign inâ€¦</p></div></div>}>
       <SignInForm />
     </Suspense>
   );

@@ -1,0 +1,671 @@
+/* Final shared presentation layer: page rhythm, editorial type, and controls. */
+body, button, input, select, textarea { font-family: var(--font-body); }
+
+:root {
+  --studio-canvas: #ffffff;
+  --studio-surface: #ffffff;
+  --studio-border: #d4d4d8;
+  --studio-ink: #18181b;
+  --studio-muted: #606570;
+  --studio-blue: #1d4ed8;
+  --studio-gutter: clamp(20px, 2.4vw, 40px);
+  --studio-gap: 24px;
+}
+
+@media screen {
+  .app-shell #workspace-sidebar .primary-nav { gap: 7px; }
+  .app-shell #workspace-sidebar .workspace-sidebar-footer { display: flex; flex-direction: column; gap: 7px; }
+  .app-shell #workspace-sidebar .nav-link { flex-shrink: 0; font-weight: 500; letter-spacing: 0; }
+  .app-shell .workspace-topbar .top-actions { gap: 12px !important; }
+  .app-shell #workspace-content :is(.panel,.overview-summary-card,.overview-project-card,.portfolio-card,.client-card,.lead-record,.role-summary-card,.portal-record,.qualification-box,.project-data-panel,.invoice-table-panel,.task-table-panel,.proposal-history-content) {
+    border: 1px solid var(--studio-border) !important;
+  }
+  .app-shell #workspace-content :is(.invoice-stat-card,.task-stat-card):not(.selected) { border: 1px solid var(--studio-border) !important; }
+  .app-shell #workspace-content :is(.field input:not([type=checkbox]):not([type=radio]),.field select,.field textarea) { border-color: #cbd1da !important; }
+  .app-shell #workspace-content :is(.field input,.field select,.field textarea):focus { border-color: #111827 !important; }
+  body :is(.user-modal-card,.invoice-modal-card,.auth-card,.attendance-camera-dialog) { border: 1px solid var(--studio-border) !important; }
+}
+
+@media screen and (max-width:700px) {
+  .app-shell .main-area { min-width: 0; }
+  .app-shell #workspace-content .page-content { padding-inline: 16px !important; }
+  .app-shell #workspace-content .page-content > * { min-width: 0; max-width: 100%; }
+  .app-shell #workspace-content :is(.welcome-row,.record-heading,.enquiry-heading) { display: flex !important; flex-direction: column; align-items: stretch; gap: 14px; }
+  .app-shell #workspace-content :is(.welcome-row,.record-heading,.enquiry-heading) > div:first-child:has(h1) { display: block !important; min-width: 0; }
+  .app-shell #workspace-content :is(.welcome-row,.record-heading,.enquiry-heading) h1 { display: block !important; overflow-wrap: anywhere; }
+  .app-shell #workspace-content .welcome-subtitle { display: block !important; line-height: 1.5; }
+  .app-shell #workspace-content .welcome-actions { width: 100%; flex-wrap: wrap; gap: 8px; }
+  .app-shell #workspace-content :is(.form-grid,.qualification-fields,.qualification-call-grid,.proposal-fields-grid,.project-team-grid) { grid-template-columns: minmax(0,1fr) !important; }
+  .app-shell #workspace-content :is(.field,.field > *) { min-width: 0; max-width: 100%; }
+  .app-shell #workspace-content :is(input:not([type=checkbox]):not([type=radio]),select,textarea),
+  body :is(.user-modal-card,.invoice-modal-card,.auth-card,.command-dialog) :is(input,select,textarea) { font-size: 16px !important; }
+  .app-shell #workspace-content :is(.table-scroll,.user-management-table-wrap) { width: 100%; max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
+  .app-shell #workspace-content :is(.panel-heading,.overview-section-heading,.project-room-heading) { flex-wrap: wrap; gap: 12px; }
+  .app-shell #workspace-content :is(.project-room-tabs,.task-list-tabs,.pipeline-tabs) { max-width: 100%; overflow-x: auto; }
+  .app-shell .workspace-topbar { gap: 6px !important; padding-inline: 12px !important; }
+  .app-shell .workspace-topbar :is(.mobile-nav-toggle,.global-search-trigger,.notification-button,.topbar-user-btn) {
+    width: 44px !important; min-width: 44px !important; max-width: 44px !important;
+    height: 44px !important; min-height: 44px !important; padding: 0 !important; justify-content: center !important;
+  }
+  .app-shell .workspace-topbar :is(.topbar-user-name,.topbar-user-role-badge,.topbar-chevron) { display: none !important; }
+  .app-shell .workspace-topbar .top-actions { gap: 6px !important; }
+  .app-shell #workspace-sidebar .nav-link-label { visibility: visible !important; }
+  .app-shell #workspace-sidebar .workspace-label { height: auto !important; max-height: 28px !important; }
+  .app-shell #workspace-sidebar .workspace-sidebar-heading { padding-right: 42px !important; }
+  .app-shell #workspace-sidebar .mobile-sidebar-close { position: absolute !important; top: calc(16px + env(safe-area-inset-top,0px)); right: 12px; width: 40px !important; height: 40px !important; }
+  .app-shell .workspace-contextbar { display: flex; justify-content: flex-end; min-height: 28px; padding: 8px 16px 0; }
+  .app-shell .workspace-contextbar .breadcrumb { display: none; }
+  .app-shell .topbar-profile-dropdown { position: fixed !important; top: calc(var(--workspace-header,58px) + 8px) !important; right: 12px !important; width: min(320px,calc(100vw - 24px)) !important; max-height: calc(100dvh - 90px); overflow-y: auto; }
+  .app-shell .task-drawer-backdrop > .task-dispatch-drawer { width: 100% !important; max-width: 100% !important; padding: 20px 16px !important; }
+  body :is(.user-modal-card,.invoice-modal-card) { width: calc(100vw - 24px) !important; max-height: calc(100dvh - 24px) !important; padding: 20px 16px !important; overflow-y: auto; }
+  .app-shell .command-backdrop { padding: 12px; }
+  .app-shell .command-dialog { max-height: calc(100dvh - 24px); }
+  .app-shell .command-search-row input { min-width: 0; }
+  .app-shell :is(.command-hint,.command-footer) { flex-wrap: wrap; gap: 8px; }
+  .app-shell .command-result-copy { min-width: 0; overflow-wrap: anywhere; }
+  .app-shell .command-result-kind { display: none; }
+}
+
+/* One alignment and type scale across dashboard, directories, and detail pages.
+   This layer follows the older route styles so their local spacing cannot drift. */
+@media screen {
+  html body { background: var(--studio-canvas); color: var(--studio-ink); }
+  body :is(#workspace-content,.auth-page,.access-denied,.user-modal-backdrop,.task-drawer-backdrop) {
+    --ws-bg: var(--studio-canvas);
+    --ws-surface: var(--studio-surface);
+    --ws-subtle-surface: #f1f3f7;
+    --ws-border: var(--studio-border);
+    --ws-text: var(--studio-ink);
+    --ws-muted: var(--studio-muted);
+    --ws-primary: var(--studio-blue);
+    --ws-accent-border: #18181b;
+    --ws-selection: #e8eefb;
+    color-scheme: light;
+  }
+  html body :is(.app-shell,.auth-page,.access-denied) { background: var(--studio-canvas) !important; }
+  .app-shell #workspace-content,
+  .app-shell #workspace-content .page-content { background: var(--studio-canvas) !important; }
+  .app-shell #workspace-content { min-width: 0; }
+  .app-shell #workspace-content > .page-content {
+    width: 100% !important; max-width: none !important; margin: 0 !important;
+    padding: 20px var(--studio-gutter) 40px !important;
+    color: var(--studio-ink);
+  }
+  .app-shell #workspace-content .workspace-contextbar {
+    min-height: 36px !important; padding: 12px var(--studio-gutter) 0 !important;
+    background: transparent !important;
+  }
+  .app-shell #workspace-content .page-content > * { min-width: 0; }
+  .app-shell #workspace-content :is(.welcome-row,.record-heading,.enquiry-heading) {
+    display: flex !important; align-items: center !important; justify-content: space-between;
+    flex-wrap: wrap; gap: 18px 24px; margin: 0 0 28px !important; padding: 0 !important;
+  }
+  .app-shell #workspace-content :is(.welcome-row,.record-heading,.enquiry-heading) > div:first-child:has(h1) {
+    display: block !important; flex: 1 1 300px; min-width: 0;
+  }
+  .app-shell #workspace-content .page-content h1 {
+    display: block !important; font-family: var(--font-display) !important;
+    font-size: clamp(26px, 2.5vw, 36px) !important; font-weight: 700 !important;
+    letter-spacing: -.035em !important; line-height: 1.12 !important;
+    margin: 0 0 10px !important; color: var(--studio-ink) !important;
+    overflow-wrap: anywhere; text-wrap: balance;
+  }
+  html body :is(h1,h2,h3,h4,h5,h6),
+  html body :is(#workspace-content,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page,.access-denied) :is(h1,h2,h3,h4,h5,h6) {
+    text-transform: uppercase !important;
+  }
+  .app-shell #workspace-content .page-content h2 {
+    font-size: 15px !important; font-weight: 650; letter-spacing: .025em !important;
+    line-height: 1.35 !important; margin: 0 0 6px !important;
+  }
+  .app-shell #workspace-content .page-content h3 {
+    font-size: 13px !important; font-weight: 650; letter-spacing: .02em !important;
+    line-height: 1.4 !important;
+  }
+  .app-shell #workspace-content .welcome-subtitle {
+    display: block !important; max-width: 62ch; margin: 0 !important;
+    color: var(--studio-muted) !important; font-size: 13px !important; line-height: 1.65 !important;
+  }
+  .app-shell #workspace-content :is(.welcome-actions,.task-page-actions,.project-lifecycle-actions) {
+    display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end;
+    gap: 8px !important; min-width: 0; max-width: 100%; margin: 0;
+  }
+  .app-shell #workspace-content :is(.panel,.portfolio-card,.client-card,.lead-record,.overview-summary-card,.overview-project-card,.role-summary-card,.portal-record,.qualification-box,.project-data-panel,.invoice-table-panel,.task-table-panel,.proposal-history-content,.invoice-stat-card,.task-stat-card) {
+    background: var(--studio-surface) !important; border: 1px solid var(--studio-border) !important;
+    box-shadow: 0 2px 3px rgb(24 24 27 / 3%) !important;
+  }
+  .app-shell #workspace-content :is(.overview-summary-card,.overview-project-card,.portfolio-card,.client-card):hover {
+    border-color: #9ca6b5 !important; box-shadow: 0 5px 16px rgb(24 24 27 / 6%) !important;
+    transform: none !important;
+  }
+  .app-shell #workspace-content :is(.invoice-stat-card,.task-stat-card).selected {
+    border: 1.5px solid #18181b !important; background: #fff !important;
+  }
+  .app-shell #workspace-content :is(.overview-summary-grid,.invoice-stats-grid,.task-stats-grid) {
+    gap: 16px !important; margin: 0 0 var(--studio-gap) !important; align-items: stretch;
+  }
+  .app-shell #workspace-content :is(.overview-project-grid,.overview-lower-grid,.project-detail-layout,.form-grid) { gap: var(--studio-gap) !important; }
+  .app-shell #workspace-content :is(.overview-project-section,.proposal-ready-panel) { margin-bottom: var(--studio-gap) !important; }
+  .app-shell #workspace-content :is(.panel-heading,.overview-section-heading,.overview-panel-heading,.record-section-heading,.attendance-section-heading) {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap;
+  }
+  .app-shell #workspace-content :is(.panel-heading,.overview-section-heading,.overview-panel-heading) p {
+    margin: 0 !important; color: var(--studio-muted) !important; font-size: 12px !important; line-height: 1.6;
+  }
+  .app-shell #workspace-content :is(.overview-project-card,.project-data-panel) { padding: 20px !important; }
+  .app-shell #workspace-content :is(.overview-panel-heading,.invoice-table-heading,.task-table-heading) { padding: 18px 20px !important; }
+  .app-shell #workspace-content :is(.overview-task-row,.overview-request-row) { min-height: 64px; padding: 14px 20px !important; gap: 12px; }
+  .app-shell #workspace-content :is(.overview-task-copy,.proposal-index-main,.client-card-heading > div) { min-width: 0; }
+  .app-shell #workspace-content :is(.overview-task-copy strong,.proposal-index-main strong,.client-card-heading h2) { overflow-wrap: anywhere; }
+  .app-shell #workspace-content :is(.pipeline-toolbar,.task-table-toolbar,.invoice-table-toolbar,.attendance-toolbar) {
+    gap: 12px; align-items: center; flex-wrap: wrap; border-color: var(--studio-border) !important;
+  }
+  .app-shell #workspace-content :is(.field,.qualification-field) { min-width: 0; gap: 7px; }
+  .app-shell #workspace-content .form-grid { align-items: start; }
+  .app-shell #workspace-content :is(.field input:not([type=checkbox]):not([type=radio]),.field select,.field textarea) {
+    width: 100%; min-width: 0; border: 1px solid #b5becb !important; background: #fff !important;
+    font-size: 13px; line-height: 1.5; color: #18181b !important;
+  }
+  .app-shell #workspace-content .field :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select) { min-height: 38px; }
+  .app-shell #workspace-content .field textarea { min-height: 104px; padding: 10px 12px; resize: vertical; }
+  .app-shell #workspace-content table { font-variant-numeric: tabular-nums; }
+  .app-shell #workspace-content :is(.invoice-table,.task-table,.performance-table,.pipeline-table,.user-management-table) :is(th,td) {
+    padding: 13px 16px !important; vertical-align: middle; border-color: var(--studio-border) !important;
+  }
+  .app-shell #workspace-content table th { background: #f0f2f6 !important; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+  .app-shell #workspace-content :is(.text-link,.proposal-index-actions a,.proposal-ready-row > svg) { color: var(--studio-ink) !important; }
+  .app-shell #workspace-content .text-link { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 650; }
+  .app-shell #workspace-content :is(.overview-progress-track,.portfolio-progress-track) { background: #e0e5ec !important; }
+  .app-shell #workspace-content :is(.overview-progress-track,.portfolio-progress-track) > i { background: #2563eb !important; }
+
+  /* Uppercase interface labels; descriptions, form values, and messages keep their casing. */
+  html body .app-shell :is(.nav-link-label,.workspace-label,.breadcrumb,.topbar-user-role-badge,.mobile-topbar-title),
+  .app-shell #workspace-content :is(.section-kicker,.overview-summary-top small,.invoice-stat-label,.task-stat-label,.overview-task-copy strong,.proposal-index-main strong,.proposal-ready-row strong,.status-label,.field-label,.text-link) {
+    text-transform: uppercase !important; letter-spacing: .055em !important;
+  }
+  html body .app-shell .nav-link-label { font-size: 11px !important; font-weight: 650; }
+  html body .app-shell .workspace-label { font-size: 9px !important; letter-spacing: .12em !important; }
+  html body .app-shell #workspace-sidebar .nav-icon svg { stroke-width: 1.75; }
+
+  /* Color signals meaning through a distinct icon and a readable label, without pills. */
+  html body .app-shell #workspace-content .status-badge,
+  html body :is(.user-modal-backdrop,.client-proposal-page) .status-badge {
+    display: inline-flex !important; align-items: center; gap: 6px; width: max-content; max-width: 100%;
+    min-height: 20px !important; padding: 0 !important; border: 0 !important;
+    color: var(--status-ink, #475569) !important; background: transparent !important;
+    box-shadow: none !important; font-size: 10px !important; font-weight: 650 !important;
+    line-height: 1.4 !important; white-space: nowrap;
+  }
+  html body .app-shell #workspace-content .status-badge svg { width: 15px; height: 15px; flex-shrink: 0; color: inherit !important; }
+  html body :is(#workspace-content,.user-modal-backdrop,.client-proposal-page) .status-badge:is([data-tone="blue"],[data-tone="indigo"]) .status-label { color: var(--studio-ink) !important; }
+  .app-shell #workspace-content [data-company="Evecture"] { color: #dc2626 !important; background: transparent !important; border: 0 !important; padding: 0 !important; }
+  .app-shell #workspace-content [data-company="Servn"] { color: #2563eb !important; background: transparent !important; border: 0 !important; padding: 0 !important; }
+
+  /* A consistent, colored button system including links styled as controls. */
+  html body :is(#workspace-content,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) :is(button,.button),
+  .app-shell #workspace-content :is(button,.button) {
+    --control-ink: #18181b; --control-bg: #edf2ff; --control-border: var(--studio-border);
+    color: var(--control-ink) !important; background: var(--control-bg) !important;
+    border-color: var(--control-border) !important; box-shadow: none !important;
+    text-decoration: none !important; text-transform: uppercase !important; letter-spacing: .035em !important;
+    transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .app-shell #workspace-content .button,
+  html body :is(.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) .button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    min-height: 38px !important; height: auto !important; padding: 9px 13px !important;
+    font-size: 11px !important; font-weight: 650 !important; line-height: 18px !important;
+  }
+  html body :is(#workspace-content,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) .button-primary,
+  .app-shell #workspace-content .button-primary {
+    --control-ink: #fff; --control-bg: #1d4ed8; --control-border: transparent;
+  }
+  html body .app-shell #workspace-content :is(.button-success,.button:has(> .lucide-check),.button:has(> .lucide-check-check),.button:has(> .lucide-circle-check)) {
+    --control-ink: #166534; --control-bg: #eaf5ee; --control-border: var(--studio-border);
+  }
+  html body :is(#workspace-content,.user-modal-backdrop,.invoice-preview-backdrop) :is(.button-danger,.project-delete-button,.portfolio-delete-icon-button,button:has(> .lucide-trash-2)),
+  .app-shell #workspace-content :is(.button-danger,.project-delete-button,.portfolio-delete-icon-button,button:has(> .lucide-trash-2)) {
+    --control-ink: #b91c1c; --control-bg: #fff0f0; --control-border: var(--studio-border);
+  }
+  html body .app-shell #workspace-content :is(.button:has(> .lucide-handshake),.button:has(> .lucide-send)) {
+    --control-ink: #6d28d9; --control-bg: #f3edff; --control-border: var(--studio-border);
+  }
+  html body :is(#workspace-content,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) :is(button,.button):hover:not(:disabled),
+  .app-shell #workspace-content :is(button,.button):hover:not(:disabled) {
+    color: var(--control-ink) !important; background: color-mix(in srgb, var(--control-bg) 93%, var(--control-ink)) !important;
+    border-color: #a1a1aa !important; box-shadow: 0 2px 5px rgb(24 24 27 / 8%) !important;
+  }
+  html body .app-shell #workspace-content :is(button[aria-selected="true"],button[aria-pressed="true"],.calendar-selected) {
+    --control-ink: #fff; --control-bg: #1d4ed8; --control-border: transparent;
+  }
+  html body .app-shell #workspace-content :is(.invoice-stat-card,.task-stat-card).selected {
+    --control-bg: #fff; --control-ink: #18181b; --control-border: #18181b;
+    background: var(--control-bg) !important; border: 1.5px solid var(--control-border) !important;
+  }
+  html body .app-shell #workspace-content .page-content :is(.invoice-stat-card,.task-stat-card),
+  html body .app-shell #workspace-content .page-content :is(.invoice-stat-card,.task-stat-card):hover {
+    --control-bg: #ffffff;
+    background: #ffffff !important;
+  }
+  /* White task controls with blue reserved for the List / Board view switcher. */
+  html body .app-shell #workspace-content .task-management-page :is(button,.button) {
+    --control-ink: #18181b; --control-bg: #ffffff; --control-border: #d4d4d8;
+  }
+  html body .app-shell #workspace-content .task-management-page :is(button,.button):not(.button-primary):hover:not(:disabled) {
+    background: #ffffff !important;
+  }
+  html body .app-shell #workspace-content .task-management-page .task-list-tabs {
+    background: #ffffff !important; border-color: #d4d4d8 !important;
+    gap: 6px !important; padding: 10px 18px;
+  }
+  html body .app-shell #workspace-content .task-management-page .task-list-tabs > button {
+    --control-ink: #18181b; --control-bg: #ffffff; --control-border: #d4d4d8;
+    min-height: 36px; gap: 10px; font-weight: 550;
+  }
+  html body .app-shell #workspace-content .task-management-page .task-list-tabs > button[aria-selected="true"] {
+    --control-bg: #ffffff; --control-border: #a1a1aa;
+    font-weight: 700; box-shadow: inset 0 -2px 0 #71717a !important;
+  }
+  html body .app-shell #workspace-content .task-management-page .task-view-switcher {
+    background: #ffffff !important; border: 1px solid #d4d4d8 !important;
+    padding: 3px; gap: 3px;
+  }
+  html body .app-shell #workspace-content .task-management-page .view-switcher-button {
+    --control-ink: #18181b; --control-bg: #edf2ff; --control-border: transparent;
+    min-height: 32px; padding: 0 12px;
+  }
+  html body .app-shell #workspace-content .task-management-page .view-switcher-button.active {
+    --control-ink: #ffffff; --control-bg: #1d4ed8; --control-border: #1d4ed8;
+  }
+  html body .app-shell #workspace-content .task-management-page .view-switcher-button:hover:not(:disabled) {
+    background: var(--control-bg) !important;
+  }
+  html body .app-shell #workspace-content .task-management-page :is(.task-list-tabs > button,.view-switcher-button) :is(span,svg) {
+    color: var(--control-ink) !important; -webkit-text-fill-color: currentColor !important;
+    opacity: 1 !important;
+  }
+  html body .app-shell #workspace-content .task-management-page .task-list-tabs .tab-count-pill {
+    min-width: 1.5ch; padding: 0; font-variant-numeric: tabular-nums;
+    font-size: 11px !important; font-weight: 650 !important;
+    background: transparent !important; border: 0 !important;
+  }
+  html body :is(button,.button):disabled { opacity: .5; cursor: not-allowed; }
+  html body :is(button,.button) > svg { flex-shrink: 0; stroke-width: 1.75; }
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.client-proposal-page) :is(a,button,input,select,textarea):focus-visible,
+  .app-shell #workspace-content :is(a,button,input,select,textarea):focus-visible {
+    outline: 2px solid #18181b !important; outline-offset: 3px; box-shadow: none !important;
+  }
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) *,
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) *::before,
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) *::after { border-radius: 0 !important; }
+
+  /* Dashboard metrics follow the shared page heading. */
+  .app-shell #workspace-content .overview-summary-card { min-height: 144px !important; padding: 20px !important; }
+  .app-shell #workspace-content .overview-summary-card strong { font-size: 34px !important; font-weight: 650 !important; margin: 14px 0 8px !important; line-height: 1 !important; letter-spacing: -.04em; }
+  .app-shell #workspace-content .overview-summary-card .overview-summary-subtext { font-size: 11px !important; margin-top: auto !important; }
+  .app-shell #workspace-content .overview-summary-card .overview-summary-icon { width: 21px; height: 21px; padding: 0 !important; background: none !important; color: #1d4ed8 !important; }
+  .app-shell #workspace-content .overview-summary-card:nth-child(2) .overview-summary-icon { color: #0f766e !important; }
+  .app-shell #workspace-content .overview-summary-card:nth-child(3) .overview-summary-icon { color: #6d28d9 !important; }
+  .app-shell #workspace-content .overview-summary-card:nth-child(4) .overview-summary-icon { color: #92400e !important; }
+  .app-shell #workspace-content .overview-project-card h3 { margin: 16px 0 8px !important; font-size: 15px !important; }
+
+  /* Compact proposal records share stable icon / title / status / action columns. */
+  .app-shell #workspace-content .proposals-page .proposal-index-panel { padding: 0 !important; overflow: hidden; }
+  .app-shell #workspace-content .proposals-page .proposal-index-panel > .panel-heading { padding: 16px 20px !important; margin: 0 !important; border-bottom: 1px solid var(--studio-border); }
+  .app-shell #workspace-content .proposals-page .proposal-index-row {
+    display: grid; grid-template-columns: 20px minmax(0,1fr) 110px 230px;
+    align-items: center; gap: 16px; min-height: 80px !important; padding: 14px 20px !important;
+    border-top: 0 !important; border-bottom: 1px solid var(--studio-border) !important;
+  }
+  .app-shell #workspace-content .proposals-page .proposal-index-row:last-child { border-bottom: 0 !important; }
+  .app-shell #workspace-content .proposals-page .proposal-index-mark { width: 20px !important; height: 24px !important; padding: 0 !important; color: #6d28d9 !important; background: none !important; border: 0 !important; }
+  .app-shell #workspace-content .proposals-page .proposal-index-main { display: grid; gap: 3px !important; }
+  .app-shell #workspace-content .proposals-page .proposal-index-main strong { font-size: 12px !important; line-height: 1.4 !important; font-weight: 650; }
+  .app-shell #workspace-content .proposals-page .proposal-index-main :is(span,small) { margin: 0 !important; font-size: 11px !important; line-height: 1.4 !important; color: var(--studio-muted) !important; }
+  .app-shell #workspace-content .proposals-page .proposal-index-row > .status-badge { justify-self: start; margin: 0 !important; }
+  .app-shell #workspace-content .proposals-page .proposal-index-actions { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; width: auto; padding: 0; }
+  .app-shell #workspace-content .proposals-page .proposal-index-actions a { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 34px; padding: 6px 9px; border: 1px solid var(--studio-border); background: #edf2ff; font-size: 10px !important; font-weight: 650; text-transform: uppercase; text-decoration: none; }
+  .app-shell #workspace-content .proposals-page .proposal-index-actions a:hover { background: #e0e9ff; border-color: #a1a1aa; }
+
+  /* The sign-in page uses the same type, surface, and spacing system. */
+  html body .auth-page { padding: 32px 20px; gap: 24px; align-content: center; }
+  html body .auth-page .auth-brand { width: min(420px,100%); justify-content: flex-start; color: #dc2626 !important; }
+  html body .auth-page .auth-card { display: grid; gap: 20px; width: min(420px,100%); margin: 0; padding: 32px; background: var(--studio-surface) !important; border: 1px solid var(--studio-border) !important; box-shadow: 0 12px 40px rgb(24 24 27 / 5%) !important; }
+  html body .auth-page .auth-card h1 { font-size: 28px; letter-spacing: -.035em; margin: 0; color: #18181b; }
+  html body .auth-page .auth-card > p { margin: -8px 0 0; color: #606570; line-height: 1.65; font-size: 13px; }
+  html body .auth-page .auth-card .field { margin: 0; gap: 8px; color: #3f3f46; }
+  html body .auth-page .auth-card input { background: #fff !important; color: #18181b !important; border: 1px solid #b8b8bf !important; min-height: 42px; }
+  html body .auth-page .auth-card > .button { width: 100%; margin: 0; }
+}
+
+@media screen and (min-width:701px) {
+  .app-shell .workspace-topbar .mobile-topbar-title { display: none !important; }
+}
+
+@media screen and (max-width:1000px) {
+  .app-shell #workspace-content .proposals-page .proposal-index-row { grid-template-columns: 20px minmax(0,1fr) 110px; gap: 12px; }
+  .app-shell #workspace-content .proposals-page .proposal-index-actions { grid-column: 2 / -1; justify-content: flex-start; }
+  .app-shell #workspace-content .welcome-actions { justify-content: flex-start; }
+}
+@media screen and (max-width:700px) {
+  :root { --studio-gutter: 16px; --studio-gap: 20px; }
+  .app-shell #workspace-content > .page-content { padding: 20px 16px 32px !important; }
+  .app-shell #workspace-content :is(.welcome-row,.record-heading,.enquiry-heading) { align-items: stretch !important; gap: 14px; margin-bottom: 22px !important; }
+  .app-shell #workspace-content :is(.welcome-row,.record-heading,.enquiry-heading) > div:first-child:has(h1) { flex-basis: auto; }
+  .app-shell #workspace-content :is(.welcome-actions,.task-page-actions,.project-lifecycle-actions) { justify-content: flex-start; }
+  .app-shell #workspace-content :is(.overview-summary-grid,.invoice-stats-grid,.task-stats-grid) { gap: 10px !important; }
+  .app-shell #workspace-content .overview-summary-card { min-height: 128px !important; padding: 14px !important; }
+  .app-shell #workspace-content .overview-summary-top { align-items: flex-start; gap: 6px; }
+  .app-shell #workspace-content .overview-summary-top small { font-size: 9px !important; }
+  .app-shell #workspace-content .overview-summary-card strong { font-size: 28px !important; }
+  .app-shell #workspace-content .overview-summary-card .overview-summary-icon { width: 17px; height: 17px; flex-shrink: 0; }
+  .app-shell #workspace-content :is(.overview-project-grid,.overview-lower-grid) { grid-template-columns: minmax(0,1fr) !important; }
+  .app-shell #workspace-content :is(.overview-project-card,.project-data-panel) { padding: 16px !important; }
+  .app-shell #workspace-content :is(.overview-panel-heading,.invoice-table-heading,.task-table-heading) { padding: 16px !important; }
+  .app-shell #workspace-content :is(.overview-task-row,.overview-request-row) { padding: 12px 16px !important; }
+  .app-shell #workspace-content .proposals-page .proposal-index-row { grid-template-columns: 18px minmax(0,1fr); padding: 14px !important; gap: 8px 10px; }
+  .app-shell #workspace-content .proposals-page .proposal-index-row > .status-badge { grid-column: 2; }
+  .app-shell #workspace-content .proposals-page .proposal-index-actions { grid-column: 2; }
+  .app-shell #workspace-content .proposals-page .proposal-index-actions a { min-height: 38px; }
+  .app-shell #workspace-content .proposals-page .proposal-index-panel > .panel-heading { padding: 14px !important; }
+  html body .auth-page { padding: 28px 20px; }
+  html body .auth-page .auth-card { padding: 24px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  html body :is(.app-shell,.auth-page) *, html body :is(.app-shell,.auth-page) *::before { transition: none !important; animation: none !important; }
+}
+
+/* Keep action surfaces crisp and let labels fit narrow cards. */
+@media screen {
+  html body :is(#workspace-content,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) :is(button,.button) {
+    --control-bg: #ffffff !important;
+    --control-ink: #0f172a !important;
+    text-transform: none !important;
+    max-width: 100%;
+  }
+  html body :is(#workspace-content,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) :is(.button-primary,.view-switcher-button.active,.calendar-selected,button[aria-pressed="true"]) {
+    --control-bg: #2563eb !important;
+    --control-ink: #ffffff !important;
+    --control-border: #64748b !important;
+  }
+  html body :is(#workspace-content,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) :is(button,.button):hover:not(:disabled) {
+    background: var(--control-bg) !important;
+    border-color: #64748b !important;
+  }
+  html body .app-shell #workspace-content .button {
+    min-width: 0;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+  .app-shell #workspace-content :is(.panel-heading,.overview-section-heading,.project-room-heading) > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .app-shell #workspace-content :is(.panel-heading,.overview-section-heading) > svg { flex-shrink: 0; }
+  .app-shell #workspace-content :is(.welcome-actions,.project-lifecycle-actions,.form-actions) { flex-wrap: wrap; min-width: 0; }
+  .app-shell #workspace-content .project-detail-grid { gap: 20px; }
+  .app-shell #workspace-content :is(.project-detail-main,.project-detail-side) { gap: 20px; }
+  .app-shell #workspace-content .assignment-inline-link {
+    min-width: 0; max-width: 100%; padding: 12px 0 0 !important;
+    margin-top: 12px; white-space: normal !important; overflow-wrap: anywhere;
+    line-height: 1.5; justify-content: space-between;
+  }
+  .app-shell #workspace-content .assignment-inline-link svg { flex: 0 0 auto; }
+  .app-shell #workspace-content .document-links > :is(a,span) { min-width: 0; white-space: normal !important; overflow-wrap: anywhere; }
+}
+@media screen and (max-width: 1000px) {
+  .app-shell #workspace-content .project-detail-grid { grid-template-columns: minmax(0,1fr) !important; }
+}
+
+
+/* Shared blue actions and softer charcoal outlines. */
+@media screen {
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) .button-primary {
+    --control-bg: #2563eb !important; --control-ink: #ffffff !important;
+    background: #2563eb !important; color: #ffffff !important;
+    border-color: #64748b !important;
+  }
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) .button-primary:hover:not(:disabled) {
+    background: #1d4ed8 !important;
+  }
+  html body .app-shell #workspace-content :is(.invoice-stat-card,.task-stat-card).selected {
+    border-color: #64748b !important;
+  }
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop) :is(a,button,input,select,textarea):focus-visible {
+    outline-color: #64748b !important;
+  }
+  html body .app-shell #workspace-content .projects-page .portfolio-actions {
+    display: flex !important; align-items: stretch !important; gap: 8px !important;
+  }
+  html body .app-shell #workspace-content .projects-page .portfolio-actions > .portfolio-lifecycle-button {
+    flex: 1 1 120px !important; min-width: 0 !important;
+    min-height: 38px !important; height: auto !important;
+    padding: 8px 10px !important; line-height: 20px !important;
+    text-transform: none !important; letter-spacing: 0 !important;
+    border-radius: 0 !important;
+  }
+  html body .app-shell #workspace-content .projects-page .portfolio-actions > .portfolio-delete-icon-button {
+    flex: 0 0 38px !important; width: 38px !important;
+    min-height: 38px !important; height: auto !important; align-self: stretch;
+    border-radius: 0 !important;
+  }
+}
+
+
+/* Quiet outlines at rest, clearer boundaries on interaction. */
+@media screen {
+  :root { --studio-border: #eef0f3; }
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) {
+    --ws-border: #eef0f3;
+  }
+  html body .app-shell #workspace-content :is(.panel,.portfolio-card,.client-card,.lead-record,.overview-summary-card,.overview-project-card,.role-summary-card,.portal-record,.qualification-box,.project-data-panel,.invoice-table-panel,.task-table-panel,.invoice-stat-card,.task-stat-card),
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) :is(.button,button,input,select,textarea) {
+    --control-border: #eef0f3 !important;
+    border-color: #eef0f3 !important;
+    transition: border-color 150ms ease;
+  }
+  html body .app-shell #workspace-content :is(.panel,.portfolio-card,.client-card,.lead-record,.overview-summary-card,.overview-project-card,.role-summary-card,.portal-record,.qualification-box,.project-data-panel,.invoice-table-panel,.task-table-panel,.invoice-stat-card,.task-stat-card):hover,
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) :is(.button,button,input,select,textarea):hover:not(:disabled) {
+    --control-border: #94a3b8 !important;
+    border-color: #94a3b8 !important;
+  }
+  html body .app-shell #workspace-content :is(.invoice-stat-card,.task-stat-card).selected,
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) :is(.button,button,input,select,textarea):focus-visible {
+    border-color: #64748b !important;
+    outline-color: #64748b !important;
+  }
+}
+
+/* Use one focus boundary instead of stacking borders, rings, and shadows. */
+@media screen {
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) :is(input,select,textarea,button,.button):is(:focus,:focus-visible) {
+    outline: none !important;
+    box-shadow: none !important;
+    border-color: #64748b !important;
+  }
+  /* Borderless controls still need a visible keyboard focus indicator. */
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) :is(button,.button,a):focus-visible {
+    outline: 2px solid #64748b !important;
+    outline-offset: -2px !important;
+    box-shadow: none !important;
+  }
+  html body .calendar-input-wrapper:focus-within {
+    outline: none !important;
+    box-shadow: none !important;
+    border-color: #64748b !important;
+  }
+  html body .calendar-input-wrapper input:is(:focus,:focus-visible) {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Client labels must remain legible on pale surfaces. */
+@media screen {
+  html body :is(.app-shell,.user-modal-backdrop) :is(.role-client,.user-role-client),
+  html body .app-shell .workspace-topbar .topbar-user-role-badge.role-client,
+  html body .app-shell .topbar-dropdown-user-info .role-pill.role-client {
+    color: #475569 !important;
+    -webkit-text-fill-color: #475569 !important;
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    opacity: 1 !important;
+  }
+}
+
+@media screen {
+  html body .app-shell #workspace-content .client-project-link {
+    display: block; color: #0f172a !important; text-decoration: none !important;
+    cursor: pointer;
+  }
+  html body .app-shell #workspace-content .client-project-link:focus-visible {
+    outline: 2px solid #64748b !important; outline-offset: 2px;
+  }
+  .client-project-task-list { list-style: none; padding: 0; margin: 0; }
+  .client-project-task-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 0; border-bottom: 1px solid #eef0f3; }
+  .client-project-task-list li > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+  html body :is(.app-shell,.user-modal-backdrop) :is(.role-client,.user-role-client),
+  html body .app-shell .workspace-topbar .topbar-user-role-badge.role-client,
+  html body .app-shell .topbar-dropdown-user-info .role-pill.role-client {
+    color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important;
+    background: #eff6ff !important; border-color: #dbeafe !important;
+    font-weight: 650 !important; opacity: 1 !important;
+  }
+}
+
+/* Boards grow with their cards; empty columns reserve one card of space. */
+@media screen {
+  .app-shell #workspace-content :is(.task-kanban-board,.project-kanban-board,.project-board-columns) {
+    align-items: start !important;
+    align-content: start;
+    height: auto;
+    min-height: 0;
+  }
+  .app-shell #workspace-content :is(.task-kanban-column,.kanban-column,.project-board-column) {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+  .app-shell #workspace-content :is(.task-kanban-column-body,.kanban-column-body) {
+    flex: 0 0 auto;
+  }
+  .app-shell #workspace-content :is(.task-kanban-empty,.kanban-column-empty,.project-board-empty) {
+    flex: 0 0 auto;
+    min-height: 240px;
+    padding: 16px 12px;
+    box-sizing: border-box;
+  }
+}
+
+/* Role identity: dark symbols on soft coloured surfaces, including the profile menu. */
+@media screen {
+  html body .app-shell .role-avatar { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  html body .app-shell .role-avatar-admin { color: #1e3a8a !important; background: #dbeafe !important; }
+  html body .app-shell .role-avatar-employee { color: #115e59 !important; background: #ccfbf1 !important; }
+  html body .app-shell .role-avatar-client { color: #5b21b6 !important; background: #ede9fe !important; }
+  html body :is(.app-shell,.user-modal-backdrop) :is(.user-role-badge,.role-pill,.topbar-user-role-badge) {
+    display: inline-flex !important; align-items: center; gap: 5px; white-space: nowrap;
+  }
+  html body :is(.app-shell,.user-modal-backdrop) :is(.role-admin,.user-role-admin) { color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; background: #dbeafe !important; }
+  html body :is(.app-shell,.user-modal-backdrop) :is(.role-employee,.user-role-employee) { color: #115e59 !important; -webkit-text-fill-color: #115e59 !important; background: #ccfbf1 !important; }
+  html body :is(.app-shell,.user-modal-backdrop) :is(.role-client,.user-role-client),
+  html body .app-shell .workspace-topbar .topbar-user-role-badge.role-client,
+  html body .app-shell .topbar-dropdown-user-info .role-pill.role-client {
+    color: #5b21b6 !important; -webkit-text-fill-color: #5b21b6 !important; background: #ede9fe !important;
+  }
+  html body :is(.app-shell,.user-modal-backdrop) svg.workspace-role-icon { color: inherit !important; stroke: currentColor !important; flex-shrink: 0; opacity: 1 !important; }
+}
+
+/* Client project detail uses one consistent content edge and spacing rhythm. */
+@media screen {
+  .app-shell #workspace-content .client-project-detail { display: grid; align-content: start; gap: 20px; }
+  .app-shell #workspace-content .client-project-detail .client-project-back { justify-self: start; margin: 0; line-height: 1.5; }
+  .app-shell #workspace-content .client-project-detail-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 16px 24px; margin: 0 0 4px; }
+  .app-shell #workspace-content .client-project-detail-heading > div { min-width: 0; }
+  .app-shell #workspace-content .client-project-detail-heading .client-project-reference { display: block; margin-bottom: 6px; }
+  .app-shell #workspace-content .client-project-detail-heading h1 { margin: 0 !important; font-size: clamp(24px,2.4vw,32px) !important; line-height: 1.2 !important; overflow-wrap: anywhere; }
+  .app-shell #workspace-content .client-project-detail-heading > .status-badge { flex-shrink: 0; margin: 0; }
+  .app-shell #workspace-content .client-project-detail > .portal-record { margin: 0 !important; padding: 24px !important; min-width: 0; }
+  .app-shell #workspace-content .client-project-detail .portal-record h2 { margin: 0 !important; line-height: 1.4; }
+  .app-shell #workspace-content .client-project-progress-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 16px; }
+  .app-shell #workspace-content .client-project-progress-heading p { margin: 0 !important; }
+  .app-shell #workspace-content .client-project-progress-panel progress { display: block; width: 100%; height: 8px; margin: 0 !important; appearance: none; border: 0; background: #eef0f3; }
+  .app-shell #workspace-content .client-project-progress-panel progress::-webkit-progress-bar { background: #eef0f3; }
+  .app-shell #workspace-content .client-project-progress-panel progress::-webkit-progress-value { background: #2563eb; }
+  .app-shell #workspace-content .client-project-progress-panel progress::-moz-progress-bar { background: #2563eb; }
+}
+@media screen and (max-width:700px) {
+  .app-shell #workspace-content .client-project-detail > .portal-record { padding: 16px !important; }
+  .app-shell #workspace-content .client-project-detail-heading { gap: 12px; }
+}
+
+/* Breathing room around client portal page headings. */
+@media screen {
+  .app-shell #workspace-content .client-projects-page > .welcome-row {
+    padding-top: 12px !important;
+    margin-bottom: 28px !important;
+  }
+  .app-shell #workspace-content .client-project-detail .client-project-back {
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+  .app-shell #workspace-content .client-project-detail-heading {
+    padding-top: 4px;
+    margin-bottom: 16px;
+  }
+  .app-shell #workspace-content .client-project-detail-heading .client-project-reference {
+    margin-bottom: 10px;
+  }
+}
+
+/* Role badges pair a visible symbol and matching text inside a tinted rectangle. */
+@media screen {
+  html body :is(#workspace-content,.workspace-topbar,.user-modal-backdrop) :is(.user-role-admin,.role-admin,.role-avatar-admin) {
+    --role-ink: #b91c1c; --role-surface: #fef2f2; --role-border: #fecaca;
+  }
+  html body :is(#workspace-content,.workspace-topbar,.user-modal-backdrop) :is(.user-role-employee,.role-employee,.role-avatar-employee) {
+    --role-ink: #115e59; --role-surface: #f0fdfa; --role-border: #99f6e4;
+  }
+  html body :is(#workspace-content,.workspace-topbar,.user-modal-backdrop) :is(.user-role-client,.role-client,.role-avatar-client) {
+    --role-ink: #6b21a8; --role-surface: #faf5ff; --role-border: #e9d5ff;
+  }
+  html body :is(#workspace-content,.workspace-topbar,.user-modal-backdrop) :is(.user-role-badge,.role-pill,.topbar-user-role-badge,.role-avatar) {
+    display: inline-flex !important; align-items: center !important; justify-content: center; gap: 7px !important;
+    color: var(--role-ink) !important; -webkit-text-fill-color: var(--role-ink) !important;
+    background: var(--role-surface) !important; border: 1px solid var(--role-border) !important;
+    border-radius: 0 !important; box-shadow: none !important;
+    padding: 6px 10px !important; min-height: 30px; height: auto !important;
+    font-weight: 650; line-height: 18px; white-space: nowrap;
+  }
+  html body :is(#workspace-content,.workspace-topbar,.user-modal-backdrop) :is(.user-role-badge,.role-pill,.topbar-user-role-badge,.role-avatar) svg.workspace-role-icon {
+    display: block !important; visibility: visible !important; opacity: 1 !important;
+    width: 16px !important; height: 16px !important; flex: 0 0 16px !important;
+    color: var(--role-ink) !important; stroke: var(--role-ink) !important;
+    fill: none !important; stroke-width: 2 !important;
+  }
+}
+
+/* Compact profile identity: top-aligned avatar and a single role badge. */
+@media screen {
+  html body .app-shell .workspace-topbar .topbar-dropdown-user-header {
+    display: flex; align-items: flex-start; gap: 12px; padding: 12px 8px 16px;
+  }
+  html body .app-shell .workspace-topbar .topbar-dropdown-user-icon {
+    flex: 0 0 36px; width: 36px; height: 36px !important; min-height: 36px;
+    display: grid; place-items: center; padding: 0 !important;
+    color: #cbd5e1 !important; background: #1f2937 !important;
+    border: 1px solid #334155 !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-dropdown-user-info {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0;
+  }
+  html body .app-shell .workspace-topbar .topbar-dropdown-user-info strong { margin: 0; line-height: 20px; }
+  html body .app-shell .workspace-topbar .topbar-dropdown-user-info small { margin: 0; max-width: 100%; overflow-wrap: anywhere; white-space: normal; line-height: 17px; }
+  html body .app-shell #workspace-topbar .topbar-dropdown-user-info .role-pill,
+  html body .app-shell .workspace-topbar .topbar-dropdown-user-info .role-pill {
+    align-self: flex-start; min-height: 24px !important; height: 24px !important;
+    padding: 2px 7px !important; margin-top: 4px !important; gap: 5px !important;
+    font-size: 10px !important; line-height: 16px !important;
+  }
+}

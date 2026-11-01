@@ -394,17 +394,12 @@
   .app-shell .overview-summary-subtext { min-height: 16px; margin-top: auto !important; color: #64748b !important; font-size: 10px !important; }
   .app-shell .overview-card-arrow,
   .app-shell .overview-summary-card::before { display: none !important; }
-  .app-shell .overview-summary-top::after {
-    content: "";
+  .app-shell .overview-summary-icon {
     display: block;
     flex: 0 0 30px;
     width: 30px;
     height: 24px;
-    background:
-      linear-gradient(#bfdbfe,#bfdbfe) 0 100% / 4px 12px no-repeat,
-      linear-gradient(#60a5fa,#60a5fa) 8px 100% / 4px 18px no-repeat,
-      linear-gradient(#2563eb,#2563eb) 16px 100% / 4px 24px no-repeat,
-      linear-gradient(#bfdbfe,#bfdbfe) 24px 100% / 4px 15px no-repeat;
+    color: #2563eb;
   }
   .app-shell .overview-summary-card:hover,
   .app-shell .overview-project-card:hover { transform: translateY(-2px) !important; border-color: #bfdbfe !important; box-shadow: 0 7px 18px rgb(37 99 235 / 8%) !important; }

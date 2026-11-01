@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BriefcaseBusiness, Check, Clock3, Inbox, ListTodo, Plus } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, Check, Clock3, Inbox, ListTodo, Plus, ReceiptText } from "lucide-react";
 import { type Lead, readLeads } from "@/lib/leads";
 import { type Project, readProjects, getProjectDisplayTitle, isProjectAssignedToUser, isTaskAssignedToUser } from "@/lib/projects";
 import { readInvoices, type StoredInvoice } from "@/lib/invoices";
@@ -75,7 +75,7 @@ export default function OverviewPage() {
       <Link href="/projects" className="overview-summary-card">
         <div className="overview-summary-top">
           <small>Active projects</small>
-          <ArrowRight size={14} className="overview-card-arrow" />
+          <BriefcaseBusiness size={24} strokeWidth={1.6} className="overview-summary-icon" aria-hidden="true" />
         </div>
         <strong>{activeProjects.length}</strong>
         <span className="overview-summary-subtext">
@@ -85,7 +85,7 @@ export default function OverviewPage() {
       <Link href="/work" className="overview-summary-card">
         <div className="overview-summary-top">
           <small>Open tasks</small>
-          <ArrowRight size={14} className="overview-card-arrow" />
+          <ListTodo size={24} strokeWidth={1.6} className="overview-summary-icon" aria-hidden="true" />
         </div>
         <strong>{openTasks.length}</strong>
         <span className="overview-summary-subtext">
@@ -95,7 +95,7 @@ export default function OverviewPage() {
       {role === "admin" && <Link href="/invoices" className="overview-summary-card">
         <div className="overview-summary-top">
           <small>Pending invoices</small>
-          <ArrowRight size={14} className="overview-card-arrow" />
+          <ReceiptText size={24} strokeWidth={1.6} className="overview-summary-icon" aria-hidden="true" />
         </div>
         <strong>{pendingInvoices.length}</strong>
         <span className="overview-summary-subtext">
@@ -105,7 +105,7 @@ export default function OverviewPage() {
       {role === "admin" && <Link href="/requests" className="overview-summary-card">
         <div className="overview-summary-top">
           <small>Needs review</small>
-          <ArrowRight size={14} className="overview-card-arrow" />
+          <Inbox size={24} strokeWidth={1.6} className="overview-summary-icon" aria-hidden="true" />
         </div>
         <strong>{newCount}</strong>
         <span className="overview-summary-subtext">
@@ -113,8 +113,8 @@ export default function OverviewPage() {
         </span>
       </Link>}
       {role === "employee" && <>
-        <Link href="/work" className="overview-summary-card"><div className="overview-summary-top"><small>In progress</small><ArrowRight size={14} className="overview-card-arrow" /></div><strong>{inProgressCount}</strong><span className="overview-summary-subtext">Your active tasks</span></Link>
-        <Link href="/work" className="overview-summary-card"><div className="overview-summary-top"><small>Completed tasks</small><ArrowRight size={14} className="overview-card-arrow" /></div><strong>{completedTaskCount}</strong><span className="overview-summary-subtext">Your finished work</span></Link>
+        <Link href="/work" className="overview-summary-card"><div className="overview-summary-top"><small>In progress</small><Clock3 size={24} strokeWidth={1.6} className="overview-summary-icon" aria-hidden="true" /></div><strong>{inProgressCount}</strong><span className="overview-summary-subtext">Your active tasks</span></Link>
+        <Link href="/work" className="overview-summary-card"><div className="overview-summary-top"><small>Completed tasks</small><Check size={24} strokeWidth={1.6} className="overview-summary-icon" aria-hidden="true" /></div><strong>{completedTaskCount}</strong><span className="overview-summary-subtext">Your finished work</span></Link>
       </>}
     </section>
 
@@ -129,7 +129,7 @@ export default function OverviewPage() {
             <span className={`company-pill company-${(project.operatingCompany ?? "Evecture").toLowerCase()}`} data-company={project.operatingCompany ?? "Evecture"}>
               {project.operatingCompany ?? "Evecture"}
             </span>
-            <StatusBadge status={project.status}>Active</StatusBadge>
+            <StatusBadge status={project.status} />
           </div>
           <h3 className="overview-project-title">{getProjectDisplayTitle(project)}</h3>
           <p className="overview-project-services">{project.clientCompany || project.clientName} · {project.services.join(", ") || "Project delivery"}</p>

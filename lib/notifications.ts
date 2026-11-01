@@ -1,149 +1,27 @@
-import { readLeads } from "./leads";
-import { readProjects } from "./projects";
-import { readInvoices } from "./invoices";
-
-export type NotificationType = "LEAD" | "TASK" | "INVOICE" | "PROJECT" | "SYSTEM";
-
-export interface WorkspaceNotification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  link?: string;
-  read: boolean;
-  createdAt: string;
+import { supabase } from "./supabase";
+export type NotificationType = "LEAD" | "TASK" | "PROJECT";
+export interface WorkspaceNotification { id:string; type:NotificationType; title:string; message:string; link?:string; read:boolean; createdAt:string; }
+let items: WorkspaceNotification[] = [];
+let generation = 0;
+function changed() { if (typeof window !== "undefined") window.dispatchEvent(new Event("evecture:notifications-updated")); }
+export function resetNotifications() { generation++; items=[]; changed(); }
+export function readNotifications() { return items; }
+export async function refreshNotifications() {
+  if (!supabase) return;
+  const version=generation;
+  const {data,error}=await supabase.from("workspace_notifications").select("id,type,title,message,link,read,created_at").order("created_at",{ascending:false}).limit(100);
+  if (error) throw error;
+  if(version!==generation)return;
+  items=(data??[]).map(row=>({...row,createdAt:row.created_at})); changed();
 }
-
-let memoryNotifications: WorkspaceNotification[] | undefined;
-
-export function resetNotifications() { memoryNotifications = undefined; dispatchNotificationEvent(); }
-
-function dispatchNotificationEvent() {
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event("evecture:notifications-updated"));
-  }
+async function mutate(id:string|undefined,remove:boolean) {
+  if(!supabase)return;
+  const query=remove ? supabase.from("workspace_notifications").delete() : supabase.from("workspace_notifications").update({read:true});
+  const {error}=await (id ? query.eq("id",id) : query.in("id",items.map(item=>item.id)));
+  if(error)throw error;
+  await refreshNotifications();
 }
-
-export function readNotifications(): WorkspaceNotification[] {
-  if (typeof window === "undefined") return [];
-  if (!memoryNotifications) {
-    memoryNotifications = generateInitialNotifications();
-  }
-  return memoryNotifications;
-}
-
-export function saveNotifications(items: WorkspaceNotification[]) {
-  if (typeof window === "undefined") return;
-  memoryNotifications = items;
-  dispatchNotificationEvent();
-}
-
-export function addNotification(
-  item: Omit<WorkspaceNotification, "id" | "createdAt" | "read">
-): WorkspaceNotification {
-  const current = readNotifications();
-  const newNotification: WorkspaceNotification = {
-    ...item,
-    id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    read: false,
-    createdAt: new Date().toISOString(),
-  };
-  saveNotifications([newNotification, ...current]);
-  return newNotification;
-}
-
-export function markNotificationRead(id: string) {
-  const current = readNotifications();
-  const updated = current.map((item) => (item.id === id ? { ...item, read: true } : item));
-  saveNotifications(updated);
-}
-
-export function markAllNotificationsRead() {
-  const current = readNotifications();
-  const updated = current.map((item) => ({ ...item, read: true }));
-  saveNotifications(updated);
-}
-
-export function dismissNotification(id: string) {
-  const current = readNotifications();
-  const updated = current.filter((item) => item.id !== id);
-  saveNotifications(updated);
-}
-
-export function clearAllNotifications() {
-  saveNotifications([]);
-}
-
-/**
- * Synthesizes initial real notifications from current workspace leads, projects, and invoices
- */
-export function generateInitialNotifications(): WorkspaceNotification[] {
-  const items: WorkspaceNotification[] = [];
-  const now = Date.now();
-
-  try {
-    const leads = readLeads();
-    const newLeads = leads.filter((lead) => lead.status === "NEW" || !lead.firstContactAt);
-    newLeads.slice(0, 3).forEach((lead, index) => {
-      items.push({
-        id: `seed-lead-${lead.id}`,
-        type: "LEAD",
-        title: `New Enquiry: ${lead.companyName || lead.fullName}`,
-        message: `${lead.fullName} submitted an enquiry for ${lead.services.join(", ") || "Project delivery"}.`,
-        link: `/requests#${lead.id}`,
-        read: index > 0,
-        createdAt: new Date(now - (index + 1) * 35 * 60 * 1000).toISOString(),
-      });
-    });
-
-    const invoices = readInvoices();
-    const pendingInvoices = invoices.filter((inv) => inv.status === "SENT" || inv.status === "GENERATED");
-    pendingInvoices.slice(0, 2).forEach((invoice, index) => {
-      items.push({
-        id: `seed-inv-${invoice.id}`,
-        type: "INVOICE",
-        title: `Invoice ${invoice.invoiceNumber || invoice.id} · ${invoice.status === "SENT" ? "Awaiting Payment" : "Draft Ready"}`,
-        message: `${invoice.billTo || invoice.clientName || "Client"} invoice for $${(invoice.total || invoice.subtotal || 0).toLocaleString()} is currently ${invoice.status.toLowerCase()}.`,
-        link: `/invoices`,
-        read: false,
-        createdAt: new Date(now - (index + 2) * 85 * 60 * 1000).toISOString(),
-      });
-    });
-
-    const projects = readProjects();
-    const activeProjects = projects.filter((p) => p.status !== "COMPLETED");
-    if (activeProjects.length > 0) {
-      const proj = activeProjects[0];
-      const tasks = proj.workItems ?? [];
-      const inProgressTask = tasks.find((t) => t.status === "IN_PROGRESS" || t.status === "TO_DO");
-      if (inProgressTask) {
-        items.push({
-          id: `seed-task-${inProgressTask.id}`,
-          type: "TASK",
-          title: `Active Task: ${inProgressTask.title}`,
-          message: `Assigned to ${inProgressTask.assignee || "team"} in project "${proj.title}".`,
-          link: `/work`,
-          read: true,
-          createdAt: new Date(now - 180 * 60 * 1000).toISOString(),
-        });
-      }
-    }
-
-    if (items.length === 0) {
-      items.push({
-        id: `seed-system-welcome`,
-        type: "SYSTEM",
-        title: "Welcome to Evecture PMS",
-        message: "Your project workspace notifications will appear here in real time.",
-        link: "/",
-        read: false,
-        createdAt: new Date(now - 10 * 60 * 1000).toISOString(),
-      });
-    }
-  } catch (error) {
-    console.error("Error generating initial notifications", error);
-  }
-
-  // Sort by createdAt descending
-  return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
+export const markNotificationRead=(id:string)=>mutate(id,false);
+export const markAllNotificationsRead=()=>mutate(undefined,false);
+export const dismissNotification=(id:string)=>mutate(id,true);
+export const clearAllNotifications=()=>mutate(undefined,true);

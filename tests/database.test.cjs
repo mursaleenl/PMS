@@ -233,5 +233,38 @@ test('workspace database migrations and transactional workflows',async t=>{
    await save([change('projects',project('UNASSIGNED','L2',{workItems:[{...work,assignee:'',assigneeId:undefined}]}))]);
    assert.equal((await db.query("select status from projects where external_id='UNASSIGNED'")).rows[0].status,'ACTIVE');
  });
+ await t.test('notifications target recipients and audit is restricted',async()=>{
+   const sql=fs.readFileSync('supabase/activity-notifications-migration.sql','utf8');
+   await db.exec(sql);await db.exec(sql);
+   await identity(ADMIN,'admin@example.com');
+   await save([change('leads',lead('NOTICE'))]);
+   assert.deepEqual((await db.query("select recipient_id from workspace_notifications where type='LEAD'")).rows.map(r=>r.recipient_id),[ADMIN]);
+   const work={id:'NOTICE-TASK',title:'Assigned task',kind:'FEATURE_DEV',status:'TO_DO',priority:'P3',assignee:'Employee',assigneeId:EMPLOYEE,createdAt:'2026-10-31T00:00:00Z'};
+   await save([change('projects',project('NOTICE-PROJECT','NOTICE',{workItems:[work]}))]);
+   assert.deepEqual((await db.query("select recipient_id from workspace_notifications where type='TASK'")).rows.map(r=>r.recipient_id),[EMPLOYEE]);
+   await db.query("update projects set status='COMPLETED' where external_id='NOTICE-PROJECT'");
+   assert.deepEqual((await db.query("select distinct recipient_id from workspace_notifications where type='PROJECT'")).rows.map(r=>r.recipient_id).sort(),[EMPLOYEE,CLIENT].sort());
+   const count=(await db.query('select count(*)::int n from workspace_notifications')).rows[0].n;
+   await db.query("update projects set title='Renamed' where external_id='NOTICE-PROJECT'");
+   assert.equal((await db.query('select count(*)::int n from workspace_notifications')).rows[0].n,count);
+   await identity(EMPLOYEE,'employee@example.com');await db.exec('set role authenticated');
+   assert.ok((await db.query('select * from workspace_notifications')).rows.every(r=>r.recipient_id===EMPLOYEE));
+   assert.equal((await db.query('select * from audit_events')).rows.length,0);
+   await assert.rejects(db.query("insert into audit_events(entity_type,action) values('fake','INSERT')"));
+   await assert.rejects(db.query("update workspace_notifications set title='forged'"));
+   await db.query('update workspace_notifications set read=true');
+   await db.exec('reset role');await identity(ADMIN,'admin@example.com');
+   assert.ok((await db.query('select * from audit_events')).rows.length>0);
+ });
+ await t.test('client project tasks expose safe fields only',async()=>{
+   await db.exec(fs.readFileSync('supabase/client-project-tasks-migration.sql','utf8'));
+   await identity(CLIENT,'client@example.com');await db.exec('set role authenticated');
+   const projects=(await db.query('select read_client_projects() result')).rows[0].result;
+   assert.ok(!projects.some(p=>p.external_id==='PRIVATE'));
+   const project=projects.find(p=>p.external_id==='NOTICE-PROJECT');
+   assert.ok(project.tasks.length);
+   assert.deepEqual(Object.keys(project.tasks[0]).sort(),['id','status','title']);
+   await db.exec('reset role');
+ });
  await db.close();
 });

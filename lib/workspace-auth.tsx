@@ -118,6 +118,42 @@ export function WorkspaceAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { void refreshAccess(); }, [refreshAccess]);
 
+  useEffect(() => {
+    if (!supabase || !userId || !session) return;
+    const client = supabase;
+    // Capture the actual sign-in time, not the access-token refresh time.
+    const signedInAt = Date.parse(session.user.last_sign_in_at || session.user.created_at);
+    let stopped = false;
+    let checking = false;
+    async function checkAccessChange() {
+      if (checking || stopped) return;
+      checking = true;
+      try {
+        const { data, error } = await client.auth.getUser();
+        if (stopped || error || !data.user) return;
+        const changedAt = Date.parse(data.user.app_metadata.access_changed_at || "");
+        if (Number.isFinite(changedAt) && changedAt > signedInAt) {
+          stopped = true;
+          await client.auth.signOut({ scope: "local" });
+          window.location.replace("/sign-in?reason=access-changed");
+        }
+      } catch {
+        // Retry temporary connectivity failures on the next poll or focus.
+      } finally { checking = false; }
+    }
+    void checkAccessChange();
+    const timer = window.setInterval(() => { void checkAccessChange(); }, 10000);
+    const onFocus = () => { void checkAccessChange(); };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onFocus);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onFocus);
+    };
+  }, [userId, session?.user.last_sign_in_at]);
+
   const identityResolved = !userId || resolvedUserId === userId;
   const effectiveRole = identityResolved ? databaseRole : null;
   const value: AuthContextValue = {
@@ -134,7 +170,7 @@ export function WorkspaceAuthProvider({ children }: { children: ReactNode }) {
     updateMemberRole:async (id,role) => { await userManagementRequest(session,"PATCH",{id,role}); await refreshAccess(); },
     removeMember:async id => { await userManagementRequest(session,"DELETE",{id}); await refreshAccess(); },
     updatePassword:async password => {
-      if (databaseRole === "employee") throw new Error("Password changes are managed by an administrator.");
+      if (databaseRole !== "admin") throw new Error("Password changes are managed by an administrator.");
       if (!supabase || !user) throw new Error("Sign in before changing your password.");
       const result = await supabase.auth.updateUser({password});
       if (result.error) throw result.error;

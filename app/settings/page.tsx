@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { ArrowRight, KeyRound } from "lucide-react";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
+import { RoleIcon } from "@/app/_components/role-icon";
 import type { WorkspaceRole } from "@/lib/roles";
 
 function readError(error: unknown, fallback: string) {
@@ -24,7 +25,7 @@ export default function SettingsPage() {
   async function changePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPasswordMessage("");
-    if (workspaceRole === "employee") {
+    if (workspaceRole !== "admin") {
       setPasswordMessage("Password changes are managed by an administrator.");
       return;
     }
@@ -53,7 +54,7 @@ export default function SettingsPage() {
       <section className="welcome-row">
         <div>
           <h1>Account settings</h1>
-          <p className="welcome-subtitle">{workspaceRole === "employee" ? "View your account details." : "Manage your profile, sign-in email, password, and security options."}</p>
+          <p className="welcome-subtitle">{workspaceRole !== "admin" ? "View your account details." : "Manage your profile, sign-in email, password, and security options."}</p>
         </div>
       </section>
 
@@ -65,12 +66,12 @@ export default function SettingsPage() {
               <span className="account-user-email">{user?.email}</span>
             </div>
             <span className={`user-role-badge user-role-${workspaceRole}`}>
-              {roleLabel(workspaceRole)}
+              <RoleIcon role={workspaceRole} size={15}/>{roleLabel(workspaceRole)}
             </span>
           </div>
         </div>
 
-        {workspaceRole !== "employee" && <form className="password-change-card" onSubmit={changePassword}>
+        {workspaceRole === "admin" && <form className="password-change-card" onSubmit={changePassword}>
           <div className="password-card-header">
             <div className="password-card-title-row">
               <KeyRound size={16} className="password-header-icon" />

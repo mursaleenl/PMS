@@ -6,6 +6,7 @@ import "./styles/workspace.css";
 import "./styles/floating-navigation.css";
 import "./styles/premium-workspace.css";
 import "./styles/mobile-polish.css";
+import "./styles/usability.css";
 import { WorkspaceShell } from "./_components/workspace-shell";
 import { AppProviders } from "./_components/providers";
 

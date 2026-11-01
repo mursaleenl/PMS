@@ -10,7 +10,7 @@
   --blue-soft: #e9f2ff;
   --green: #16875b;
   --font-body: var(--font-roboto), "Roboto", Arial, sans-serif;
-  --font-display: var(--font-roboto), "Roboto", Arial, sans-serif;
+  --font-display: var(--font-body);
 }
 
 * {
@@ -5873,7 +5873,7 @@ button.button-primary:active {
 }
 
 .kanban-column {
-  min-height: 440px;
+  min-height: 0;
   padding: 14px 12px;
   border: 1px solid var(--ws-border, #e2e8f0);
   border-radius: 0;
@@ -12491,7 +12491,7 @@ textarea {
 }
 
 .main-area .task-management-page .task-kanban-column {
-  min-height: 520px;
+  min-height: 0;
   padding: 12px;
   border-radius: 0;
   background: var(--ws-subtle-surface, #f1f5f9);

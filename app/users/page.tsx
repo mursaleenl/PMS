@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Plus, ShieldCheck, Trash2, User, UserRoundPlus, X } from "lucide-react";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
+import { RoleIcon } from "@/app/_components/role-icon";
 import type { WorkspaceRole } from "@/lib/roles";
 
 type WorkspaceMember = {
@@ -162,7 +163,7 @@ export default function UsersPage() {
                       </td>
                       <td>
                         <span className={`user-role-badge user-role-${member.role}`}>
-                          <ShieldCheck size={14} />
+                          <RoleIcon role={member.role} size={15} />
                           {roleLabel(member.role)}
                         </span>
                       </td>
@@ -316,7 +317,7 @@ export default function UsersPage() {
                 <div className="edit-user-title-row">
                   <strong>{editingMember.display_name?.trim() || editingMember.email.split("@")[0]}</strong>
                   <span className={`user-role-badge user-role-${editingMember.role}`}>
-                    <ShieldCheck size={13} />
+                    <RoleIcon role={editingMember.role} size={15} />
                     {roleLabel(editingMember.role)}
                   </span>
                 </div>

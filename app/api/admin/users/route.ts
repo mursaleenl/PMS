@@ -104,6 +104,14 @@ export async function PATCH(request: Request) {
     if (admins.error) return NextResponse.json({ error: admins.error.message }, { status: 500 });
     if ((admins.count ?? 0) <= 1) return NextResponse.json({ error: "The workspace must keep at least one administrator." }, { status: 400 });
   }
+  if (target.role === body.role) return NextResponse.json({ success: true });
+  // Stamp the account before changing access so existing app sessions must reauthenticate.
+  if (target.user_id) {
+    const { error: invalidateError } = await auth.client.auth.admin.updateUserById(target.user_id, {
+      app_metadata: { access_changed_at: new Date().toISOString() },
+    });
+    if (invalidateError) return NextResponse.json({ error: "Unable to require re-login. The role was not changed." }, { status: 500 });
+  }
   const { error } = await auth.client.from("workspace_members").update({ role: body.role }).eq("id", body.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });

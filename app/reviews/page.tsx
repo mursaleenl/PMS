@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Bug, RefreshCw, Send, ShieldAlert } from "lucide-react";
+import { ClipboardCheck, MessageSquareWarning, RefreshCw, Send } from "lucide-react";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { supabase } from "@/lib/supabase";
@@ -116,7 +116,7 @@ export default function ReviewsPage() {
     <section className="welcome-row"><div><h1>Reviews</h1><p className="welcome-subtitle">{isAdmin ? "Review reported bugs and issues, then track them through resolution." : "Report bugs and issues for the admin team to review."}</p></div><button className="button button-quiet" type="button" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}><RefreshCw size={14} />Refresh</button></section>
 
     <section className="panel reviews-submit-panel">
-      <div className="panel-heading"><div><h2>Report a bug or issue</h2><p>Describe what happened and what should be fixed.</p></div><Bug size={18} /></div>
+      <div className="panel-heading"><div><h2>Report a bug or issue</h2><p>Describe what happened and what should be fixed.</p></div><MessageSquareWarning size={18} strokeWidth={1.75} aria-hidden="true" /></div>
       <form className="reviews-submit-form" onSubmit={submitReview}>
         <div className="reviews-form-grid">
           <label className="field">Title<input required minLength={3} maxLength={180} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Short summary of the issue" /></label>
@@ -132,7 +132,7 @@ export default function ReviewsPage() {
     <section className="reviews-list-section">
       <div className="overview-section-heading"><div><h2>{isAdmin ? "Review queue" : "My reports"}</h2><p>{isAdmin ? "Reports submitted by the team." : "Your reports and their progress."}</p></div><span className="reviews-count">{reviews.length} {reviews.length === 1 ? "report" : "reports"}</span></div>
       {error && <p className="form-error" role="alert">{error}</p>}
-      {loading ? <div className="panel reviews-empty" role="status">Loading reviews…</div> : reviews.length === 0 ? <div className="panel reviews-empty"><ShieldAlert size={19} /><strong>No reports yet</strong><span>{isAdmin ? "Employee and admin reports will appear here." : "Reports you submit will appear here."}</span></div> : <div className="reviews-list">{reviews.map((review) => <article className="panel review-card" key={review.id}>
+      {loading ? <div className="panel reviews-empty" role="status">Loading reviews…</div> : reviews.length === 0 ? <div className="panel reviews-empty"><ClipboardCheck size={22} strokeWidth={1.75} aria-hidden="true" /><strong>No reports yet</strong><span>{isAdmin ? "Employee and admin reports will appear here." : "Reports you submit will appear here."}</span></div> : <div className="reviews-list">{reviews.map((review) => <article className="panel review-card" key={review.id}>
         <header className="review-card-header"><div><div className="review-card-title-line"><h3>{review.title}</h3><StatusBadge status={review.status}>{statusLabels[review.status]}</StatusBadge></div><p>{review.reporter_name}{review.reporter_email ? ` · ${review.reporter_email}` : ""} · {new Date(review.created_at).toLocaleString()}</p></div>{isAdmin && <label className="field review-status-field">Status<select value={review.status} onChange={(event) => void updateStatus(review, event.target.value as ReviewStatus)}><option value="OPEN">Open</option><option value="IN_PROGRESS">In progress</option><option value="RESOLVED">Resolved</option></select></label>}</header>
         <div className="review-meta-row"><span>{review.report_type === "BUG" ? "Bug" : "Issue"}</span><span>Priority: {priorityLabels[review.priority]}</span>{review.page_path && <span>Page: {review.page_path}</span>}</div>
         <p className="review-description">{review.description}</p>

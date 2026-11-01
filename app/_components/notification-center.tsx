@@ -23,9 +23,10 @@ import {
   dismissNotification,
   markAllNotificationsRead,
   markNotificationRead,
-  readNotifications,
+  readNotifications, refreshNotifications, resetNotifications,
 } from "@/lib/notifications";
 
+import { useWorkspaceAuth } from "@/lib/workspace-auth";
 function formatRelativeTime(isoString: string): string {
   try {
     const then = new Date(isoString).getTime();
@@ -52,11 +53,10 @@ function getNotificationIcon(type: NotificationType) {
       return <Inbox size={15} />;
     case "TASK":
       return <CheckSquare size={15} />;
-    case "INVOICE":
-      return <Receipt size={15} />;
+
     case "PROJECT":
       return <FolderKanban size={15} />;
-    case "SYSTEM":
+
     default:
       return <Bell size={15} />;
   }
@@ -64,6 +64,9 @@ function getNotificationIcon(type: NotificationType) {
 
 export function NotificationCenter() {
   const router = useRouter();
+  const { user } = useWorkspaceAuth();
+  const [notificationError,setNotificationError]=useState("");
+  function run(action:Promise<unknown>) { void action.catch(()=>setNotificationError("Notifications could not be updated. Please retry.")); }
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState<"ALL" | "UNREAD">("ALL");
   const [notifications, setNotifications] = useState<WorkspaceNotification[]>([]);
@@ -92,24 +95,15 @@ export function NotificationCenter() {
   function close(){setIsOpen(false);triggerRef.current?.focus();}
 
   useEffect(() => {
-    const sync = () => setNotifications(readNotifications());
-    sync();
-
-    window.addEventListener("evecture:notifications-updated", sync);
-    window.addEventListener("evecture:leads-updated", sync);
-    window.addEventListener("evecture:projects-updated", sync);
-    window.addEventListener("evecture:invoices-updated", sync);
-    window.addEventListener("storage", sync);
-
-    return () => {
-      window.removeEventListener("evecture:notifications-updated", sync);
-      window.removeEventListener("evecture:leads-updated", sync);
-      window.removeEventListener("evecture:projects-updated", sync);
-      window.removeEventListener("evecture:invoices-updated", sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
-
+    resetNotifications(); setNotifications([]);
+    const sync=()=>setNotifications(readNotifications());
+    const refresh=()=>{ void refreshNotifications().then(()=>setNotificationError("")).catch(()=>setNotificationError("Notifications are temporarily unavailable.")); };
+    window.addEventListener("evecture:notifications-updated",sync);
+    if(user)refresh();
+    const timer=window.setInterval(()=>{if(user)refresh();},10000);
+    window.addEventListener("focus",refresh);
+    return ()=>{window.clearInterval(timer);window.removeEventListener("focus",refresh);window.removeEventListener("evecture:notifications-updated",sync);resetNotifications();};
+  },[user?.id]);
   useEffect(() => {
     function handleClickOutside(event: PointerEvent) {
       if (!containerRef.current?.contains(event.target as Node) && !panelRef.current?.contains(event.target as Node)) {
@@ -138,7 +132,7 @@ export function NotificationCenter() {
   const filteredNotifications = notifications.filter((n) => (filter === "UNREAD" ? !n.read : true));
 
   function handleItemClick(item: WorkspaceNotification) {
-    markNotificationRead(item.id);
+    run(markNotificationRead(item.id));
     setIsOpen(false);
     if (item.link) {
       router.push(item.link);
@@ -147,13 +141,13 @@ export function NotificationCenter() {
 
   function handleDismiss(event: React.MouseEvent, id: string) {
     event.stopPropagation();
-    dismissNotification(id);
+    run(dismissNotification(id));
   }
 
   function handleToggleRead(event: React.MouseEvent, id: string, currentRead: boolean) {
     event.stopPropagation();
     if (!currentRead) {
-      markNotificationRead(id);
+      run(markNotificationRead(id));
     }
   }
 
@@ -194,7 +188,7 @@ export function NotificationCenter() {
                 <button
                   type="button"
                   className="notification-quiet-btn"
-                  onClick={() => markAllNotificationsRead()}
+                  onClick={() => run(markAllNotificationsRead())}
                   title="Mark all as read"
                   aria-label="Mark all notifications as read"
                 >
@@ -223,6 +217,7 @@ export function NotificationCenter() {
             </button>
           </div>
 
+          {notificationError && <p role="alert">{notificationError}</p>}
           {/* Notifications List */}
           <div className="notification-list-scroll">
             {filteredNotifications.length === 0 ? (
@@ -299,7 +294,7 @@ export function NotificationCenter() {
               <button
                 type="button"
                 className="notification-footer-clear-btn"
-                onClick={() => clearAllNotifications()}
+                onClick={() => run(clearAllNotifications())}
               >
                 <Trash2 size={13} /> Clear all
               </button>
