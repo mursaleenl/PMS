@@ -16608,3 +16608,6 @@ textarea:focus {
 .attendance-qr-placeholder { width: 360px; max-width: 100%; min-height: 260px; display: grid; place-items: center; background: #f8fafc; color: #64748b; }
 .attendance-correction { display: grid; gap: 8px; min-width: 230px; }
 .attendance-page details pre { max-width: 480px; max-height: 240px; overflow: auto; white-space: pre-wrap; font-size: 12px; }
+
+.basic-proposal-generator { display: grid; gap: 14px; }
+.basic-proposal-fields { display: grid; gap: 14px; border: 0; padding: 0; margin: 0; min-width: 0; }

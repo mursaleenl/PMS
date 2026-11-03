@@ -10,6 +10,7 @@ import { addProject, projectFromLead, updateProject, type Project, type ProjectC
 import { updateInvoice } from "@/lib/invoices";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { useAssignableUsers } from "@/lib/assignees";
+import { ProposalGenerator } from "@/app/_components/proposal-generator";
 import { CalendarPicker } from "@/app/_components/calendar-picker";
 import { operatingCompanies, type OperatingCompany } from "@/lib/companies";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
@@ -217,7 +218,8 @@ export default function LeadWorkspacePage() {
     {lead.status === "ACCEPTED" && <section className="panel record-section acceptance-record"><div className="record-section-heading"><div><span className="section-icon"><Check size={17} /></span><div><h2>Proposal accepted</h2><p>{lead.acceptedAt ? new Date(lead.acceptedAt).toLocaleString() : "Acceptance recorded"}</p></div></div></div><div className="detail-line"><b>Signatory</b>{lead.acceptanceName || "Not recorded"}</div>{lead.acceptanceDocumentName && <div className="detail-line"><b>Signed document</b>{lead.acceptanceDocumentDataUrl ? <a href={lead.acceptanceDocumentDataUrl} download={lead.acceptanceDocumentName}>{lead.acceptanceDocumentName} <Download size={12} /></a> : lead.acceptanceDocumentName}</div>}</section>}
 
     {(lead.status === "QUALIFIED" || lead.status === "PROPOSAL_SENT" || lead.status === "ACCEPTED") && <section className="panel record-section proposal-section" id="workflow-proposal">
-      <div className="record-section-heading"><div><span className="section-icon"><FileText size={17} /></span><div><h2>Proposal & SOW</h2><p>Optionally attach an existing proposal or SOW.</p></div></div>{latest && <StatusBadge status={latest.status}>Version {latest.version} · {latest.status.replaceAll("_", " ")}</StatusBadge>}</div>
+      <div className="record-section-heading"><div><span className="section-icon"><FileText size={17} /></span><div><h2>Proposal & SOW</h2><p>Generate a basic proposal or attach an existing document.</p></div></div>{latest && <StatusBadge status={latest.status}>Version {latest.version} · {latest.status.replaceAll("_", " ")}</StatusBadge>}</div>
+      <ProposalGenerator key={lead.id} lead={lead} />
       <form className="proposal-form" onSubmit={saveProposalAttachment}>
         <label className="field document-upload">Upload proposal (optional)<input type="file" accept=".pdf,.doc,.docx" onChange={(event) => { setProposalFile(null); void selectDocument(event.target.files?.[0], setProposalFile); }} /><small>{proposalFile?.name || "Attach an existing PDF or Word document, up to 1.2 MB. You can continue without uploading one."}</small></label>
         {(lead.qualification?.proposalAttachment || latest?.documentDataUrl) && <a className="button button-quiet" href={lead.qualification?.proposalAttachment?.dataUrl || latest?.documentDataUrl} download={lead.qualification?.proposalAttachment?.name || latest?.documentName}><Download size={14}/>Download attached proposal</a>}

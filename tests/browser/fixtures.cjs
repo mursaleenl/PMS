@@ -15,7 +15,7 @@ const tables={
  proposals:[],proposal_follow_ups:[],project_links:[],attendance_records:[],
 };
 async function mockWorkspace(page,{role='admin',preview=false}={}){
- const env=fs.readFileSync('.env.local','utf8');
+ const env=fs.readFileSync(fs.existsSync('.env.local')?'.env.local':'.env','utf8');
  const urlLine=env.match(/^NEXT_PUBLIC_SUPABASE_URL\s*=\s*(.+)$/m);
  if(!urlLine)throw new Error('Supabase URL is required to run browser fixtures.');
  const url=urlLine[1].trim().replace(/^['"]|['"]$/g,'');
