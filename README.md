@@ -24,3 +24,5 @@ The database tests use an isolated in-memory PostgreSQL engine; they do not acce
 pnpm exec playwright install chromium
 pnpm test:browser
 ```
+
+For a separate testing Supabase project or a fully local Supabase stack, use the [complete testing database installer and instructions](supabase/TESTING_DATABASE.md).

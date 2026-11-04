@@ -986,7 +986,7 @@ body, button, input, select, textarea { font-family: var(--font-body); }
   .app-shell #workspace-content .project-team-panel .project-team-roster p { margin: 0; font-size: 12px; line-height: 1.5; color: #71717a; }
 }
 
-/* Compact mobile navigation matches the desktop sidebar; desktop controls retain their layout. */
+/* Compact white mobile navigation; desktop controls retain their layout. */
 @media screen and (max-width:700px) {
   html body .app-shell { --workspace-header: 48px !important; }
   html body .app-shell #workspace-topbar {
@@ -994,8 +994,8 @@ body, button, input, select, textarea { font-family: var(--font-body); }
     width: 100% !important; height: 48px !important; min-height: 48px !important;
     display: flex !important; align-items: center !important; justify-content: space-between !important;
     gap: 12px !important; padding: 0 20px !important; margin: 0 !important;
-    background: #111827 !important; color: #ffffff !important;
-    border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+    background: #ffffff !important; color: #0f172a !important;
+    border: 0 !important; border-bottom: 1px solid #e4e4e7 !important; border-radius: 0 !important; box-shadow: none !important;
     z-index: 110 !important;
   }
   html body .app-shell #workspace-topbar .top-actions {
@@ -1007,19 +1007,19 @@ body, button, input, select, textarea { font-family: var(--font-body); }
     display: inline-flex; align-items: center !important; justify-content: center !important;
     flex: 0 0 36px !important; width: 36px !important; min-width: 36px !important; max-width: 36px !important;
     height: 36px !important; min-height: 36px !important; padding: 0 !important; margin: 0 !important;
-    background: transparent !important; color: #ffffff !important;
+    background: transparent !important; color: #0f172a !important;
     border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
   }
   html body .app-shell #workspace-topbar :is(.global-search-trigger,.topbar-user-btn,.mobile-nav-toggle):hover {
-    background: rgb(255 255 255 / 12%) !important; color: #ffffff !important;
+    background: #f4f4f5 !important; color: #0f172a !important;
   }
   html body .app-shell #workspace-topbar :is(.global-search-trigger,.topbar-user-btn,.mobile-nav-toggle):focus-visible {
-    outline: 1px solid #ffffff !important; outline-offset: -2px; box-shadow: none !important;
+    outline: 1px solid #0f172a !important; outline-offset: -2px; box-shadow: none !important;
   }
   html body .app-shell #workspace-topbar :is(.global-search-trigger,.topbar-user-btn,.mobile-nav-toggle) svg,
   html body .app-shell #workspace-topbar .topbar-user-icon {
     width: 18px !important; height: 18px !important; min-width: 18px !important;
-    padding: 0 !important; border: 0 !important; color: #ffffff !important;
+    padding: 0 !important; border: 0 !important; color: #0f172a !important;
     background: transparent !important; stroke: currentColor !important;
   }
   html body .app-shell #workspace-topbar .topbar-profile-dropdown {

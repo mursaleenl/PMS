@@ -6,7 +6,7 @@ for(const width of [320,390,768]){
   for(const path of ['/','/projects','/proposals','/requests/new','/work','/requests','/invoices','/clients','/post-sale','/users','/settings','/work/attendance','/reviews']){
    await page.goto(path);await expect(page.getByRole('heading',{level:1}).first()).toBeVisible();
    expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth),path).toBeLessThanOrEqual(1);
-   await expect(page.locator('#workspace-topbar')).toHaveCSS('background-color',width<=700?'rgb(17, 24, 39)':'rgb(255, 255, 255)');
+   await expect(page.locator('#workspace-topbar')).toHaveCSS('background-color','rgb(255, 255, 255)');
    await expect(page.locator('.workspace-save-status,.workspace-contextbar,.mobile-topbar-title')).toHaveCount(0);
    const gap=await page.evaluate(()=>document.querySelector('h1').getBoundingClientRect().top-document.querySelector('#workspace-topbar').getBoundingClientRect().bottom);
    expect(gap,path).toBeGreaterThanOrEqual(0);
