@@ -151,7 +151,7 @@ create table if not exists public.leads (
   source text,
   acquisition_source text,
   operating_company text check (operating_company in ('Evecture', 'Servn')),
-  status text not null default 'NEW' check (status in ('NEW', 'QUALIFIED', 'PROPOSAL_SENT', 'ACCEPTED', 'CONVERTED', 'LOST', 'DISQUALIFIED')),
+  status text not null default 'NEW' check (status in ('NEW', 'PROPOSAL_SENT', 'ACCEPTED', 'CONVERTED', 'LOST')),
   first_contact_at timestamptz,
   disqualification_reason text,
   qualification jsonb not null default '{}'::jsonb,

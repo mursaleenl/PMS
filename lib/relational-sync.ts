@@ -1,6 +1,6 @@
 import { createUuid } from "@/lib/uuid";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Lead, LeadInvoice, ProposalVersion } from "@/lib/leads";
+import { normalizeLeadStatus, type Lead, type LeadInvoice, type ProposalVersion } from "@/lib/leads";
 import type { ManagedProject } from "@/lib/post-sale";
 import type { Project, ProjectTeamMember, ProjectWorkItem } from "@/lib/projects";
 import type { StoredInvoice } from "@/lib/invoices";
@@ -287,8 +287,7 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
       source: text(row.source),
       acquisitionSource: text(row.acquisition_source),
       operatingCompany: row.operating_company || undefined,
-      status: row.status,
-      firstContactAt: row.first_contact_at || undefined,
+      status: normalizeLeadStatus(row.status),
       disqualificationReason: row.disqualification_reason || undefined,
       qualificationNote: row.qualification_note || undefined,
       qualification: row.qualification || undefined,
@@ -466,8 +465,7 @@ export function serializeRecord(collection: WorkspaceCollection, value: unknown)
     source: nullable(lead.source),
     acquisition_source: nullable(lead.acquisitionSource),
     operating_company: nullable(lead.operatingCompany),
-    status: lead.status || "NEW",
-    first_contact_at: nullable(lead.firstContactAt),
+    status: normalizeLeadStatus(lead.status),
     disqualification_reason: nullable(lead.disqualificationReason),
     qualification_note: nullable(lead.qualificationNote),
     qualification: lead.qualification ?? {},

@@ -316,9 +316,6 @@
   .app-shell .project-board-card h4 { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
   .app-shell .project-board-card-heading svg { flex-shrink: 0; color: #71717a; }
   .app-shell .project-board-card > p { margin: 12px 0; color: #71717a; font-size: 12px; }
-  .app-shell .project-board-card .field { margin: 0; font-size: 11px; }
-  .app-shell .project-board-card select { width: 100%; min-height: 36px; border: 1px solid #e4e4e7 !important; border-radius: 0 !important; background: #ffffff !important; color: #111827 !important; }
-  .app-shell .project-board-card select:focus-visible { outline: 1px solid #000000 !important; }
   .app-shell .project-board-card .status-badge { background: transparent !important; border: 0 !important; padding: 0 !important; color: #52525b !important; }
   .app-shell .project-board-empty { margin: 0; padding: 32px 0; font-size: 12px; text-align: center; color: #71717a; }
 }
@@ -376,15 +373,7 @@
 .app-shell #workspace-content .overview-task-indicator[data-status="IN_PROGRESS"] { color: #1d4ed8 !important; }
 
 @media screen {
-  .app-shell #workspace-content .first-contact-editor { display: grid; gap: 14px; width: 100%; max-width: 640px; margin: 16px 0 20px; padding: 16px; border: 1px solid #e4e4e7; border-radius: 0 !important; background: #ffffff; }
-  .app-shell #workspace-content .first-contact-editor-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  .app-shell #workspace-content .first-contact-editor-heading h4 { margin: 0; font-size: 13px; letter-spacing: 0; text-transform: none; }
-  .app-shell #workspace-content .first-contact-editor-heading .icon-button { width: 28px; height: 28px; padding: 0; border: 0; background: transparent; color: #475569; }
-  .app-shell #workspace-content .first-contact-editor .field { width: 100%; margin: 0; }
-  .app-shell #workspace-content .first-contact-editor input { width: 100%; min-width: 0; min-height: 38px; padding: 8px 10px; border: 1px solid #e4e4e7 !important; border-radius: 0 !important; background: #ffffff !important; color: #111827 !important; font-family: var(--font-body); }
-  .app-shell #workspace-content .first-contact-editor input:focus-visible { outline: 1px solid #000000 !important; border-color: #000000 !important; box-shadow: none !important; }
-  .app-shell #workspace-content .first-contact-editor-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .app-shell #workspace-content .first-contact-editor .button { min-height: 36px; border-radius: 0 !important; }
+
   .app-shell #workspace-content .post-sale-page .client-card { border: 1px solid #e4e4e7 !important; border-radius: 0 !important; }
   .app-shell #workspace-content .post-sale-page .client-card-expanded { border-color: #0f172a !important; }
   .app-shell #workspace-content .post-sale-page .post-sale-card-summary { border: 0 !important; outline: 0 !important; box-shadow: none !important; padding: 20px !important; gap: 20px; align-items: center; }
@@ -504,8 +493,8 @@
   .app-shell .main-area .page-content :is(.overview-summary-card,.task-stat-card,.invoice-stat-card) { min-width: 0; min-height: 108px !important; padding: 14px !important; }
   .app-shell .main-area .page-content :is(.lead-detail-columns,.qualification-fields,.qualification-call-grid,.proposal-fields-grid,.post-sale-project-fields,.project-team-grid) { grid-template-columns: minmax(0,1fr) !important; gap: 14px !important; }
   .app-shell .main-area .page-content :is(.lead-actions-row,.contact-action) { display: flex; flex-direction: column; min-width: 0; width: 100%; align-items: stretch; }
-  .app-shell .main-area .page-content .first-contact-title-row { flex-wrap: wrap; gap: 10px; }
-  .app-shell .main-area .page-content .first-contact-meta { grid-template-columns: minmax(0,1fr); gap: 12px; }
+
+  .app-shell .main-area .page-content .lead-budget-meta { grid-template-columns: minmax(0,1fr); gap: 12px; }
   .app-shell .main-area .page-content .field :is(input:not([type=checkbox]),select,textarea) { font-size: 16px !important; min-width: 0; }
   .app-shell .main-area .page-content :is(.project-room-tabs,.task-list-tabs,.pipeline-tabs) { flex-wrap: nowrap !important; overflow-x: auto; max-width: 100%; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .app-shell .main-area .page-content :is(.project-room-tabs,.task-list-tabs,.pipeline-tabs) > button { flex: 0 0 auto; white-space: nowrap !important; min-height: 42px; }
@@ -516,7 +505,6 @@
   .app-shell .task-dispatch-drawer form > footer { padding-bottom: max(16px,env(safe-area-inset-bottom,0px)); }
 
 }
-
 
 @media screen and (max-width:700px) {
   .app-shell .main-area .page-content :is(.task-stat-card,.invoice-stat-card).selected { border: 1.5px solid #111827 !important; background: #ffffff !important; box-shadow: none !important; }

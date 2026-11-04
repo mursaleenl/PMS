@@ -9,10 +9,11 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, Download, ExternalLink, FileText, FolderKanban, Handshake, Link2, Plus, Receipt, Trash2, Users, X } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
-import { deleteProject, readProjects, type Project, type ProjectWorkItem, updateProject, isProjectAssignedToUser, isTaskAssignedToUser } from "@/lib/projects";
+import { deleteProject, readProjects, getProjectTeamMembers, getProjectDisplayTitle, getProjectDisplayServices, type Project, type ProjectWorkItem, updateProject, isProjectAssignedToUser, isTaskAssignedToUser } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject } from "@/lib/post-sale";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 import { showToast } from "@/app/_components/toast-hub";
+import { useAssignableUsers } from "@/lib/assignees";
 import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignees";
 
 type ProjectTab = "Overview" | "Staging & Links" | "Project status" | "Messages";
@@ -234,6 +235,7 @@ export default function ProjectWorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>();
   const router = useRouter();
   const { role, user, members } = useWorkspaceAuth();
+  const { users: managerOptions } = useAssignableUsers();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ProjectTab>("Overview");
@@ -319,15 +321,19 @@ export default function ProjectWorkspacePage() {
   const marginAlert = workItems.some((task) => task.estimatedHours > 0 && task.loggedHours / task.estimatedHours >= 0.85);
   const health = clientBlocked ? "Blocked work" : marginAlert ? "Margin alert" : null;
 
+  const teamMembers = getProjectTeamMembers(project);
+  const services = getProjectDisplayServices(project);
+
   return <div className="page-content project-detail-page">
     <Link className="back-link" href="/projects"><ArrowLeft size={15} />Project portfolio</Link>
-    <header className="record-heading project-room-heading"><div><h1>{project.title}</h1></div><div className="project-lifecycle-actions"><StatusBadge status={project.status}/>{health && <StatusBadge status={health}/>}{role === "admin" && (project.invoice ? <Link className="button button-quiet" href={`/invoices?invoice=${project.invoice.invoiceNumber}`} title="View invoice"><Receipt size={14} />{project.invoice.invoiceNumber}</Link> : <Link className="button button-quiet" href={`/invoices?project=${project.id}`} title="Generate invoice for this project"><Receipt size={14} />Create invoice</Link>)}{role === "admin"&&((project.status === "COMPLETED" || project.status === "AMC") ? managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-quiet" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>)}{role === "admin" && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></header>
+    <header className="record-heading project-room-heading"><div><h1>{getProjectDisplayTitle(project)}</h1>{services && <p className="project-room-services">{services}</p>}</div><div className="project-lifecycle-actions"><div className="project-lifecycle-status"><StatusBadge status={project.status}/>{health && <StatusBadge status={health}/>}</div><div className="project-lifecycle-buttons">{role === "admin"&&((project.status === "COMPLETED" || project.status === "AMC") ? managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-quiet" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>)}{role === "admin" && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></div></header>
 
     <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{project.status === "COMPLETED" ? "Completed" : "Active"}</strong></div><div><small>OPEN WORK ITEMS</small><strong><Link href="/work" style={{ textDecoration: "none", color: "inherit" }}>{workItems.filter((task) => task.status !== "DONE").length} · In Tasks</Link></strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim() && !DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim())).length}</strong></div></section>
 
+    {role === "admin" && <div className="project-dispatch-row"><button type="button" className="button button-primary room-dispatch-button" onClick={() => setShowDispatch(true)}><Plus size={14} />Dispatch task</button></div>}
+
     <nav className="project-room-tabs" aria-label="Project room sections">
       {projectTabs.map((tab) => <button key={tab} type="button" className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>)}
-      {role === "admin" && <button type="button" className="button button-primary room-dispatch-button" onClick={() => setShowDispatch(true)}><Plus size={14} />Dispatch task</button>}
     </nav>
 
     {activeTab === "Overview" && <>
@@ -373,12 +379,19 @@ export default function ProjectWorkspacePage() {
             </div>
           </article>
         </div>
-        <aside className="project-detail-side"><article className="panel project-data-panel"><div className="panel-heading"><div><h2>Team</h2><p>Assigned roles and allocation</p></div><Users size={16} /></div><div className="team-assignment-list">{project.team.map((member, index) => {
-          const isDummy = DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim());
-          const displayName = !member.name || isDummy ? "Unassigned" : member.name;
-          const allocation = isDummy ? "—" : (member.name ? `${member.allocationPercent}%` : "—");
-          return <div className="team-assignment" key={`${member.role}-${index}`}><span className="team-role-icon"><Users size={14} /></span><div><strong>{member.role}</strong><small>{displayName}</small></div><b>{allocation}</b></div>;
-        })}</div>{role === "admin" && <Link className="assignment-inline-link" href="/projects/assignments">Manage project assignments <ArrowRight size={13} /></Link>}</article>
+        <aside className="project-detail-side"><article className="panel project-data-panel project-team-panel">
+          <div className="panel-heading"><div><h2>Project Team</h2><p>Project manager and assigned team members</p></div></div>
+          {role === "admin" ? <label className="field">Assigned project manager<select aria-label="Assigned project manager" value={project.team.find(member=>member.role==="Project Manager")?.userId||managerOptions.find(person=>person.name===project.team.find(member=>member.role==="Project Manager")?.name)?.id||""} onChange={event=>{
+            if(role!=="admin")return;
+            const manager=managerOptions.find(person=>person.id===event.target.value);
+            if(!manager)return;
+            updateProject(project.id,{team:[...project.team.filter(member=>member.role!=="Project Manager"),{role:"Project Manager",name:manager.name,userId:manager.id,allocationPercent:0}]});
+            showToast({message:"Project manager updated."});
+          }}><option value="" disabled>Select a project manager</option>{managerOptions.filter(person=>person.id).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}</select></label> : <div className="field"><span>Assigned project manager</span><p>{project.team.find(member=>member.role==="Project Manager")?.name||"Unassigned"}</p></div>}
+          <div className="project-team-roster"><h3>Team members</h3>
+            {teamMembers.length ? <ul>{teamMembers.map(member=><li key={member.userId||member.name.trim().toLowerCase()}><span>{member.name}</span><small>Team member</small></li>)}</ul> : <p>Team members appear here when tasks are assigned.</p>}
+          </div>
+        </article>
           <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Project documents</h2><p>Signed project records</p></div><FileText size={16} /></div><div className="document-links">{project.signedContractDataUrl && project.signedContractName ? <a href={project.signedContractDataUrl} download={project.signedContractName}><Download size={14} />{project.signedContractName}</a> : <span className="document-pending">Signed SOW not attached</span>}{role === "admin" && (project.invoice ? <Link href={`/invoices?invoice=${project.invoice.invoiceNumber}`}><ExternalLink size={14} />{project.invoice.invoiceNumber} · invoice record</Link> : <Link className="document-pending" href={`/invoices?project=${project.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px", color: "inherit" }}><Receipt size={13} />No invoice recorded · Create invoice</Link>)}</div></article></aside>
       </section>
     </>}

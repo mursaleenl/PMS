@@ -35,6 +35,22 @@ function change(collection,row,revision=null) {return {collection,id:row.id,expe
 test('workspace database migrations and transactional workflows',async t=>{
  await setup();
  await t.test('migration is rerunnable',async()=>{await db.exec(fs.readFileSync('supabase/workspace-reliability-migration.sql','utf8'));});
+ await t.test('retired lead stages migrate once and cannot be saved again',async()=>{
+   const attachment={name:'scope.pdf',dataUrl:'data:application/pdf;base64,JVBERg=='};
+   await save([change('leads',lead('LEGACY-READY',{qualification:{proposalAttachment:attachment}})),change('leads',lead('LEGACY-CLOSED'))]);
+   await db.exec(`alter table public.leads drop constraint leads_status_check;
+    alter table public.leads add constraint leads_status_check check(status in ('NEW','QUALIFIED','PROPOSAL_SENT','ACCEPTED','CONVERTED','LOST','DISQUALIFIED'));
+    update public.leads set status='QUALIFIED' where external_id='LEGACY-READY';
+    update public.leads set status='DISQUALIFIED' where external_id='LEGACY-CLOSED';`);
+   const migration=fs.readFileSync('supabase/remove-lead-qualification-migration.sql','utf8');
+   await db.exec(migration);
+   const first=(await db.query("select external_id,status,revision,qualification from public.leads where external_id like 'LEGACY-%' order by external_id")).rows;
+   assert.deepEqual(first.map(row=>row.status),['LOST','NEW']);
+   assert.deepEqual(first[1].qualification.proposalAttachment,attachment);
+   await db.exec(migration);
+   assert.deepEqual((await db.query("select external_id,status,revision,qualification from public.leads where external_id like 'LEGACY-%' order by external_id")).rows,first);
+   for(const status of ['QUALIFIED','DISQUALIFIED']) await assert.rejects(db.query("update public.leads set status=$1 where external_id='LEGACY-READY'",[status]),/leads_status_check/);
+ });
  await t.test('missing membership and client roles cannot write',async()=>{
    for(const [id,email] of [[OUTSIDER,'outsider@example.com'],[CLIENT,'client@example.com']]) {
      await identity(id,email);
@@ -128,7 +144,7 @@ test('workspace database migrations and transactional workflows',async t=>{
  });
  await t.test('optional proposal attachments persist without creating a generated proposal',async()=>{
    const attachment={name:'proposal.pdf',dataUrl:'data:application/pdf;base64,JVBERi0='};
-   await save([change('leads',lead('OPTIONAL-UPLOAD',{status:'QUALIFIED',qualification:{proposalAttachment:attachment}})),change('projects',project('WITHOUT-PROPOSAL','OPTIONAL-UPLOAD',{proposalVersion:0}))]);
+   await save([change('leads',lead('OPTIONAL-UPLOAD',{status:'NEW',qualification:{proposalAttachment:attachment}})),change('projects',project('WITHOUT-PROPOSAL','OPTIONAL-UPLOAD',{proposalVersion:0}))]);
    assert.deepEqual((await db.query("select qualification from leads where external_id='OPTIONAL-UPLOAD'")).rows[0].qualification.proposalAttachment,attachment);
    assert.equal((await db.query("select proposal_id from projects where external_id='WITHOUT-PROPOSAL'")).rows[0].proposal_id,null);
    assert.equal((await db.query("select count(*)::int n from proposals p join leads l on l.id=p.lead_id where l.external_id='OPTIONAL-UPLOAD'")).rows[0].n,0);
@@ -146,6 +162,7 @@ test('workspace database migrations and transactional workflows',async t=>{
    const privateProject=(await db.query("select id from projects where external_id='PRIVATE'")).rows[0].id;
    await db.query("insert into project_messages(project_id,sender_id,sender_name,body) values($1,$2,'Admin','Private project message')",[privateProject,ADMIN]);
    await db.query("update projects set status='COMPLETED' where external_id='P1'");
+   await db.query("insert into project_team_members(project_id,user_id,role,name,allocation_percent) select id,$1,'Project Manager','Admin Manager',0 from projects where external_id='P1'",[ADMIN]);
    await identity(EMPLOYEE,'employee@example.com');await db.exec('set role authenticated');
    assert.deepEqual((await db.query('select external_id from projects')).rows.map(r=>r.external_id),['P1']);
    assert.equal((await db.query('select count(*)::int n from project_work_items')).rows[0].n,1);
@@ -163,6 +180,10 @@ test('workspace database migrations and transactional workflows',async t=>{
    assert.equal((await db.query("select status from projects where external_id='P1'")).rows[0].status,'COMPLETED');
    await assert.rejects(save([change('projects',{...changed,title:'Unauthorized rename'},snapshot.revisions['projects:P1']+1)]),/own assigned task progress/);
    await assert.rejects(save([change('projects',{...changed,status:'ACTIVE'},snapshot.revisions['projects:P1']+1)]),/own assigned task progress/);
+   const managerChange={...changed,team:changed.team.map(member=>member.role==='Project Manager'?{...member,name:'Employee Manager',userId:EMPLOYEE}:member)};
+   await assert.rejects(save([change('projects',managerChange,snapshot.revisions['projects:P1']+1)]),/own assigned task progress/);
+   assert.equal((await db.query("select user_id from project_team_members where role='Project Manager' and project_id=(select id from projects where external_id='P1')")).rows[0].user_id,ADMIN);
+   await assert.rejects(db.query("update project_team_members set user_id=$1 where role='Project Manager'",[EMPLOYEE]),/permission denied/);
    const own=(await db.query("select id from projects where external_id='P1'")).rows[0].id;
    await db.query('insert into project_messages(project_id,sender_id,sender_name,body) values($1,$2,$3,$4)',[own,EMPLOYEE,'Employee','Assigned project message']);
    assert.ok(!(await db.query('select body from project_messages')).rows.some(r=>r.body==='Private project message'));
@@ -171,6 +192,7 @@ test('workspace database migrations and transactional workflows',async t=>{
    assert.ok((await db.query('select external_id from projects')).rows.some(r=>r.external_id==='P1'));
    assert.ok(!(await db.query('select external_id from projects')).rows.some(r=>r.external_id==='PRIVATE'));
    await db.query('select * from project_work_items');
+   await assert.rejects(save([change('projects',managerChange,snapshot.revisions['projects:P1']+1)]),/membership required/);
    await db.exec('reset role');await identity(ADMIN,'admin@example.com');
  });
  await t.test('reviews prevent employee resolution and isolate reports',async()=>{

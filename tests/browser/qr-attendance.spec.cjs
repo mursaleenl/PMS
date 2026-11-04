@@ -57,6 +57,7 @@ test('admin office display generates a local QR and refreshes an expired code',a
 test('admin can correct a missing checkout with a reason',async({page})=>{
  await attendanceMocks(page,{role:'admin',open:{...visit,work_date:'2026-01-01',checked_in_at:'2026-01-01T04:00:00Z'}});
  let correction;
+ await page.route('**/rest/v1/attendance_audit?*',route=>route.fulfill({json:correction?[{id:'new-correction',changed_at:new Date().toISOString(),actor_id:visit.user_id,old_record:visit,new_record:{...visit,reason:correction.p_reason,checked_out_at:correction.p_checkout}}]:[]}));
  await page.route('**/rest/v1/rpc/correct_attendance_checkout',route=>{
   correction=route.request().postDataJSON();return route.fulfill({json:null});
  });
@@ -67,6 +68,7 @@ test('admin can correct a missing checkout with a reason',async({page})=>{
  await page.getByRole('button',{name:'Save correction',exact:true}).click();
  await expect.poll(()=>correction?.p_reason).toBe('Forgot to scan at departure');
  expect(correction.p_session).toBe('visit-1');
+ await expect(page.locator('#attendance-change-history .attendance-record-count')).toHaveText('1 change');
 });
 test('signed-out QR links preserve their token on the sign-in redirect',async({page})=>{
  await page.goto(`/work/attendance/${token}`);
@@ -143,4 +145,162 @@ test('personal attendance totals stay attached to the authenticated user',async(
  await expect(profile).toContainText('Alex Morgan');
  await expect(profile.locator('strong').filter({hasText:/^0\.25$/})).toBeVisible();
  await expect(profile).not.toContainText('8.25');
+});
+
+test('attendance changes expand into a list, expand all, and load older entries without duplicates',async({page})=>{
+ await attendanceMocks(page,{role:'admin'});
+ const rows=Array.from({length:55},(_,index)=>({
+  id:`change-${String(55-index).padStart(3,'0')}`,
+  changed_at:new Date(Date.now()-index*60000).toISOString(),actor_id:visit.user_id,
+  old_record:{user_id:visit.user_id,work_date:visit.work_date,hours_logged:6},
+  new_record:{user_id:visit.user_id,work_date:visit.work_date,hours_logged:8,status:'PRESENT',reason:`Correction ${index+1}`},
+ }));
+ let olderAttempts=0;
+ await page.route('**/rest/v1/attendance_audit?*',route=>{
+  const query=new URL(route.request().url()).searchParams;
+  if(query.has('or')){
+   expect(query.get('or')).toContain(rows[49].changed_at);
+   expect(query.get('or')).toContain(rows[49].id);
+   olderAttempts++;
+   if(olderAttempts===1)return route.fulfill({status:400,json:{message:'Temporary history failure'}});
+   return route.fulfill({json:rows.slice(50)});
+  }
+  return route.fulfill({json:rows.slice(0,51)});
+ });
+ await page.goto('/work/attendance');
+ const history=page.locator('#attendance-change-history');
+ await expect(history.locator('.attendance-record-count')).toHaveText('50+ changes');
+ await expect(history).not.toHaveAttribute('open');
+ await expect(history.getByRole('button',{name:'Expand all',exact:true})).not.toBeVisible();
+ await history.locator('summary').click();
+ await expect(history.locator('.attendance-change-list > li')).toHaveCount(50);
+ await expect(history.locator('.attendance-change-copy strong').first()).toHaveText('Correction 1');
+ await expect(history.locator('.attendance-change-copy strong').last()).toHaveText('Correction 50');
+ expect(await history.evaluate(el=>Boolean(el.querySelector('.attendance-change-list').compareDocumentPosition(el.querySelector('.attendance-changes-tools'))&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+ await history.getByRole('button',{name:'Expand all',exact:true}).click();
+ await expect(history.locator('.attendance-change-details')).toHaveCount(50);
+ await history.getByRole('button',{name:'Collapse all',exact:true}).click();
+ await expect(history.locator('.attendance-change-details')).toHaveCount(0);
+ await history.locator('.attendance-change-toggle').first().click();
+ await expect(history.locator('.attendance-change-details')).toContainText('Updated daily hours8');
+ await history.getByRole('button',{name:'Load older changes',exact:true}).click();
+ await expect(history.getByRole('alert')).toContainText('Unable to load older changes');
+ await expect(history.locator('.attendance-change-list > li')).toHaveCount(50);
+ await history.getByRole('button',{name:'Load older changes',exact:true}).click();
+ await expect(history.locator('.attendance-change-list > li')).toHaveCount(55);
+ await expect(history.locator('.attendance-record-count')).toHaveText('55 changes');
+ await expect(history.getByRole('button',{name:'Load older changes',exact:true})).toHaveCount(0);
+ expect(olderAttempts).toBe(2);
+ await page.setViewportSize({width:320,height:844});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+ await history.locator('summary').click();
+ await expect(history.locator('.attendance-change-list')).not.toBeVisible();
+});
+
+test('employees cannot see or request the attendance change list',async({page})=>{
+ await attendanceMocks(page);let auditRequests=0;
+ await page.route('**/rest/v1/attendance_audit?*',route=>{auditRequests++;return route.fulfill({json:[]});});
+ await page.goto('/work/attendance');
+ await expect(page.getByRole('heading',{name:'Office visits',exact:true})).toBeVisible();
+ await expect(page.locator('#attendance-change-history')).toHaveCount(0);
+ expect(auditRequests).toBe(0);
+});
+
+test('personal attendance calendar marks own days once and opens daily visits across months',async({page})=>{
+ await page.clock.install({time:new Date('2026-11-04T10:00:00Z')});
+ await attendanceMocks(page,{role:'admin'});
+ const own=visit.user_id,other='00000000-0000-0000-0000-000000000002';
+ const november=[
+  {id:'first',user_id:own,work_date:'2026-11-02',checked_in_at:'2026-11-02T08:00:00Z',checked_out_at:'2026-11-02T10:00:00Z'},
+  {id:'second',user_id:own,work_date:'2026-11-02',checked_in_at:'2026-11-02T12:00:00Z',checked_out_at:'2026-11-02T13:00:00Z'},
+  {id:'missing',user_id:own,work_date:'2026-11-01',checked_in_at:'2026-11-01T08:00:00Z',checked_out_at:null},
+  {id:'other-person',user_id:other,work_date:'2026-11-03',checked_in_at:'2026-11-03T08:00:00Z',checked_out_at:null},
+ ];
+ const october=[{...november[0],id:'october',work_date:'2026-10-31',checked_in_at:'2026-10-31T08:00:00Z',checked_out_at:'2026-10-31T10:00:00Z'}];
+ const queries=[];
+ await page.route('**/rest/v1/attendance_sessions?*',route=>{
+  const query=new URL(route.request().url()).searchParams;
+  if(query.has('checked_out_at'))return route.fulfill({json:null});
+  if(query.has('user_id')){
+   expect(query.get('user_id')).toBe(`eq.${own}`);queries.push(route.request().url());
+   return route.fulfill({json:query.getAll('work_date').includes('gte.2026-10-01')?october:november});
+  }
+  return route.fulfill({json:[]});
+ });
+ await page.goto('/work/attendance');
+ const calendar=page.getByRole('region',{name:'My attendance calendar',exact:true});
+ await expect(calendar.locator('.attendance-calendar-count')).toHaveText('2 days attended');
+ await expect(calendar.locator('.attendance-calendar-day .attendance-date-dot')).toHaveCount(2);
+ await expect(calendar.locator('[data-date="2026-11-03"] .attendance-date-dot')).toHaveCount(0);
+ await expect(calendar.getByRole('button',{name:'Next attendance month'})).toBeDisabled();
+ await calendar.locator('[data-date="2026-11-02"]').click();
+ await expect(calendar.locator('.attendance-calendar-day-details li')).toHaveCount(2);
+ await expect(calendar.locator('[data-date="2026-11-02"]')).toHaveCSS('background-color','rgb(15, 23, 42)');
+ await expect(calendar.locator('[data-date="2026-11-02"] > span').first()).toHaveCSS('color','rgb(255, 255, 255)');
+ await calendar.locator('[data-date="2026-11-01"]').click();
+ await expect(calendar.locator('.attendance-calendar-day-details')).toContainText('Missing checkout');
+ await calendar.locator('[data-date="2026-11-03"]').click();
+ await expect(calendar.locator('.attendance-calendar-day-details')).toHaveText(/No attendance recorded for this date/);
+ await calendar.getByRole('button',{name:'Previous attendance month'}).click();
+ await expect(calendar.getByRole('heading',{name:'October 2026',exact:true})).toBeVisible();
+ await expect(calendar.locator('.attendance-calendar-count')).toHaveText('1 day attended');
+ await expect(calendar.locator('[data-date="2026-10-31"] .attendance-date-dot')).toHaveCount(1);
+ await expect(calendar.locator('[data-date="2026-11-02"]')).toHaveCount(0);
+ expect(queries.some(url=>decodeURIComponent(url).includes('lte.2026-10-31'))).toBe(true);
+ await calendar.getByRole('button',{name:'Today',exact:true}).click();
+ await expect(calendar.getByRole('heading',{name:'November 2026',exact:true})).toBeVisible();
+ await expect(calendar.locator('[data-date="2026-11-04"]')).toHaveAttribute('aria-pressed','true');
+ for(const width of [320,390,768]){
+  await page.setViewportSize({width,height:1000});
+  expect(await calendar.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
+  if(width===390)await calendar.screenshot({path:'/private/tmp/pms-attendance-calendar.png'});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+ }
+});
+
+test('attendance calendar handles leap months and retries failed loading',async({page})=>{
+ await page.clock.install({time:new Date('2024-03-15T10:00:00Z')});
+ await attendanceMocks(page);let failCalendar=true;
+ await page.route('**/rest/v1/attendance_sessions?*',route=>{
+  const query=new URL(route.request().url()).searchParams;
+  if(query.has('checked_out_at'))return route.fulfill({json:null});
+  if(query.has('user_id')&&failCalendar)return route.fulfill({status:400,json:{message:'Calendar unavailable'}});
+  return route.fulfill({json:[]});
+ });
+ await page.goto('/work/attendance');
+ const calendar=page.getByRole('region',{name:'My attendance calendar',exact:true});
+ await expect(calendar.getByRole('alert')).toContainText('Unable to load visits');
+ failCalendar=false;
+ await calendar.getByRole('button',{name:'Retry calendar'}).click();
+ await expect(calendar.locator('.attendance-calendar-count')).toHaveText('0 days attended');
+ await calendar.getByRole('button',{name:'Previous attendance month'}).click();
+ await expect(calendar.getByRole('heading',{name:'February 2024',exact:true})).toBeVisible();
+ await expect(calendar.locator('.attendance-calendar-day')).toHaveCount(29);
+ await expect(calendar.locator('[data-date="2024-02-29"]')).toBeEnabled();
+ await expect(calendar.locator('.attendance-calendar-days > span')).toHaveCount(3);
+});
+
+test('office visits default to the signed-in account and allow explicit team filters',async({page})=>{
+ await attendanceMocks(page,{role:'admin'});
+ const otherId='00000000-0000-0000-0000-000000000002';
+ const rows=[{...visit,id:'own-visit',checked_out_at:visit.checked_in_at},{...visit,id:'other-visit',user_id:otherId,checked_out_at:visit.checked_in_at}];
+ await page.route('**/rest/v1/attendance_sessions?*',route=>route.fulfill({json:route.request().url().includes('checked_out_at=is.null')?null:rows}));
+ await page.goto('/work/attendance');
+ const select=page.getByRole('combobox',{name:'Team member',exact:true});
+ const table=page.locator('.attendance-visits-panel tbody');
+ await expect(select).toHaveValue(visit.user_id);
+ await expect(table.locator('tr')).toHaveCount(1);
+ await expect(table).toContainText('Alex Morgan');
+ await expect(table).not.toContainText('Jordan Lee');
+ await select.selectOption(otherId);
+ await expect(table.locator('tr')).toHaveCount(1);
+ await expect(table).toContainText('Jordan Lee');
+ await select.selectOption('');
+ await expect(table.locator('tr')).toHaveCount(2);
+ await page.getByRole('button',{name:'Refresh history',exact:true}).click();
+ await expect(select).toHaveValue('');
+ await expect(table.locator('tr')).toHaveCount(2);
+ await page.reload();
+ await expect(select).toHaveValue(visit.user_id);
+ await expect(table.locator('tr')).toHaveCount(1);
 });

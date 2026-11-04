@@ -140,9 +140,9 @@
   .app-shell .main-area .page-content .status-badge svg { flex-shrink: 0; }
   .app-shell .status-badge:is([data-status="TO_DO"],[data-status="NEW"],[data-status="DRAFT"],[data-status="PENDING"],[data-status="NOT_STARTED"]) { --status-rgb: 59, 130, 246; --status-color: #93c5fd; }
   .app-shell .status-badge:is([data-status="IN_PROGRESS"],[data-status="ACTIVE"]) { --status-rgb: 87, 205, 218; --status-color: #7edce7; }
-  .app-shell .status-badge:is([data-status="UNDER_REVIEW"],[data-status="IN_REVIEW"],[data-status="QUALIFIED"]) { --status-rgb: 232, 185, 86; --status-color: #f1cd85; }
+  .app-shell .status-badge:is([data-status="UNDER_REVIEW"],[data-status="IN_REVIEW"]) { --status-rgb: 232, 185, 86; --status-color: #f1cd85; }
   .app-shell .status-badge:is([data-status="DONE"],[data-status="COMPLETED"],[data-status="CONFIRMED_PAID"],[data-status="ACCEPTED"],[data-status="CONVERTED"]) { --status-rgb: 89, 201, 144; --status-color: #87dfb1; }
-  .app-shell .status-badge:is([data-status="BLOCKED"],[data-status="LOST"],[data-status="DISQUALIFIED"],[data-status="DECLINED"],[data-status="OVERDUE"],[data-status="EXPIRED"],[data-status="P1"]) { --status-rgb: 228, 108, 128; --status-color: #f4a0ad; }
+  .app-shell .status-badge:is([data-status="BLOCKED"],[data-status="LOST"],[data-status="DECLINED"],[data-status="OVERDUE"],[data-status="EXPIRED"],[data-status="P1"]) { --status-rgb: 228, 108, 128; --status-color: #f4a0ad; }
   .app-shell .status-badge:is([data-status="SENT"],[data-status="PROPOSAL_SENT"],[data-status="ON_HOLD"]) { --status-rgb: 104, 156, 236; --status-color: #9dc1fc; }
   .app-shell .main-area .page-content [data-company="Evecture"] { color: #f87171 !important; background: transparent !important; border: 0 !important; padding: 0 !important; }
   .app-shell .main-area .page-content [data-company="Servn"] { color: #79adff !important; background: transparent !important; border: 0 !important; padding: 0 !important; }
@@ -231,7 +231,7 @@
 .lead-workspace-page .proposal-form .proposal-template-heading { margin: 8px 0 0; padding-top: 15px; border-top: 1px solid var(--ws-border, #e2e8f0); }
 .lead-workspace-page .proposal-form .document-upload { margin-top: 2px; }
 
-.lead-record .first-contact-company {
+.lead-record .lead-company-details {
   display: grid;
   grid-template-columns: max-content max-content 1fr;
   align-items: center;
@@ -240,11 +240,11 @@
   max-width: 560px;
   font-size: 11px;
 }
-.lead-record .first-contact-company > span { color: var(--ws-muted, #64748b); font-weight: 500; }
-.lead-record .first-contact-company > strong { color: var(--ws-text, #0f172a); font-weight: 650; }
-.lead-record .first-contact-company > a { display: inline-flex; align-items: center; gap: 4px; color: var(--ws-text, #0f172a); text-decoration: none; font-weight: 600; }
-.lead-record .first-contact-company > a:hover { text-decoration: underline; }
-.lead-record .first-contact-company > small { grid-column: 1 / -1; }
+.lead-record .lead-company-details > span { color: var(--ws-muted, #64748b); font-weight: 500; }
+.lead-record .lead-company-details > strong { color: var(--ws-text, #0f172a); font-weight: 650; }
+.lead-record .lead-company-details > a { display: inline-flex; align-items: center; gap: 4px; color: var(--ws-text, #0f172a); text-decoration: none; font-weight: 600; }
+.lead-record .lead-company-details > a:hover { text-decoration: underline; }
+.lead-record .lead-company-details > small { grid-column: 1 / -1; }
 
 @media (max-width: 700px) {
   .app-shell .lead-workspace-page .operating-company-step { padding: 14px; }
@@ -253,8 +253,8 @@
   .lead-workspace-page .proposal-fields-grid.proposal-copy-fields > .field textarea,
   .lead-workspace-page .proposal-fields-grid.proposal-template-fields > .field textarea { min-height: 110px; }
   .operating-company-step .record-section-heading { align-items: flex-start; }
-  .lead-record .first-contact-company { grid-template-columns: max-content 1fr; }
-  .lead-record .first-contact-company > a { grid-column: 1 / -1; }
+  .lead-record .lead-company-details { grid-template-columns: max-content 1fr; }
+  .lead-record .lead-company-details > a { grid-column: 1 / -1; }
 }
 
 /* Reference layout: anchored dark rail with an airy white dashboard and aligned cards. */
@@ -544,10 +544,10 @@
   .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(section,h3,h4,strong,b,span,p,small,div) { color: inherit; }
   .app-shell .main-area .page-content .requests-page .lead-record .lead-detail h3,
   .app-shell .main-area .page-content .requests-page .lead-record .lead-detail h4 { color: #0f172a !important; }
-  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(.detail-line,.lead-description,.contact-action p,.first-contact-company,.first-contact-meta span,.budget-note-display) { color: #334155 !important; }
-  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(.detail-line b,.first-contact-meta b,.first-contact-company > span) { color: #64748b !important; }
-  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(.detail-line a,.reference-links a,.first-contact-company > a) { color: #2563eb !important; }
-  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(.lead-actions-row,.first-contact-budget-source) { border-color: #e2e8f0 !important; }
+  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(.detail-line,.lead-description,.contact-action p,.lead-company-details,.lead-budget-meta span,.budget-note-display) { color: #334155 !important; }
+  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(.detail-line b,.lead-budget-meta b,.lead-company-details > span) { color: #64748b !important; }
+  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(.detail-line a,.reference-links a,.lead-company-details > a) { color: #2563eb !important; }
+  .app-shell .main-area .page-content .requests-page .lead-record .lead-detail :is(.lead-actions-row,.lead-budget-source) { border-color: #e2e8f0 !important; }
 
   .app-shell .main-area .page-content :is(.lead-detail,.client-card-details,.qualification-box,.proposal-history-content,.expanded-content,.expanded-details) {
     color: #334155 !important;
@@ -987,21 +987,21 @@
   .app-shell .main-area .page-content :is(.pipeline-table,.invoice-table,.task-table,.client-table,.project-table,.performance-table) tbody tr:hover,
   .app-shell .main-area .page-content :is(.pipeline-table,.invoice-table,.task-table,.client-table,.project-table,.performance-table) tbody tr:hover td { background: #f8fafc !important; }
 
-  .app-shell .main-area .page-content :is(.field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),.field select,.field textarea,.qualification-fields select,.disqualify-select select,.first-contact-company select,.project-team-row select,.assignment-editor-row select,.ops-inline-select select) {
+  .app-shell .main-area .page-content :is(.field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),.field select,.field textarea,.qualification-fields select,.disqualify-select select,.lead-company-details select,.project-team-row select,.assignment-editor-row select,.ops-inline-select select) {
     color: #0f172a !important;
     -webkit-text-fill-color: #0f172a !important;
     background-color: #ffffff !important;
     border-color: #cbd5e1 !important;
     color-scheme: light !important;
   }
-  .app-shell .main-area .page-content :is(.field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),.field select,.field textarea,.qualification-fields select,.disqualify-select select,.first-contact-company select,.project-team-row select,.assignment-editor-row select,.ops-inline-select select):focus {
+  .app-shell .main-area .page-content :is(.field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),.field select,.field textarea,.qualification-fields select,.disqualify-select select,.lead-company-details select,.project-team-row select,.assignment-editor-row select,.ops-inline-select select):focus {
     border-color: #2563eb !important;
     outline: 1px solid #2563eb !important;
     outline-offset: 0 !important;
     box-shadow: none !important;
   }
   .app-shell .main-area .page-content :is(.field input,.field textarea)::placeholder { color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; opacity: 1 !important; }
-  .app-shell .main-area .page-content :is(.field select,.qualification-fields select,.disqualify-select select,.first-contact-company select,.project-team-row select,.assignment-editor-row select,.ops-inline-select select) {
+  .app-shell .main-area .page-content :is(.field select,.qualification-fields select,.disqualify-select select,.lead-company-details select,.project-team-row select,.assignment-editor-row select,.ops-inline-select select) {
     appearance: none !important;
     padding-right: 34px !important;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m2 4 4 4 4-4' fill='none' stroke='%23475569' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
@@ -1206,19 +1206,19 @@
   }
   .app-shell .main-area .page-content .lead-detail .detail-line b { min-width: 100px !important; }
   .app-shell .main-area .page-content .lead-detail .lead-description { margin: 14px 0 16px !important; font-size: 13px !important; line-height: 1.7 !important; }
-  .app-shell .main-area .page-content .lead-detail .lead-actions-row { margin-top: 24px !important; padding-top: 22px !important; }
+  .app-shell .main-area .page-content .lead-detail .lead-actions-row { margin-top: 16px !important; padding-top: 16px !important; }
   .app-shell .main-area .page-content .lead-detail .contact-action { align-items: flex-start !important; gap: 24px !important; }
   .app-shell .main-area .page-content .lead-detail .contact-action > div:first-child { flex: 1 1 auto; min-width: 0; }
   .app-shell .main-area .page-content .lead-detail .contact-action p { margin-top: 6px !important; font-size: 13px !important; line-height: 1.55 !important; }
   .app-shell .main-area .page-content .lead-detail .contact-action-tools { flex: 0 0 auto; }
-  .app-shell .main-area .page-content .lead-detail .first-contact-meta { gap: 12px 24px !important; margin-top: 14px !important; }
-  .app-shell .main-area .page-content .lead-detail .first-contact-meta span { display: inline-flex !important; align-items: baseline; gap: 8px !important; font-size: 13px !important; line-height: 1.5 !important; }
-  .app-shell .main-area .page-content .lead-detail .first-contact-meta b { white-space: nowrap; }
-  .app-shell .main-area .page-content .lead-detail .first-contact-budget-source { margin-top: 20px !important; padding-top: 18px !important; }
-  .app-shell .main-area .page-content .lead-detail .first-contact-company { gap: 8px 12px !important; margin-top: 14px !important; line-height: 1.55 !important; }
-  .app-shell .main-area .page-content .lead-detail .first-contact-company > small { line-height: 1.6 !important; }
-  .app-shell .main-area .page-content .lead-detail .first-contact-budget-heading { margin-bottom: 10px; }
-  .app-shell .main-area .page-content .lead-detail .first-contact-budget-heading h4 { font-size: 14px !important; }
+  .app-shell .main-area .page-content .lead-detail .lead-budget-meta { gap: 12px 24px !important; margin-top: 14px !important; }
+  .app-shell .main-area .page-content .lead-detail .lead-budget-meta span { display: inline-flex !important; align-items: baseline; gap: 8px !important; font-size: 13px !important; line-height: 1.5 !important; }
+  .app-shell .main-area .page-content .lead-detail .lead-budget-meta b { white-space: nowrap; }
+  .app-shell .main-area .page-content .lead-detail .lead-budget-source { margin: 0 !important; padding: 0 !important; border: 0 !important; }
+  .app-shell .main-area .page-content .lead-detail .lead-company-details { gap: 8px 12px !important; margin-top: 14px !important; line-height: 1.55 !important; }
+  .app-shell .main-area .page-content .lead-detail .lead-company-details > small { line-height: 1.6 !important; }
+  .app-shell .main-area .page-content .lead-detail .lead-budget-heading { margin-bottom: 10px; }
+  .app-shell .main-area .page-content .lead-detail .lead-budget-heading h4 { font-size: 14px !important; }
   .app-shell .main-area .page-content .lead-detail .contact-action .button { min-height: 38px !important; height: auto !important; padding: 8px 12px !important; font-size: 12px !important; }
   .app-shell .main-area .page-content .lead-detail .qualification-box { margin-top: 20px !important; padding: 20px !important; }
   .app-shell .main-area .page-content .lead-detail .qualification-fields { margin: 18px 0 !important; }
@@ -1228,7 +1228,7 @@
   .app-shell .main-area .page-content .lead-detail-columns { gap: 22px !important; }
   .app-shell .main-area .page-content .lead-detail .contact-action { flex-direction: column; gap: 14px !important; }
   .app-shell .main-area .page-content .lead-detail .contact-action-tools { width: 100%; }
-  .app-shell .main-area .page-content .lead-detail .first-contact-meta { gap: 10px 16px !important; }
+  .app-shell .main-area .page-content .lead-detail .lead-budget-meta { gap: 10px 16px !important; }
 }
 
 /* Keep the lead contact summary and its actions grouped and aligned. */
@@ -1240,36 +1240,18 @@
     padding: 14px !important;
     gap: 9px !important;
   }
-  .app-shell .main-area .page-content .lead-record .first-contact-title-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    width: 100%;
-    min-height: 40px;
-  }
-  .app-shell .main-area .page-content .lead-record .first-contact-title-row h3 {
-    margin: 0 !important;
-    line-height: 1.35 !important;
-  }
-  .app-shell .main-area .page-content .lead-record .first-contact-title-row .button {
-    flex: 0 0 auto;
-    min-height: 38px !important;
-    height: 38px !important;
-    margin-left: auto;
-    padding: 0 14px !important;
-  }
+
   .app-shell .main-area .page-content .lead-record .contact-action {
     display: block !important;
   }
-  .app-shell .main-area .page-content .lead-record .first-contact-meta {
+  .app-shell .main-area .page-content .lead-record .lead-budget-meta {
     display: grid !important;
     grid-template-columns: repeat(3, minmax(150px, max-content));
     align-items: start;
     column-gap: 30px !important;
     row-gap: 12px !important;
   }
-  .app-shell .main-area .page-content .lead-record .first-contact-meta > span {
+  .app-shell .main-area .page-content .lead-record .lead-budget-meta > span {
     display: flex !important;
     flex-direction: column;
     align-items: flex-start !important;
@@ -1277,18 +1259,18 @@
     min-width: 0;
     line-height: 1.45 !important;
   }
-  .app-shell .main-area .page-content .lead-record .first-contact-meta > span b {
+  .app-shell .main-area .page-content .lead-record .lead-budget-meta > span b {
     color: #64748b;
     font-size: 11px;
   }
-  .app-shell .main-area .page-content .lead-record .first-contact-company {
+  .app-shell .main-area .page-content .lead-record .lead-company-details {
     display: flex !important;
     align-items: center;
     flex-wrap: wrap;
     gap: 8px 14px !important;
     max-width: 100%;
   }
-  .app-shell .main-area .page-content .lead-record .first-contact-company > small {
+  .app-shell .main-area .page-content .lead-record .lead-company-details > small {
     flex-basis: 100%;
   }
   .app-shell .main-area .page-content .lead-record .archived-qualification {
@@ -1325,9 +1307,8 @@
 }
 
 @media screen and (max-width: 700px) {
-  .app-shell .main-area .page-content .lead-record .first-contact-title-row { gap: 10px; }
-  .app-shell .main-area .page-content .lead-record .first-contact-title-row .button { padding-inline: 10px !important; }
-  .app-shell .main-area .page-content .lead-record .first-contact-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .app-shell .main-area .page-content .lead-record .lead-budget-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .app-shell .main-area .page-content .lead-record .archived-qualification-actions { width: 100%; margin-left: 0; justify-content: flex-start; flex-wrap: wrap; }
 }
 

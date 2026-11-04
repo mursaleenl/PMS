@@ -40,7 +40,7 @@ export function ProjectConversation({projectId}:{projectId:string}) {
     {error&&<p className="form-error" role="alert">{error}</p>}
     <form className="conversation-composer" onSubmit={send}>
       <label className="field" htmlFor="project-message">Message</label>
-      <textarea id="project-message" required maxLength={5000} rows={3} value={message} onChange={event=>setMessage(event.target.value)} placeholder="Write a message for your project team…" />
+      <textarea id="project-message" required maxLength={5000} rows={3} value={message} onChange={event=>setMessage(event.target.value)} placeholder="Message for the project team…" />
       <div className="conversation-composer-footer"><span>Messages are shared with the project team.</span><button className="button button-primary" disabled={busy || !message.trim()}><Send size={14}/>{busy?"Sending…":"Send message"}</button></div>
     </form>
   </section>;

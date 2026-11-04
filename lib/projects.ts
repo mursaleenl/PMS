@@ -123,15 +123,45 @@ export function addProject(project: Project) {
   writeProjects([project, ...readProjects()]);
 }
 
+function sameTeamMember(left: Pick<ProjectTeamMember, "userId" | "name">, right: Pick<ProjectTeamMember, "userId" | "name">) {
+  if (left.userId && right.userId) return left.userId === right.userId;
+  return left.name.trim().toLowerCase() === right.name.trim().toLowerCase();
+}
+
+function addTaskAssignees(team: ProjectTeamMember[], tasks: ProjectWorkItem[]): ProjectTeamMember[] {
+  const members = [...team];
+  for (const task of tasks) {
+    const name = task.assignee?.trim();
+    if (!name || name.toLowerCase() === "unassigned" || DUMMY_ASSIGNABLE_NAMES.has(name.toLowerCase())) continue;
+    const candidate: ProjectTeamMember = { role: "Supporting team member", name, userId: task.assigneeId, allocationPercent: 0 };
+    const existing = members.findIndex(member => sameTeamMember(member, candidate));
+    if (existing < 0) members.push(candidate);
+    else if (!members[existing].userId && candidate.userId) members[existing] = { ...members[existing], userId: candidate.userId };
+  }
+  return members;
+}
+
+export function getProjectTeamMembers(project: Project): ProjectTeamMember[] {
+  const managers = project.team.filter(member => member.role === "Project Manager");
+  const members: ProjectTeamMember[] = [];
+  for (const member of addTaskAssignees(project.team, project.workItems ?? [])) {
+    if (!member.name.trim() || DUMMY_ASSIGNABLE_NAMES.has(member.name.trim().toLowerCase())) continue;
+    if (member.role === "Project Manager" || managers.some(manager => sameTeamMember(manager, member))) continue;
+    if (!members.some(existing => sameTeamMember(existing, member))) members.push(member);
+  }
+  return members;
+}
+
 export function updateProject(id: string, updates: Partial<Project>) {
   writeProjects(readProjects().map((project) => {
     if (project.id !== id) return project;
-    const assignedTaskChanged = updates.workItems?.some(task => {
+    const assignedTasks = updates.workItems?.filter(task => {
       if (!task.assigneeId && !task.assignee?.trim()) return false;
       const previous = project.workItems?.find(item => item.id === task.id);
       return !previous || (previous.assigneeId || "") !== (task.assigneeId || "") || previous.assignee.trim() !== task.assignee.trim();
-    });
-    return { ...project, ...updates, ...(updates.status === undefined && project.status === "ACTIVE" && assignedTaskChanged ? {status: "ON_TRACK" as const} : {}) };
+    }) ?? [];
+    const team = assignedTasks.length ? addTaskAssignees(updates.team ?? project.team, assignedTasks) : updates.team ?? project.team;
+    return { ...project, ...updates, team, ...(updates.status === undefined && project.status === "ACTIVE" && assignedTasks.length > 0 ? {status: "ON_TRACK" as const} : {}) };
   }));
 }
 
@@ -187,16 +217,20 @@ export async function projectFromLead(input: {
 }
 
 export function getProjectDisplayTitle(project: { title: string; clientCompany?: string; clientName?: string }): string {
-  const title = (project.title || "").trim();
-  const client = (project.clientCompany || project.clientName || "").trim();
-  if (client) {
-    const patterns = [`${client} — `, `${client} - `, `${client} – `];
-    for (const pattern of patterns) {
-      if (title.toLowerCase().startsWith(pattern.toLowerCase())) {
-        const stripped = title.slice(pattern.length).trim();
-        if (stripped) return stripped;
-      }
-    }
-  }
-  return title || "Untitled Project";
+  return project.clientCompany?.trim() || project.clientName?.trim() || project.title?.trim() || "Untitled Project";
+}
+
+export function getProjectDisplayServices(project: Pick<Project, "title" | "clientCompany" | "clientName" | "services">): string {
+  const heading = getProjectDisplayTitle(project);
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const headingPrefix = new RegExp(`^${escapedHeading}\\s*[·—–|:-]\\s*`, "i");
+  const seen = new Set<string>();
+  return project.services.flatMap(service => service.trim().replace(headingPrefix, "").split(","))
+    .map(service => service.trim())
+    .filter(service => {
+      const key = service.toLowerCase();
+      if (!key || key === heading.toLowerCase() || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).join(", ");
 }

@@ -307,7 +307,50 @@ body, button, input, select, textarea { font-family: var(--font-body); }
   .app-shell #workspace-content .overview-summary-card:nth-child(2) .overview-summary-icon { color: #0f766e !important; }
   .app-shell #workspace-content .overview-summary-card:nth-child(3) .overview-summary-icon { color: #6d28d9 !important; }
   .app-shell #workspace-content .overview-summary-card:nth-child(4) .overview-summary-icon { color: #92400e !important; }
-  .app-shell #workspace-content .overview-project-card h3 { margin: 16px 0 8px !important; font-size: 15px !important; }
+  /* Keep project details together instead of stretching each row to fill the card. */
+  .app-shell #workspace-content .overview-project-grid { align-items: start; }
+  html body .app-shell #workspace-content .overview-dashboard .overview-project-card {
+    min-height: 0 !important; height: auto !important; align-self: start;
+    gap: 0 !important; padding: 20px !important; border-radius: 0 !important;
+    border: 1px solid #e4e4e7 !important; background: #ffffff !important;
+    box-shadow: none !important;
+  }
+  html body .app-shell #workspace-content .overview-dashboard .overview-project-card:hover {
+    border-color: #cbd5e1 !important; transform: translateY(-1px) !important;
+    box-shadow: 0 2px 6px rgb(15 23 42 / 5%) !important;
+  }
+  .app-shell #workspace-content .overview-project-card .overview-project-card-top {
+    min-height: 20px !important; margin: 0 0 12px !important; gap: 12px !important;
+  }
+  .app-shell #workspace-content .overview-project-card h3 {
+    display: block !important; min-height: 0 !important; margin: 0 0 4px !important;
+    font-size: 17px !important; line-height: 1.35 !important; font-weight: 650 !important;
+    text-transform: none !important; letter-spacing: 0 !important;
+  }
+  .app-shell #workspace-content .overview-project-card .overview-project-services {
+    display: block !important; min-height: 0 !important; margin: 0 0 16px !important;
+    font-size: 13px !important; line-height: 1.5 !important; white-space: normal !important;
+    overflow-wrap: anywhere; color: #71717a !important;
+  }
+  .app-shell #workspace-content .overview-project-card .overview-progress-label {
+    margin: 0 0 8px !important; font-size: 12px !important; line-height: 1.4 !important;
+  }
+  .app-shell #workspace-content .overview-project-card .overview-progress-track {
+    height: 4px !important; margin: 0 !important; border-radius: 0 !important;
+    background: #e4e4e7 !important;
+  }
+  .app-shell #workspace-content .overview-project-card .overview-progress-track i {
+    border-radius: 0 !important; background: #0f172a !important;
+  }
+  .app-shell #workspace-content .overview-project-card .overview-project-footer {
+    min-height: 0 !important; margin: 16px 0 0 !important; padding: 12px 0 0 !important;
+    border-color: #e4e4e7 !important; gap: 8px 16px !important; flex-wrap: wrap;
+  }
+  .app-shell #workspace-content .overview-project-card :is(.overview-footer-stats,.overview-id-badge,.overview-id-badge .mono-meta) {
+    font-size: 12px !important; line-height: 1.4 !important; color: #475569 !important;
+  }
+  .app-shell #workspace-content .overview-project-card .overview-id-badge { margin-left: auto; white-space: nowrap; }
+  .app-shell #workspace-content .overview-project-card .overview-arrow-icon { color: #0f172a !important; }
 
   /* Compact proposal records share stable icon / title / status / action columns. */
   .app-shell #workspace-content .proposals-page .proposal-index-panel { padding: 0 !important; overflow: hidden; }
@@ -436,19 +479,26 @@ body, button, input, select, textarea { font-family: var(--font-body); }
     outline-color: #64748b !important;
   }
   html body .app-shell #workspace-content .projects-page .portfolio-actions {
-    display: flex !important; align-items: stretch !important; gap: 8px !important;
+    display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr; align-items: stretch !important; gap: 8px !important;
   }
   html body .app-shell #workspace-content .projects-page .portfolio-actions > .portfolio-lifecycle-button {
     flex: 1 1 120px !important; min-width: 0 !important;
     min-height: 38px !important; height: auto !important;
     padding: 8px 10px !important; line-height: 20px !important;
     text-transform: none !important; letter-spacing: 0 !important;
-    border-radius: 0 !important;
+    border-radius: 0 !important; white-space: normal !important;
   }
   html body .app-shell #workspace-content .projects-page .portfolio-actions > .portfolio-delete-icon-button {
-    flex: 0 0 38px !important; width: 38px !important;
+    grid-column: 1 / -1;
+    flex: 1 1 120px !important; width: auto !important;
     min-height: 38px !important; height: auto !important; align-self: stretch;
     border-radius: 0 !important;
+    --control-ink: #ffffff; --control-bg: #dc2626; --control-border: #dc2626;
+    background: #dc2626 !important; border-color: #dc2626 !important; color: #ffffff !important;
+  }
+  html body .app-shell #workspace-content .projects-page .portfolio-actions > .portfolio-delete-icon-button:hover:not(:disabled) {
+    background: #b91c1c !important; border-color: #b91c1c !important; color: #ffffff !important;
   }
 }
 
@@ -710,4 +760,498 @@ body, button, input, select, textarea { font-family: var(--font-body); }
 @media screen and (max-width:600px) {
   html body .user-modal-backdrop .invoice-modal-card { padding: 16px !important; }
   html body .user-modal-backdrop .invoice-modal-card .proposal-select-top { flex-wrap: wrap; gap: 12px; }
+}
+
+/* Account controls share the light, rectangular workspace presentation. */
+@media screen {
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-user-btn {
+    height: 36px !important; min-height: 36px !important; gap: 8px !important;
+    padding: 0 10px !important; border: 1px solid #e4e4e7 !important;
+    border-radius: 0 !important; background: #ffffff !important; color: #0f172a !important;
+    box-shadow: none !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-user-btn:hover {
+    background: #f8fafc !important; border-color: #cbd5e1 !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-user-icon,
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-dropdown-user-icon {
+    display: inline-flex !important; align-items: center; justify-content: center;
+    width: 20px !important; height: 20px !important; min-width: 20px !important;
+    padding: 0 !important; background: transparent !important; border: 0 !important;
+    color: #475569 !important; box-shadow: none !important; border-radius: 0 !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-user-name {
+    font-size: 14px !important; font-weight: 600 !important; color: #0f172a !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container :is(.topbar-user-role-badge,.topbar-account-role) {
+    display: inline-flex; align-items: center; align-self: center;
+    height: 18px !important; min-height: 18px !important; padding: 0 5px !important;
+    font-size: 10px !important; font-weight: 500 !important; line-height: 1 !important;
+    color: #52525b !important; background: #f4f4f5 !important;
+    border: 1px solid #e4e4e7 !important; border-radius: 0 !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-profile-dropdown {
+    width: 280px; max-width: calc(100vw - 32px); padding: 8px !important;
+    background: #ffffff !important; color: #0f172a !important;
+    border: 1px solid #e4e4e7 !important; border-radius: 0 !important;
+    box-shadow: 0 8px 24px rgb(15 23 42 / 10%) !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-dropdown-user-header {
+    align-items: flex-start; gap: 12px; padding: 12px !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-dropdown-user-info { min-width: 0; gap: 4px; }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-dropdown-user-info strong {
+    font-size: 14px !important; line-height: 20px; color: #0f172a !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-dropdown-user-info small {
+    font-size: 12px !important; line-height: 18px; margin: 0; color: #71717a !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-account-role { align-self: flex-start; margin-top: 4px; }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-dropdown-divider {
+    height: 1px; margin: 4px 0; background: #e4e4e7 !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-dropdown-link {
+    display: flex; align-items: center; justify-content: flex-start;
+    min-height: 38px !important; padding: 10px 12px !important; gap: 10px !important;
+    font-size: 13px !important; color: #0f172a !important; background: #ffffff !important;
+    border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-dropdown-link:hover {
+    background: #f4f4f5 !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-dropdown-link svg {
+    width: 16px; height: 16px; color: #475569 !important; flex-shrink: 0;
+  }
+  html body .app-shell .workspace-topbar .workspace-create {
+    --control-bg: #0f172a !important; --control-ink: #ffffff !important;
+    background: #0f172a !important; border-color: #0f172a !important; border-radius: 0 !important;
+  }
+}
+@media screen and (max-width: 350px) {
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-user-btn {
+    width: 36px !important; padding: 0 !important;
+  }
+}
+
+/* Task assignee is one control; icons remain unframed. */
+@media screen {
+  html body .app-shell #workspace-content .task-management-page .work-assignee-filter {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 0 10px !important; min-height: 38px;
+    background: #ffffff !important; border: 1px solid #e2e8f0 !important;
+    border-radius: 0 !important; outline: 0 !important; box-shadow: none !important;
+  }
+  html body .app-shell #workspace-content .task-management-page .work-assignee-filter:focus-within {
+    border-color: #0f172a !important; outline: 1px solid #0f172a !important;
+    outline-offset: -1px !important; box-shadow: none !important;
+  }
+  html body .app-shell #workspace-content .task-management-page .work-assignee-filter .filter-select-wrap {
+    min-width: 0; border: 0 !important; background: transparent !important;
+    outline: 0 !important; box-shadow: none !important;
+  }
+  html body .app-shell #workspace-content .task-management-page .work-assignee-filter select,
+  html body .app-shell #workspace-content .task-management-page .work-assignee-filter select:focus,
+  html body .app-shell #workspace-content .task-management-page .work-assignee-filter select:focus-visible {
+    min-height: 36px !important; height: 36px !important;
+    border: 0 !important; border-radius: 0 !important;
+    background-color: transparent !important; color: #0f172a !important;
+    outline: 0 !important; box-shadow: none !important;
+  }
+  html body .app-shell #workspace-content .task-management-page :is(.empty-icon,.task-empty-icon-wrap) {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px !important; height: 28px !important; min-height: 0 !important;
+    padding: 0 !important; margin: 0 0 12px !important;
+    color: #475569 !important; background: transparent !important;
+    border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+  }
+  html body .app-shell #workspace-content .task-management-page :is(.empty-icon,.task-empty-icon-wrap) svg {
+    width: 24px; height: 24px; color: #475569 !important; stroke: currentColor;
+  }
+}
+
+@media screen {
+  html body .proposal-compose-backdrop { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 24px; background: rgb(15 23 42 / 35%); }
+  html body #proposal-editor { width: min(900px,100%); max-width: 100%; max-height: calc(100dvh - 48px); overflow-y: auto; padding: 24px !important; background: #ffffff !important; color: #0f172a; border: 1px solid #e4e4e7 !important; border-radius: 0 !important; }
+  html body .proposal-compose-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+  html body .proposal-compose-heading h2 { margin: 0 0 6px; font-size: 20px; text-transform: none; }
+  html body .proposal-compose-heading p { margin: 0; color: #71717a; font-size: 13px; }
+  html body #proposal-editor .record-section { margin-top: 16px; padding: 16px; }
+  html body #proposal-editor .proposal-fields-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+  html body #proposal-editor .field { min-width: 0; }
+  html body #proposal-editor .field :is(input,select,textarea) { max-width: 100%; box-sizing: border-box; }
+  html body #proposal-editor .basic-proposal-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+  html body #proposal-editor .invoice-drawer-tab[aria-selected="true"] { background: #0f172a !important; color: #ffffff !important; border-color: #0f172a !important; }
+  html body #proposal-editor .button-primary { background: #0f172a !important; color: #ffffff !important; border-color: #0f172a !important; }
+}
+@media screen and (max-width:600px) {
+  html body .proposal-compose-backdrop { padding: 12px; }
+  html body #proposal-editor { padding: 16px !important; max-height: calc(100dvh - 24px); }
+  html body #proposal-editor .proposal-fields-grid { grid-template-columns: minmax(0,1fr); }
+}
+
+@media screen {
+  html body #proposal-editor :is(button,.button) { text-transform: none !important; letter-spacing: 0 !important; border-radius: 0 !important; }
+  html body #proposal-editor :is(button,input,select,textarea):focus-visible { outline: 1px solid #0f172a !important; border-color: #0f172a !important; box-shadow: none !important; }
+  html body #proposal-editor .section-icon { padding: 0 !important; width: 20px; height: 20px; color: #475569 !important; background: transparent !important; border: 0 !important; }
+  html body #proposal-editor .invoice-drawer-tab[aria-selected="true"]:hover { background: #0f172a !important; color: #ffffff !important; border-color: #0f172a !important; }
+}
+
+@media screen {
+  .app-shell #workspace-content .project-status-board .project-board-card {
+    display: block; min-height: 0 !important; padding: 14px !important;
+    background: #ffffff !important; border: 1px solid #e4e4e7 !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+  .app-shell #workspace-content .project-status-board .project-board-card-heading {
+    align-items: flex-start; gap: 10px; margin: 0 !important;
+  }
+  .app-shell #workspace-content .project-status-board .project-board-card h4 {
+    margin: 0 !important; font-size: 15px !important; line-height: 1.35 !important;
+    font-weight: 650 !important; text-transform: none !important;
+    letter-spacing: 0 !important; color: #0f172a !important; overflow-wrap: anywhere;
+  }
+  .app-shell #workspace-content .project-status-board .project-board-card .project-board-services {
+    margin: 5px 0 0 !important; font-size: 12px !important;
+    line-height: 1.5 !important; color: #71717a !important; overflow-wrap: anywhere;
+  }
+  .app-shell #workspace-content .project-status-board .project-status-reference {
+    display: block; margin-top: 12px; padding-top: 10px;
+    border-top: 1px solid #e4e4e7; font-size: 12px !important;
+    line-height: 1.4; font-weight: 500; color: #475569 !important;
+  }
+  .app-shell #workspace-content .project-status-board .project-board-card:focus-visible {
+    outline: 1px solid #0f172a !important; outline-offset: 2px; box-shadow: none !important;
+  }
+}
+
+@media screen {
+  .app-shell #workspace-content #attendance-change-history { padding: 0 !important; border-radius: 0 !important; }
+  .app-shell #workspace-content #attendance-change-history > summary {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    margin: 0 !important; padding: 18px 20px; cursor: pointer; list-style: none;
+  }
+  .app-shell #workspace-content #attendance-change-history > summary::-webkit-details-marker { display: none; }
+  .app-shell #workspace-content #attendance-change-history > summary h2 { margin: 0; font-size: 16px; text-transform: none !important; }
+  .app-shell #workspace-content #attendance-change-history > summary p { margin: 5px 0 0; color: #71717a; font-size: 12px; }
+  .app-shell #workspace-content #attendance-change-history .attendance-changes-summary { display: flex; align-items: center; gap: 12px; flex-shrink: 0; color: #475569; }
+  .app-shell #workspace-content #attendance-change-history[open] > summary .attendance-changes-summary > svg { transform: rotate(180deg); }
+  .app-shell #workspace-content #attendance-change-history .attendance-changes-tools { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 12px 20px; border-top: 1px solid #e4e4e7; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-list { margin: 0; padding: 0; list-style: none; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-list > li { border-top: 1px solid #e4e4e7; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-toggle {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    width: 100%; height: auto !important; min-height: 64px !important; padding: 14px 20px !important;
+    text-align: left; text-transform: none !important; letter-spacing: 0 !important;
+    color: #0f172a !important; background: #ffffff !important; border: 0 !important;
+    border-radius: 0 !important; box-shadow: none !important; cursor: pointer;
+  }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-toggle:hover { background: #f8fafc !important; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-copy { display: grid; gap: 5px; min-width: 0; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-copy strong { font-size: 13px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-copy > span { font-size: 12px; font-weight: 400; line-height: 1.5; color: #71717a; overflow-wrap: anywhere; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-toggle > svg { flex-shrink: 0; color: #475569; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-toggle[aria-expanded="true"] > svg { transform: rotate(180deg); }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-details { padding: 0 20px 16px; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-details dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px 24px; margin: 0; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-details dt { margin: 0 0 5px; color: #71717a; font-size: 11px; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-details dd { margin: 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+  .app-shell #workspace-content #attendance-change-history .attendance-changes-error { padding: 0 20px 16px; color: #0f172a; }
+  .app-shell #workspace-content #attendance-change-history :is(summary,button):focus-visible { outline: 1px solid #0f172a !important; outline-offset: -2px; }
+}
+@media screen and (max-width:600px) {
+  .app-shell #workspace-content #attendance-change-history > summary { align-items: flex-start; padding: 16px; gap: 12px; }
+  .app-shell #workspace-content #attendance-change-history .attendance-changes-summary { gap: 6px; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-toggle { padding: 14px 16px !important; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-details { padding: 0 16px 16px; }
+  .app-shell #workspace-content #attendance-change-history .attendance-change-details dl { grid-template-columns: minmax(0,1fr); }
+  .app-shell #workspace-content #attendance-change-history .attendance-changes-tools { padding: 12px 16px; }
+}
+
+@media screen {
+  html body .app-shell #workspace-content .project-team-panel select,
+  html body .app-shell #workspace-content .project-team-panel select:focus {
+    min-height: 38px !important; height: 38px !important; border-radius: 0 !important;
+    background-color: #ffffff !important; border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important; box-shadow: none !important;
+  }
+  html body .app-shell #workspace-content .project-team-panel select:focus-visible {
+    outline: 1px solid #0f172a !important; outline-offset: 0; border-color: #0f172a !important;
+  }
+  .app-shell #workspace-content .project-team-panel .project-team-roster { margin-top: 20px; padding-top: 16px; border-top: 1px solid #e4e4e7; }
+  .app-shell #workspace-content .project-team-panel .project-team-roster h3 { margin: 0 0 12px; font-size: 13px !important; font-weight: 600; text-transform: none !important; }
+  .app-shell #workspace-content .project-team-panel .project-team-roster ul { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
+  .app-shell #workspace-content .project-team-panel .project-team-roster li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .app-shell #workspace-content .project-team-panel .project-team-roster li > span { font-size: 13px; font-weight: 500; color: #0f172a; overflow-wrap: anywhere; }
+  .app-shell #workspace-content .project-team-panel .project-team-roster small { flex-shrink: 0; font-size: 11px; color: #71717a; }
+  .app-shell #workspace-content .project-team-panel .project-team-roster p { margin: 0; font-size: 12px; line-height: 1.5; color: #71717a; }
+}
+
+/* Compact mobile navigation matches the desktop sidebar; desktop controls retain their layout. */
+@media screen and (max-width:700px) {
+  html body .app-shell { --workspace-header: 48px !important; }
+  html body .app-shell #workspace-topbar {
+    position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important;
+    width: 100% !important; height: 48px !important; min-height: 48px !important;
+    display: flex !important; align-items: center !important; justify-content: space-between !important;
+    gap: 12px !important; padding: 0 20px !important; margin: 0 !important;
+    background: #111827 !important; color: #ffffff !important;
+    border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+    z-index: 110 !important;
+  }
+  html body .app-shell #workspace-topbar .top-actions {
+    display: flex !important; align-items: center !important; justify-content: flex-end !important;
+    gap: 6px !important; margin-left: 0 !important; flex: 0 0 auto !important;
+  }
+  html body .app-shell #workspace-topbar :is(.global-search-trigger,.topbar-user-btn,.mobile-nav-toggle) {
+    position: relative !important; inset: auto !important; transform: none !important; order: 0 !important;
+    display: inline-flex; align-items: center !important; justify-content: center !important;
+    flex: 0 0 36px !important; width: 36px !important; min-width: 36px !important; max-width: 36px !important;
+    height: 36px !important; min-height: 36px !important; padding: 0 !important; margin: 0 !important;
+    background: transparent !important; color: #ffffff !important;
+    border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+  }
+  html body .app-shell #workspace-topbar :is(.global-search-trigger,.topbar-user-btn,.mobile-nav-toggle):hover {
+    background: rgb(255 255 255 / 12%) !important; color: #ffffff !important;
+  }
+  html body .app-shell #workspace-topbar :is(.global-search-trigger,.topbar-user-btn,.mobile-nav-toggle):focus-visible {
+    outline: 1px solid #ffffff !important; outline-offset: -2px; box-shadow: none !important;
+  }
+  html body .app-shell #workspace-topbar :is(.global-search-trigger,.topbar-user-btn,.mobile-nav-toggle) svg,
+  html body .app-shell #workspace-topbar .topbar-user-icon {
+    width: 18px !important; height: 18px !important; min-width: 18px !important;
+    padding: 0 !important; border: 0 !important; color: #ffffff !important;
+    background: transparent !important; stroke: currentColor !important;
+  }
+  html body .app-shell #workspace-topbar .topbar-profile-dropdown {
+    top: calc(100% + 12px); width: 280px !important; min-width: 0 !important;
+    max-width: calc(100vw - 24px) !important; max-height: calc(100dvh - 72px);
+    overflow-y: auto; background: #ffffff !important; border-radius: 0 !important;
+  }
+  html body .app-shell #workspace-content { margin-top: 48px !important; padding-top: 0 !important; }
+  html body .app-shell #workspace-content > .page-content { padding-top: 16px !important; }
+  html body .app-shell #workspace-content > .page-content > :first-child { margin-top: 0 !important; }
+}
+@media screen and (min-width:701px) {
+  html body .app-shell #workspace-topbar .mobile-nav-toggle { display: none !important; }
+}
+@media screen and (max-width:700px) {
+  html body .app-shell #workspace-topbar { padding-inline: 12px !important; }
+  html body .app-shell #workspace-topbar .mobile-nav-toggle { display: inline-flex !important; }
+  html body .app-shell #workspace-content > .page-content { padding-top: 14px !important; }
+}
+@media screen {
+  html body .app-shell .command-backdrop { z-index: 1200 !important; }
+}
+
+@media screen and (max-width:700px) {
+  html body .app-shell #workspace-content .enquiry-heading {
+    flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; animation: none !important;
+  }
+  html body .app-shell #workspace-content .enquiry-heading .back-link {
+    margin: 0 !important; font-size: 13px; line-height: 18px;
+  }
+  html body .app-shell #workspace-content .page-content > .back-link {
+    margin: 0 0 12px !important; font-size: 13px; line-height: 18px;
+  }
+}
+
+@media screen and (max-width:700px) {
+  html body .app-shell #workspace-topbar .global-search-trigger { margin-left: auto !important; }
+  html body .app-shell #workspace-topbar :is(.global-search-trigger > span,.global-search-trigger > kbd,.topbar-user-name,.topbar-user-role-badge,.topbar-chevron) { display: none !important; }
+}
+@media screen and (max-width:700px) {
+  html body .app-shell #workspace-content > .page-content { padding-top: 14px !important; }
+}
+
+@media screen and (max-width:700px) {
+  html body .app-shell #workspace-sidebar {
+    background: #111827 !important; color: #cbd5e1 !important;
+    border-right: 1px solid #1f2937 !important;
+  }
+  html body .app-shell #workspace-sidebar .workspace-sidebar-heading {
+    justify-content: flex-start !important; width: 100% !important;
+    padding: 4px 40px 20px 12px !important;
+  }
+  html body .app-shell #workspace-sidebar .workspace-sidebar-brand {
+    width: auto !important; justify-content: flex-start !important; gap: 12px !important;
+  }
+  html body .app-shell #workspace-sidebar .workspace-sidebar-brand img {
+    flex: 0 0 20px !important; width: 20px !important; height: 20px !important;
+  }
+  html body .app-shell #workspace-sidebar .workspace-sidebar-brand > span,
+  html body .app-shell #workspace-sidebar .workspace-sidebar-heading strong {
+    color: #ffffff !important; -webkit-text-fill-color: #ffffff !important;
+  }
+  html body .app-shell #workspace-sidebar .workspace-label { color: #94a3b8 !important; }
+  html body .app-shell #workspace-sidebar .nav-link {
+    color: #cbd5e1 !important; background: transparent !important;
+  }
+  html body .app-shell #workspace-sidebar .nav-link .nav-icon { color: #475569 !important; }
+  html body .app-shell #workspace-sidebar .nav-link:hover { background: #1f2937 !important; color: #ffffff !important; }
+  html body .app-shell #workspace-sidebar .nav-link.active { background: #2563eb !important; color: #ffffff !important; }
+  html body .app-shell #workspace-sidebar .nav-link.active .nav-icon { color: #ffffff !important; }
+  html body .app-shell #workspace-sidebar .workspace-sidebar-footer { border-color: #374151 !important; }
+  html body .app-shell #workspace-sidebar .mobile-sidebar-close {
+    color: #cbd5e1 !important; background: transparent !important; border: 0 !important;
+  }
+  html body .app-shell #workspace-sidebar :is(a,button):focus-visible { outline-color: #ffffff !important; }
+}
+
+/* Project actions and tab navigation occupy separate rows. */
+@media screen {
+  html body .app-shell #workspace-content .project-room-heading {
+    display: flex !important; flex-direction: column !important; align-items: stretch !important;
+    gap: 16px !important; margin-bottom: 20px !important;
+  }
+  html body .app-shell #workspace-content .project-room-heading > div:first-child { flex: none !important; }
+  html body .app-shell #workspace-content .project-lifecycle-actions {
+    display: flex !important; align-items: center !important; justify-content: space-between !important;
+    flex-wrap: wrap; width: 100%; gap: 12px 20px !important;
+  }
+  html body .app-shell #workspace-content .project-lifecycle-status {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
+  }
+  html body .app-shell #workspace-content .project-lifecycle-status .status-badge {
+    display: inline-flex !important; align-items: center !important; gap: 6px !important;
+    padding: 0 !important; border: 0 !important; background: transparent !important;
+    height: auto !important; min-height: 20px !important; line-height: 20px !important;
+  }
+  html body .app-shell #workspace-content .project-lifecycle-status .status-badge svg {
+    display: block; width: 16px !important; height: 16px !important; flex: 0 0 16px;
+  }
+  html body .app-shell #workspace-content .project-lifecycle-buttons {
+    display: flex; align-items: stretch; justify-content: flex-end; flex-wrap: wrap; gap: 8px;
+  }
+  html body .app-shell #workspace-content .project-lifecycle-buttons > .button {
+    position: static !important; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto !important;
+    width: auto !important; min-height: 38px !important; height: auto !important; min-width: 0 !important;
+    padding: 8px 12px !important; gap: 6px !important; line-height: 20px !important;
+    border-radius: 0 !important; white-space: normal !important; text-transform: none !important;
+  }
+  html body .app-shell #workspace-content .project-lifecycle-buttons > .button svg { width: 14px; height: 14px; flex-shrink: 0; }
+  html body .app-shell #workspace-content .project-dispatch-row {
+    display: flex; justify-content: flex-end; margin: 16px 0 12px;
+  }
+  html body .app-shell #workspace-content .project-dispatch-row .room-dispatch-button {
+    position: static !important; inset: auto !important; transform: none !important;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: auto !important; height: 38px !important; min-height: 38px !important;
+    margin: 0 !important; padding: 0 14px !important; gap: 6px;
+    flex: none !important; border-radius: 0 !important; text-transform: none !important;
+  }
+  html body .app-shell #workspace-content .project-room-tabs {
+    position: relative; display: flex; align-items: stretch; flex-wrap: nowrap !important;
+    min-width: 0; max-width: 100%; padding: 0 !important; margin-top: 0 !important;
+    overflow-x: auto !important;
+  }
+  html body .app-shell #workspace-content .project-room-tabs > button {
+    position: static !important; flex: 0 0 auto !important; min-height: 40px;
+    white-space: nowrap !important; text-transform: none !important;
+  }
+}
+@media screen and (max-width:700px) {
+  html body .app-shell #workspace-content .project-lifecycle-actions { flex-direction: column; align-items: stretch !important; }
+  html body .app-shell #workspace-content .project-lifecycle-buttons { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); grid-auto-rows: 1fr; width: 100%; }
+  html body .app-shell #workspace-content .project-dispatch-row .room-dispatch-button { width: 100% !important; }
+}
+
+/* Attendance filters use the panel width without a nested frame. */
+@media screen {
+  html body .app-shell #workspace-content .attendance-toolbar {
+    display: grid !important; grid-template-columns: minmax(0,1fr) auto;
+    align-items: end !important; gap: 12px !important;
+    padding: 0 !important; margin: 16px 0 !important;
+    border: 0 !important; background: transparent !important; box-shadow: none !important;
+  }
+  html body .app-shell #workspace-content .attendance-filters {
+    display: grid !important; grid-template-columns: minmax(160px,1.3fr) repeat(2,minmax(0,1fr)) !important;
+    gap: 12px !important; width: 100% !important; margin: 0 !important;
+  }
+  html body .app-shell #workspace-content .attendance-filters:not(:has(.attendance-member-filter)) { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+  html body .app-shell #workspace-content .attendance-filters .field {
+    width: 100%; min-width: 0; margin: 0 !important; gap: 6px !important;
+    font-size: 12px !important; line-height: 18px !important;
+  }
+  html body .app-shell #workspace-content .attendance-filters :is(input,select) {
+    width: 100% !important; min-width: 0 !important; max-width: 100% !important;
+    height: 38px !important; min-height: 38px !important; padding: 0 10px !important;
+    border: 1px solid #e2e8f0 !important; border-radius: 0 !important;
+    font-size: 13px !important; background-color: #ffffff !important; box-sizing: border-box;
+  }
+  html body .app-shell #workspace-content .attendance-toolbar > .button {
+    align-self: end; min-height: 38px !important; height: 38px !important;
+    margin: 0 !important; padding: 0 14px !important; text-transform: none !important;
+    white-space: nowrap; border-radius: 0 !important;
+  }
+}
+@media screen and (max-width:700px) {
+  html body .app-shell #workspace-content .attendance-toolbar { grid-template-columns: minmax(0,1fr); }
+  html body .app-shell #workspace-content .attendance-filters { grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 12px 10px !important; }
+  html body .app-shell #workspace-content .attendance-member-filter { grid-column: 1 / -1; }
+  html body .app-shell #workspace-content .attendance-filters :is(input,select) { font-size: 16px !important; padding: 0 8px !important; }
+  html body .app-shell #workspace-content .attendance-filters input[type="date"]::-webkit-calendar-picker-indicator { margin: 0; padding: 0; width: 14px; }
+  html body .app-shell #workspace-content .attendance-filters input[type="date"]::-webkit-datetime-edit { padding: 0; }
+  html body .app-shell #workspace-content .attendance-toolbar > .button { width: 100%; }
+}
+
+@media screen {
+  .app-shell #workspace-content #my-attendance-calendar { padding: 20px !important; margin-bottom: 20px; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+  .app-shell #workspace-content #my-attendance-calendar h2 { margin: 0 !important; font-size: 16px !important; text-transform: none !important; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-heading p { margin: 6px 0 0; color: #71717a; font-size: 12px; line-height: 1.5; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-count { flex-shrink: 0; font-size: 12px; line-height: 22px; color: #71717a; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-month { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .app-shell #workspace-content #my-attendance-calendar h3 { margin: 0 !important; font-size: 14px !important; font-weight: 600; text-transform: none !important; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-controls { display: flex; gap: 6px; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-controls button { display: inline-flex; align-items: center; justify-content: center; height: 36px !important; min-height: 36px !important; min-width: 36px; padding: 0 10px !important; text-transform: none !important; border-radius: 0 !important; }
+  .app-shell #workspace-content #my-attendance-calendar :is(.attendance-calendar-weekdays,.attendance-calendar-days) { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 4px; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-weekdays { margin-bottom: 6px; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-weekdays span { text-align: center; font-size: 11px; line-height: 24px; color: #71717a; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    min-width: 0 !important; width: 100%; height: 48px !important; min-height: 48px !important;
+    padding: 5px 0 !important; border: 1px solid transparent !important; border-radius: 0 !important;
+    color: #0f172a !important; background: #ffffff !important; box-shadow: none !important;
+    font-size: 13px !important; font-weight: 500; cursor: pointer;
+  }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day:hover:not(:disabled) { background: #f4f4f5 !important; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day[aria-current="date"] { border-color: #0f172a !important; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day[aria-pressed="true"],
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day[aria-pressed="true"]:hover { background: #0f172a !important; color: #ffffff !important; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day:disabled { color: #94a3b8 !important; cursor: default; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-date-dot { display: inline-block; width: 5px; height: 5px; min-height: 5px; flex: 0 0 5px; padding: 0; border: 0; border-radius: 50% !important; background: currentColor; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-legend { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #71717a; margin-top: 12px; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day-details { margin-top: 16px; padding-top: 16px; border-top: 1px solid #e4e4e7; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day-details ul { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 12px; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day-details li { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day-details li > span { display: grid; gap: 5px; font-size: 12px; overflow-wrap: anywhere; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day-details small { font-size: 11px; color: #71717a; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day-details p { font-size: 12px; color: #71717a; margin: 12px 0 0; }
+  .app-shell #workspace-content #my-attendance-calendar :is(button):focus-visible { outline: 1px solid #0f172a !important; outline-offset: 2px; }
+}
+@media screen and (max-width:700px) {
+  .app-shell #workspace-content #my-attendance-calendar { padding: 16px !important; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-heading { flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-month { flex-wrap: wrap; gap: 10px; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-controls { margin-left: auto; }
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day { height: 42px !important; min-height: 42px !important; }
+}
+@media screen {
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-marker { display: flex; align-items: center; justify-content: center; height: 5px; min-height: 5px; }
+}
+@media screen {
+  .app-shell #workspace-content #my-attendance-calendar .attendance-calendar-day[aria-pressed="true"] span {
+    color: #ffffff !important; -webkit-text-fill-color: #ffffff !important;
+  }
+  .app-shell #workspace-content #my-attendance-calendar :is(.attendance-calendar-count,.attendance-calendar-heading p) {
+    color: #71717a !important;
+  }
+}
+@media screen {
+  html body .app-shell #workspace-content .project-room-heading h1 { margin-bottom: 6px !important; }
+  html body .app-shell #workspace-content .project-room-heading .project-room-services {
+    margin: 0 !important; font-size: 14px !important; line-height: 1.5 !important;
+    font-weight: 400; color: #71717a !important; text-transform: none !important;
+    overflow-wrap: anywhere;
+  }
 }

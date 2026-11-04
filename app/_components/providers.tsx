@@ -13,11 +13,6 @@ const collections: WorkspaceCollection[] = ["leads", "projects", "management", "
 
 type SyncFeedback = { state: "loading"|"ready"|"saving"|"error"; canSave:boolean; message:string; retry:(() => Promise<void>)|null; reload:() => void };
 const SyncContext = createContext<SyncFeedback | null>(null);
-export function WorkspaceSaveIndicator() {
-  const sync = useContext(SyncContext);
-  if (!sync || !sync.canSave) return null;
-  return <span className="workspace-save-status" role="status" aria-live="polite">{sync.state === "saving" ? "Saving…" : sync.state === "error" ? "Not saved" : "Saved"}</span>;
-}
 export function WorkspaceSyncFeedback() {
   const sync = useContext(SyncContext);
   if (!sync) return null;

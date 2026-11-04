@@ -78,30 +78,33 @@ test('employees see completed-project tasks and can only view Project status',as
  await expect(page.getByRole('checkbox',{name:'Mark Build the homepage experience complete'})).toHaveCount(0);
  await page.goto('/projects/EVE-2026-001');
  const tabs=page.getByRole('navigation',{name:'Project room sections'});
+ await expect(page.getByRole('combobox',{name:'Assigned project manager',exact:true})).toHaveCount(0);
+ await expect(page.locator('.project-team-panel')).toContainText('Assigned project manager');
  await expect(tabs.getByRole('button')).toHaveText(['Overview','Staging & Links','Project status','Messages']);
  await tabs.getByRole('button',{name:'Project status',exact:true}).click();
- await expect(page.getByRole('region',{name:'Completed projects'}).getByRole('heading',{name:'Northstar website redesign',exact:true})).toBeVisible();
+ await expect(page.getByRole('region',{name:'Completed projects'}).getByRole('heading',{name:'Northstar Studio',exact:true})).toBeVisible();
  await expect(page.getByLabel('Move project',{exact:true})).toHaveCount(0);
  await expect(page.locator('.project-board-card[draggable="true"]')).toHaveCount(0);
  await expect(page.getByRole('heading',{name:'Review navigation and content structure',exact:true})).toHaveCount(0);
 });
 
-test('admin can change project status by drag and status menu',async({page})=>{
+test('admin can change project status by drag and keyboard without a move selector',async({page})=>{
  const {calls}=await mockWorkspace(page);await page.goto('/projects/EVE-2026-001');
  await page.getByRole('button',{name:'Project status',exact:true}).click();
  await page.locator('.project-board-card').dragTo(page.getByRole('region',{name:'On track projects'}));
- await expect(page.getByRole('region',{name:'On track projects'}).getByRole('heading',{name:'Northstar website redesign',exact:true})).toBeVisible();
+ await expect(page.getByRole('region',{name:'On track projects'}).getByRole('heading',{name:'Northstar Studio',exact:true})).toBeVisible();
  await expect.poll(()=>calls.length).toBeGreaterThan(0);
  expect(calls.flatMap(call=>call.p_changes)[0].data.row.status).toBe('ON_TRACK');
- await page.getByLabel('Move project',{exact:true}).selectOption('COMPLETED');
- await expect(page.getByRole('region',{name:'Completed projects'}).getByRole('heading',{name:'Northstar website redesign',exact:true})).toBeVisible();
+ await expect(page.getByLabel('Move project',{exact:true})).toHaveCount(0);
+ await page.locator('.project-board-card').press('ArrowRight');
+ await expect(page.getByRole('region',{name:'Completed projects'}).getByRole('heading',{name:'Northstar Studio',exact:true})).toBeVisible();
  await expect.poll(()=>calls.flatMap(call=>call.p_changes).at(-1).data.row.status).toBe('COMPLETED');
- await page.getByLabel('Move project',{exact:true}).selectOption('AMC');
+ await page.locator('.project-board-card').press('ArrowRight');
  const drawer=page.getByRole('dialog',{name:'Add retainer plan'});
  await expect(drawer).toBeVisible();
  await drawer.getByRole('button',{name:'Cancel',exact:true}).click();
- await expect(page.getByRole('region',{name:'Completed projects'}).getByRole('heading',{name:'Northstar website redesign',exact:true})).toBeVisible();
- await page.getByLabel('Move project',{exact:true}).selectOption('AMC');
+ await expect(page.getByRole('region',{name:'Completed projects'}).getByRole('heading',{name:'Northstar Studio',exact:true})).toBeVisible();
+ await page.locator('.project-board-card').press('ArrowRight');
  await drawer.getByLabel('Amount',{exact:true}).fill('1200');
  await drawer.getByRole('combobox',{name:'Billing cycle',exact:true}).selectOption('Annual');
  await drawer.getByRole('button',{name:'Add retainer plan',exact:true}).click();
@@ -124,7 +127,7 @@ test('AMC setup retries a failed save without creating another retainer',async({
  });
  await page.goto('/projects/EVE-2026-001');
  await page.getByRole('button',{name:'Project status',exact:true}).click();
- await page.getByLabel('Move project',{exact:true}).selectOption('AMC');
+ await page.locator('.project-board-card').dragTo(page.getByRole('region',{name:'AMC projects'}));
  const drawer=page.getByRole('dialog',{name:'Add retainer plan'});
  await drawer.getByLabel('Amount',{exact:true}).fill('900');
  await drawer.getByRole('button',{name:'Add retainer plan',exact:true}).click();
@@ -143,17 +146,19 @@ test('statuses have visible icons and high-contrast text without badge boxes',as
  await expect(badge).toBeVisible();
  await expect(badge.locator('svg')).toBeVisible();
  await expect(badge.locator('svg')).toHaveCSS('width','16px');
- await expect(badge).toHaveCSS('color','rgb(29, 78, 216)');
+ await expect(badge).toHaveCSS('color','rgb(71, 85, 105)');
  await expect(badge).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
  await expect(badge).toHaveCSS('border-top-width','0px');
  await page.goto('/requests');
- await expect(page.locator('.status-badge[data-status="QUALIFIED"]').first().locator('svg')).toBeVisible();
+ await expect(page.locator('.status-badge[data-status="NEW"]').first().locator('svg')).toBeVisible();
  await page.goto('/work');
  await expect(page.locator('.status-badge[data-status="IN_PROGRESS"]').first().locator('svg')).toBeVisible();
 });
 
 test('dispatching an assigned task changes an Active project to On track',async({page})=>{
- const {calls}=await mockWorkspace(page);await page.goto('/projects/EVE-2026-001');
+ const {calls}=await mockWorkspace(page);
+ await page.route('**/rest/v1/project_team_members?*',route=>route.fulfill({json:require('./fixtures.cjs').tables.project_team_members.filter(member=>member.role==='Project Manager')}));
+ await page.goto('/projects/EVE-2026-001');
  await page.getByRole('button',{name:'Dispatch task',exact:true}).click();
  const drawer=page.getByRole('dialog',{name:'Dispatch task',exact:true});
  await drawer.getByRole('textbox',{name:'Task title',exact:true}).fill('Verify assignment status');
@@ -164,30 +169,45 @@ test('dispatching an assigned task changes an Active project to On track',async(
  const change=calls.flatMap(call=>call.p_changes).find(item=>item.collection==='projects');
  expect(change.data.row.status).toBe('ON_TRACK');
  expect(change.data.workItems.find(task=>task.title==='Verify assignment status').assignee_user_id).toBe('00000000-0000-0000-0000-000000000002');
+ expect(change.data.team.filter(member=>member.user_id==='00000000-0000-0000-0000-000000000002')).toHaveLength(1);
+ const panel=page.locator('.project-team-panel');
+ await expect(panel.getByRole('heading',{name:'Project Team',exact:true})).toBeVisible();
+ await expect(panel.getByRole('combobox',{name:'Assigned project manager',exact:true})).toHaveValue('00000000-0000-0000-0000-000000000001');
+ await expect(panel.locator('.project-team-roster li')).toHaveCount(1);
+ await expect(panel.locator('.project-team-roster')).toContainText('Jordan Lee');
+ await expect(panel.getByRole('combobox')).toHaveCSS('border-radius','0px');
  await expect(page.locator('.project-room-heading .status-badge[data-status="ON_TRACK"]')).toBeVisible();
 });
 
-test('leads are newest first and first contact validates and saves the chosen local time',async({page})=>{
- const {tables}=require('./fixtures.cjs');const {calls}=await mockWorkspace(page);
+test('new leads go straight to proposals and projects without contact or qualification steps',async({page})=>{
+ const {tables}=require('./fixtures.cjs');await mockWorkspace(page);
  const source=tables.leads[0];
- await page.route('**/rest/v1/leads?*',route=>route.fulfill({json:[{...source,id:'older-lead',external_id:'OLDER',full_name:'Older enquiry',status:'NEW',created_at:'2026-10-01T00:00:00Z'},{...source,external_id:'NEWEST',full_name:'New arrival',status:'NEW',created_at:'2026-10-30T00:00:00Z'}]}));
+ await page.route('**/rest/v1/leads?*',route=>route.fulfill({json:[{...source,id:'older-lead',external_id:'OLDER',full_name:'Older enquiry',status:'NEW',created_at:'2026-10-01T00:00:00Z'},{...source,id:'10000000-0000-0000-0000-000000000009',external_id:'NEWEST',full_name:'New arrival',status:'NEW',created_at:'2026-10-30T00:00:00Z'}]}));
  await page.goto('/requests');
  await expect(page.locator('.lead-record-summary .lead-main > strong')).toHaveText(['New arrival','Older enquiry']);
+ await expect(page.locator('body')).not.toContainText(/qualified/i);
  await page.locator('.lead-record-summary').first().click();
- await expect(page.getByRole('combobox',{name:'Good fit',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Log first contact',exact:true}).click();
- const editor=page.getByRole('form',{name:'First contact date'});
- const date=editor.locator('input[type="datetime-local"]');
- await date.fill('2099-01-01T10:00');
- await editor.getByRole('button',{name:'Save date & time',exact:true}).click();
- expect(await date.evaluate(input=>input.checkValidity())).toBe(false);
- expect(calls).toHaveLength(0);
- await date.fill('2026-10-30T11:30');
- await editor.getByRole('button',{name:'Save date & time',exact:true}).click();
- await expect(editor).not.toBeVisible();
- await expect.poll(()=>calls.length).toBeGreaterThan(0);
- const change=calls.flatMap(call=>call.p_changes).find(item=>item.collection==='leads');
- expect(change.data.row.first_contact_at).toBe(new Date('2026-10-30T11:30').toISOString());
+ await expect(page.getByRole('combobox',{name:'Good fit',exact:true})).toHaveCount(0);
+ await expect(page.getByText(/Discovery call|Qualification notes/)).toHaveCount(0);
+ await expect(page.getByRole('button',{name:/Mark qualified|Save call notes|Disqualify/})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:/Log first contact|Edit date & time|Log now/})).toHaveCount(0);
+ await expect(page.getByText(/First contact pending|First contact logged/)).toHaveCount(0);
+ await expect(page.locator('input[type="datetime-local"]')).toHaveCount(0);
+ await expect(page.getByRole('combobox',{name:'Choose operating company',exact:true})).toBeVisible();
+ await page.locator('.lead-expanded').getByRole('link',{name:'Open lead workspace',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Qualification',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'Proposal & SOW',exact:true})).toHaveCount(0);
+ await expect(page.getByText('Initial team assignment',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Allocation %',{exact:true})).toHaveCount(0);
+ await expect(page.locator('select[name="projectManager"]')).toBeVisible();
+ await expect(page.locator('body')).not.toContainText(/qualified/i);
+ await expect(page.getByRole('form',{name:'Basic proposal generator'})).toHaveCount(0);
+ await expect(page.locator('.project-create-form')).toBeVisible();
+ await page.goto('/proposals');
+ await page.getByRole('button',{name:'Generate proposal',exact:true}).click();
+ await page.getByRole('combobox',{name:'Lead',exact:true}).selectOption('NEWEST');
+ await expect(page.getByRole('form',{name:'Basic proposal generator'})).toBeVisible();
+ await expect(page.locator('body')).not.toContainText(/qualified/i);
 });
 
 test('retainer details separate model billing and dates into aligned rows',async({page})=>{
@@ -201,7 +221,6 @@ test('retainer details separate model billing and dates into aligned rows',async
  await expect(details.locator('dd').nth(1)).toHaveText('Annual');
  await expect(details.locator('dd').last()).toContainText('2027');
  await expect(details).toHaveCSS('display','grid');
- await expect(page.locator('.client-card-expanded')).toHaveCSS('border-top-color','rgb(15, 23, 42)');
 });
 
 test('editing a retainer recalculates its end date without changing identity or paused status',async({page})=>{
@@ -224,4 +243,29 @@ test('editing a retainer recalculates its end date without changing identity or 
  expect(changes[0].data.row.management_amount).toBe(2500);
  expect(changes[0].data.row.status).toBe('PAUSED');
  expect(changes[0].data.row.created_at).toBe(created);
+});
+
+test('moving a lead to projects assigns only its manager and the manager can change later',async({page})=>{
+ const {tables}=require('./fixtures.cjs');const {calls}=await mockWorkspace(page);
+ await page.route('**/rest/v1/leads?*',route=>route.fulfill({json:tables.leads.map(lead=>({...lead,id:'10000000-0000-0000-0000-000000000099',external_id:'NEW-PROJECT-LEAD'}))}));
+ await page.goto('/requests/NEW-PROJECT-LEAD');
+ const form=page.locator('.project-create-form');
+ await expect(form.locator('select[name="leadDesigner"]')).toHaveCount(0);
+ await expect(form.getByText(/Allocation/)).toHaveCount(0);
+ await form.locator('input[name="projectTitle"]').fill('Manager only project');
+ await form.locator('input[name="startDate"]').fill('2026-11-04');
+ await form.locator('input[name="contractedValue"]').fill('2400');
+ await form.locator('select[name="projectManager"]').selectOption('00000000-0000-0000-0000-000000000001');
+ await form.getByRole('button',{name:'Move to Projects',exact:true}).click();
+ await expect(page).toHaveURL(/\/projects\//);
+ const manager=page.getByRole('combobox',{name:'Assigned project manager',exact:true});
+ await expect(manager).toHaveValue('00000000-0000-0000-0000-000000000001');
+ const created=calls.flatMap(call=>call.p_changes).find(change=>change.collection==='projects');
+ expect(created.data.team).toHaveLength(1);
+ expect(created.data.team[0].role).toBe('Project Manager');
+ expect(created.data.team[0].user_id).toBe('00000000-0000-0000-0000-000000000001');
+ await manager.selectOption('00000000-0000-0000-0000-000000000002');
+ await expect(manager).toHaveValue('00000000-0000-0000-0000-000000000002');
+ await expect.poll(()=>calls.flatMap(call=>call.p_changes).filter(change=>change.collection==='projects').at(-1)?.data.team[0]?.user_id).toBe('00000000-0000-0000-0000-000000000002');
+ await expect(page.locator('.project-detail-side')).not.toContainText(/Allocation|%/);
 });

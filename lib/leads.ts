@@ -4,23 +4,35 @@ import type { OperatingCompany } from "@/lib/companies";
 export const LEADS_STORAGE_KEY = "evecture.leads.v1";
 
 export const serviceTypes = ["Branding", "Website", "E-commerce", "UI/UX", "CRM", "Custom Request", "Multiple"] as const;
-export const industries = ["Hospitality", "E-commerce", "Education", "Professional Services", "Other"] as const;
+export const industries = [
+  "Organization", "Nonprofit / NGO", "Government / Public Sector", "Hospitality",
+  "E-commerce", "Retail", "Education", "Healthcare", "Technology", "Professional Services",
+  "Finance / Insurance", "Real Estate", "Construction", "Manufacturing", "Food & Beverage",
+  "Travel & Tourism", "Media & Entertainment", "Transportation / Logistics", "Other",
+] as const;
 export const enquirySources = ["Website form", "Direct email", "Phone / WhatsApp", "Referral", "Instagram DM", "LinkedIn DM"] as const;
 export const acquisitionSources = ["Google", "Referral", "Instagram", "LinkedIn", "Repeat client", "Other / unknown"] as const;
 export const budgetRanges = ["Under $2,500", "$2,500–$5,000", "$5,000–$10,000", "$10,000–$25,000", "$25,000+", "Not sure yet"] as const;
 
-export type LeadStatus = "NEW" | "QUALIFIED" | "PROPOSAL_SENT" | "ACCEPTED" | "CONVERTED" | "LOST" | "DISQUALIFIED";
+export type LeadStatus = "NEW" | "PROPOSAL_SENT" | "ACCEPTED" | "CONVERTED" | "LOST";
+
+// Normalize retired stages only when reading old records or saving them again.
+export function normalizeLeadStatus(value: unknown): LeadStatus {
+  if (value === "DISQUALIFIED") return "LOST";
+  return ["NEW", "PROPOSAL_SENT", "ACCEPTED", "CONVERTED", "LOST"].includes(String(value))
+    ? value as LeadStatus : "NEW";
+}
 
 export type Qualification = {
   proposalAttachment?: { name: string; dataUrl: string };
   discoveryCallAt?: string;
-  callNotes: string;
-  actualProblem: string;
-  desiredOutcome: string;
-  budgetFit: "yes" | "no" | "unknown";
-  decisionMaker: string;
-  decisionTimeline: string;
-  goodFit: "yes" | "no" | "unknown";
+  callNotes?: string;
+  actualProblem?: string;
+  desiredOutcome?: string;
+  budgetFit?: "yes" | "no" | "unknown";
+  decisionMaker?: string;
+  decisionTimeline?: string;
+  goodFit?: "yes" | "no" | "unknown";
 };
 
 export type ProposalVersion = {
@@ -129,7 +141,6 @@ export type Lead = {
   acquisitionSource: string;
   operatingCompany?: OperatingCompany;
   status: LeadStatus;
-  firstContactAt?: string;
   disqualificationReason?: string;
   qualificationNote?: string;
   qualification?: Qualification;
@@ -150,6 +161,7 @@ export function readLeads(): Lead[] {
       const lead = item as Lead;
       return {
         ...lead,
+        status: normalizeLeadStatus(lead.status),
         operatingCompany: (lead.operatingCompany as string | undefined) === "Servyn" ? "Servn" : lead.operatingCompany,
         invoice: lead.invoice ? {
           ...lead.invoice,
@@ -259,17 +271,6 @@ export function seedProposalExample() {
     source: "Direct email",
     acquisitionSource: "Referral",
     status: "PROPOSAL_SENT",
-    firstContactAt: now,
-    qualification: {
-      discoveryCallAt: now,
-      callNotes: "Seeded example proposal based on the supplied DOCX reference.",
-      actualProblem: proposal.challenge || "",
-      desiredOutcome: "A reliable field inspection workflow with searchable records and a clear audit trail.",
-      budgetFit: "yes",
-      decisionMaker: "Jordan Ellis",
-      decisionTimeline: "Approve within the proposal validity period.",
-      goodFit: "yes",
-    },
     proposals: [proposal],
   };
 

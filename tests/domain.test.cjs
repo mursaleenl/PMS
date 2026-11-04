@@ -7,6 +7,13 @@ const invoices=load('lib/invoices.ts');
 const {workspaceChanges,rowToProposal}=load('lib/relational-sync.ts');
 const {isValidDateValue}=load('lib/dates.ts');
 global.window=new EventTarget();
+test('project cards show the company once and deduplicate service descriptions',()=>{
+ const {getProjectDisplayTitle,getProjectDisplayServices}=load('lib/projects.ts');
+ const project={title:'ZeroGrid LLC — Branding, Website',clientCompany:'ZeroGrid LLC',clientName:'Contact',services:['ZeroGrid LLC','ZeroGrid LLC · Branding, Website','CRM','Branding','Multiple']};
+ assert.equal(getProjectDisplayTitle(project),'ZeroGrid LLC');
+ assert.equal(getProjectDisplayServices(project),'Branding, Website, CRM, Multiple');
+ assert.equal(getProjectDisplayServices({...project,services:['ZeroGrid LLC']}),'');
+});
 function seed(){
  sync.clearWorkspaceMemory();
  sync.applyRemoteCollection('leads',[{id:'L1',fullName:'Client',email:'client@example.com',companyName:'Company',services:[],status:'ACCEPTED',createdAt:'2026-10-01T00:00:00Z'}]);
@@ -113,4 +120,40 @@ test('retainer dates follow the selected cycle and clamp monthly anniversaries s
  assert.equal(calculateRetainerEndDate('2026-02-30','Annual'),undefined);
  assert.equal(calculateRetainerEndDate('2026-10-31','One-time'),undefined);
  assert.equal(retainerEndDate({periodStart:'2026-10-31',periodEnd:'2027-12-31',model:'Annual maintenance',billingCycle:'Monthly'}),'2027-12-31');
+});
+
+test('retired qualification stages remain accessible without rewriting the saved history',()=>{
+ seed();
+ const {readLeads}=load('lib/leads.ts');
+ const source=sync.localCollectionValue('leads').value[0];
+ for(const [status,expected] of [['QUALIFIED','NEW'],['DISQUALIFIED','LOST']]){
+  sync.applyRemoteCollection('leads',[{...source,status,qualification:{proposalAttachment:{name:'scope.pdf',dataUrl:'data:application/pdf;base64,JVBERg=='}}}]);
+  assert.equal(readLeads()[0].status,expected);
+  assert.equal(readLeads()[0].qualification.proposalAttachment.name,'scope.pdf');
+  assert.equal(sync.localCollectionValue('leads').value[0].status,status);
+ }
+});
+
+test('task assignments retain a unique project team without duplicating the manager',()=>{
+ const {updateProject,readProjects,getProjectTeamMembers}=load('lib/projects.ts');
+ const manager={role:'Project Manager',name:'Alex Manager',userId:'manager-id',allocationPercent:0};
+ const base={id:'TEAM-PROJECT',title:'Team test',status:'ACTIVE',team:[manager],workItems:[]};
+ const task={id:'team-task',assignee:'Jordan Employee',assigneeId:'employee-id',status:'TO_DO'};
+ sync.applyRemoteCollection('projects',[base]);
+ updateProject(base.id,{workItems:[task,{...task,id:'second-task'}]});
+ let project=readProjects()[0];
+ assert.equal(project.team.length,2);
+ assert.deepEqual(getProjectTeamMembers(project).map(member=>member.userId),['employee-id']);
+ assert.deepEqual(project.team[0],manager);
+ updateProject(base.id,{workItems:[{...task,assignee:'Casey Employee',assigneeId:'casey-id'}]});
+ project=readProjects()[0];
+ assert.deepEqual(getProjectTeamMembers(project).map(member=>member.userId),['employee-id','casey-id']);
+ updateProject(base.id,{workItems:[{...task,assignee:manager.name,assigneeId:manager.userId}]});
+ assert.equal(readProjects()[0].team.length,3);
+ assert.equal(getProjectTeamMembers(readProjects()[0]).length,2);
+ const legacy={...base,team:[manager,{role:'Lead Developer',name:'Jordan Employee',allocationPercent:0}],workItems:[task,{...task,id:'same-person'}]};
+ assert.equal(getProjectTeamMembers(legacy).length,1);
+ sync.applyRemoteCollection('projects',[legacy]);
+ updateProject(base.id,{workItems:legacy.workItems.map(item=>({...item,status:'DONE'}))});
+ assert.deepEqual(readProjects()[0].team,legacy.team,'status-only updates must not change team membership');
 });

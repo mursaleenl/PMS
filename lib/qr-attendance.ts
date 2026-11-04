@@ -18,11 +18,13 @@ export async function readAttendanceSettings():Promise<AttendanceSettings> {
   if(error)throw new Error("Attendance setup is incomplete. Apply the QR attendance migration.");
   return data;
 }
-export async function readAttendanceSessions(start:string,end:string):Promise<AttendanceSession[]> {
+export async function readAttendanceSessions(start:string,end:string,userId?:string):Promise<AttendanceSession[]> {
   if (!supabase) throw new Error("Database is not configured.");
   const rows:AttendanceSession[]=[];
   for(let offset=0;;offset+=500){
-    const {data,error}=await supabase.from("attendance_sessions").select("id,user_id,work_date,checked_in_at,checked_out_at").gte("work_date",start).lte("work_date",end).order("checked_in_at",{ascending:false}).order("id").range(offset,offset+499);
+    let query=supabase.from("attendance_sessions").select("id,user_id,work_date,checked_in_at,checked_out_at").gte("work_date",start).lte("work_date",end);
+    if(userId)query=query.eq("user_id",userId);
+    const {data,error}=await query.order("checked_in_at",{ascending:false}).order("id").range(offset,offset+499);
     if(error)throw new Error("Unable to load visits. Check that the QR attendance migration has been applied.");
     rows.push(...(data??[]));
     if((data?.length??0)<500)return rows;

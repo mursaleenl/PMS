@@ -3074,15 +3074,7 @@ button.button-primary:active {
   color: var(--ws-accent, #0c66e4)
 }
 
-.status-qualified {
-  background: var(--ws-surface, #dcfff1);
-  color: var(--ws-muted, #00875a)
-}
 
-.status-disqualified {
-  background: var(--ws-subtle-surface, #f1f2f4);
-  color: var(--ws-muted, #626f86)
-}
 
 .overview-lead-arrow {
   color: var(--ws-muted, #8993a5)
@@ -4142,23 +4134,23 @@ button.button-primary:active {
   flex: none
 }
 
-.qualification-summary-grid {
+.enquiry-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px 20px
 }
 
-.qualification-summary-grid>div {
+.enquiry-summary-grid>div {
   min-width: 0
 }
 
-.qualification-summary-grid small,
+.enquiry-summary-grid small,
 .saved-call-notes small {
   font-size: 9px;
   color: var(--ws-muted, #8993a5)
 }
 
-.qualification-summary-grid p,
+.enquiry-summary-grid p,
 .saved-call-notes p {
   font-size: 10px;
   color: var(--ws-accent, #344563);
@@ -4840,7 +4832,7 @@ button.button-primary:active {
     margin-top: 0
   }
 
-  .qualification-summary-grid {
+  .enquiry-summary-grid {
     grid-template-columns: 1fr 1fr;
     gap: 12px
   }
@@ -9262,9 +9254,9 @@ input:focus, select:focus, textarea:focus {
 .team-member-card-footer { border-color: var(--ws-border, #ededed); }
 .contact-action { align-items: flex-start; }
 .contact-action-tools { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
-.first-contact-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; }
-.first-contact-meta span { display: flex; gap: 5px; color: var(--ws-muted, #777); font-size: 9px; }
-.first-contact-meta b { color: var(--ws-text, #333); font-weight: 600; }
+.lead-budget-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; }
+.lead-budget-meta span { display: flex; gap: 5px; color: var(--ws-muted, #777); font-size: 9px; }
+.lead-budget-meta b { color: var(--ws-text, #333); font-weight: 600; }
 .storage-note { color: var(--ws-muted, #929292); }
 
 @media(max-width:700px) {
@@ -9295,15 +9287,15 @@ body { font-size: 13px; }
 .overview-project-footer, .overview-task-copy small, .overview-task-hours { font-size: 11px; }
 .overview-task-copy strong { font-size: 12px; }
 .page-content :is(.detail-line, .lead-description, .contact-action p, .qualification-box>div:first-child p) { font-size: 12px; }
-.first-contact-meta span { font-size: 11px; }
-.first-contact-meta b { font-weight: 600; }
-.first-contact-budget-source { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--ws-border, #efeee9); }
-.first-contact-budget-heading { display: flex; align-items: center; gap: 8px; }
-.first-contact-budget-heading h4 { margin: 0; color: var(--ws-text, #30312c); font-size: 13px; font-weight: 600; }
-.first-contact-budget-source .first-contact-meta { margin-top: 9px; }
-.first-contact-company { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 11px; color: var(--ws-text, #52554d); font-size: 12px; font-weight: 600; }
-.first-contact-company select { min-height: 32px; min-width: 170px; padding: 5px 28px 5px 9px; border: 1px solid var(--ws-border, #e4e3de); border-radius: 0; background: var(--ws-surface, #fff); color: var(--ws-text, #30312c); font-family: inherit; font-size: 12px; font-weight: 500; }
-.first-contact-company small { flex-basis: 100%; color: var(--ws-muted, #777970); font-size: 11px; font-weight: 400; }
+.lead-budget-meta span { font-size: 11px; }
+.lead-budget-meta b { font-weight: 600; }
+.lead-budget-source { margin: 0; padding: 0; border: 0; }
+.lead-budget-heading { display: flex; align-items: center; gap: 8px; }
+.lead-budget-heading h4 { margin: 0; color: var(--ws-text, #30312c); font-size: 13px; font-weight: 600; }
+.lead-budget-source .lead-budget-meta { margin-top: 9px; }
+.lead-company-details { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 11px; color: var(--ws-text, #52554d); font-size: 12px; font-weight: 600; }
+.lead-company-details select { min-height: 32px; min-width: 170px; padding: 5px 28px 5px 9px; border: 1px solid var(--ws-border, #e4e3de); border-radius: 0; background: var(--ws-surface, #fff); color: var(--ws-text, #30312c); font-family: inherit; font-size: 12px; font-weight: 500; }
+.lead-company-details small { flex-basis: 100%; color: var(--ws-muted, #777970); font-size: 11px; font-weight: 400; }
 .qualification-fields label, .disqualify-select, .field { font-size: 12px; font-weight: 500; }
 .field-hint, .storage-note { font-size: 11px; }
 .project-table td, .client-table td { font-size: 12px; }
@@ -9513,7 +9505,7 @@ h1, h2, h3, h4, h5, h6 {
 .main-area :is(.field, .qualification-fields label, .disqualify-select) { font-size: var(--type-sm); font-weight: 500; }
 .main-area :is(.field input, .field select, .field textarea) { font-size: var(--type-md); }
 .main-area :is(.lead-description, .detail-line, .contact-action p, .qualification-box>div:first-child p) { font-size: var(--type-sm); line-height: var(--leading-body); }
-.main-area :is(.lead-received, .lead-response, .first-contact-meta) { font-size: var(--type-xs); }
+.main-area :is(.lead-received, .lead-response, .lead-budget-meta) { font-size: var(--type-xs); }
 
 .main-area :is(.task-stat-card small, .task-stat-note, .task-created-cell, .team-roster-count, .overview-task-hours) { font-size: var(--type-xs); }
 .main-area :is(.task-stat-copy strong, .overview-summary-card strong) { font-size: 20px; line-height: 1.1; }
@@ -10668,7 +10660,7 @@ textarea {
   outline: 0;
 }
 
-.main-area :is(.icon-green, .icon-yellow, .icon-blue, .icon-purple, .summary-blue, .summary-violet, .summary-green, .summary-amber, .task-icon-blue, .task-icon-violet, .task-icon-green, .task-icon-rose, .overview-summary-icon, .overview-project-mark, .overview-request-avatar, .overview-task-indicator, .team-member-avatar, .team-member-load, .lead-initial, .request-avatar, .req-one, .req-two, .req-three, .choice-selected, .project-active-pill, .health-good, .health-blocked, .health-risk, .management-active, .management-upcoming, .management-paused, .management-expired, .management-ended, .status-new, .status-qualified, .status-disqualified, .status-converted) {
+.main-area :is(.icon-green, .icon-yellow, .icon-blue, .icon-purple, .summary-blue, .summary-violet, .summary-green, .summary-amber, .task-icon-blue, .task-icon-violet, .task-icon-green, .task-icon-rose, .overview-summary-icon, .overview-project-mark, .overview-request-avatar, .overview-task-indicator, .team-member-avatar, .team-member-load, .lead-initial, .request-avatar, .req-one, .req-two, .req-three, .choice-selected, .project-active-pill, .health-good, .health-blocked, .health-risk, .management-active, .management-upcoming, .management-paused, .management-expired, .management-ended, .status-new, .status-converted) {
   color: var(--ws-text, #111);
   background: var(--ws-subtle-surface, #f0f0f0);
   border-color: var(--ws-border, #dedede);
@@ -10797,7 +10789,7 @@ textarea {
   color: var(--ws-text, #111);
 }
 
-.main-area :is(.top-enquiry-link, .assignment-inline-link, .proof-preview a, .text-link, .first-contact-company, .company-pill) {
+.main-area :is(.top-enquiry-link, .assignment-inline-link, .proof-preview a, .text-link, .lead-company-details, .company-pill) {
   color: var(--ws-text, #111);
 }
 
@@ -10830,7 +10822,7 @@ textarea {
   background: var(--ws-primary, #111) !important;
 }
 
-.main-area .page-content :is(.icon-green, .icon-yellow, .icon-blue, .icon-purple, .summary-blue, .summary-violet, .summary-green, .summary-amber, .task-icon-blue, .task-icon-violet, .task-icon-green, .task-icon-rose, .project-link-icon, .overview-summary-icon, .overview-project-mark, .overview-request-avatar, .overview-task-indicator, .team-member-avatar, .team-member-load, .lead-initial, .request-avatar, .req-one, .req-two, .req-three, .project-active-pill, .health-good, .health-blocked, .health-risk, .management-active, .management-upcoming, .management-paused, .management-expired, .management-ended, .status-new, .status-qualified, .status-disqualified, .status-converted, .priority-p1, .priority-p2, .priority-p3, .priority-p4, .revision-flag, .blocker-note) {
+.main-area .page-content :is(.icon-green, .icon-yellow, .icon-blue, .icon-purple, .summary-blue, .summary-violet, .summary-green, .summary-amber, .task-icon-blue, .task-icon-violet, .task-icon-green, .task-icon-rose, .project-link-icon, .overview-summary-icon, .overview-project-mark, .overview-request-avatar, .overview-task-indicator, .team-member-avatar, .team-member-load, .lead-initial, .request-avatar, .req-one, .req-two, .req-three, .project-active-pill, .health-good, .health-blocked, .health-risk, .management-active, .management-upcoming, .management-paused, .management-expired, .management-ended, .status-new, .status-converted, .priority-p1, .priority-p2, .priority-p3, .priority-p4, .revision-flag, .blocker-note) {
   color: var(--ws-text, #222) !important;
   background: var(--ws-subtle-surface, #f0f0f0) !important;
   border-color: var(--ws-border, #dedede) !important;
@@ -15912,7 +15904,6 @@ input[type="checkbox"]:not(.sr-only-checkbox):checked::before {
 .status-badge.status-badge-pending,
 .status-badge.status-pending,
 .status-badge.status-new,
-.status-badge.status-qualified,
 .status-badge.status-proposal-sent,
 .status-badge.status-in-progress,
 .status-badge.status-to-do,
@@ -15926,7 +15917,6 @@ input[type="checkbox"]:not(.sr-only-checkbox):checked::before {
 .status-badge.status-badge-blocked,
 .status-badge.status-danger,
 .status-badge.status-lost,
-.status-badge.status-disqualified,
 .status-badge.status-overdue,
 .lead-record-summary > .status-badge.status-badge-danger {
   color: var(--ws-text, #dc2626) !important;
@@ -16611,3 +16601,10 @@ textarea:focus {
 
 .basic-proposal-generator { display: grid; gap: 14px; }
 .basic-proposal-fields { display: grid; gap: 14px; border: 0; padding: 0; margin: 0; min-width: 0; }
+
+.lead-workspace-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}

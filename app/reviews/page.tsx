@@ -124,7 +124,7 @@ export default function ReviewsPage() {
           <label className="field">Priority<select value={priority} onChange={(event) => setPriority(event.target.value as ReviewPriority)}><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="URGENT">Urgent</option></select></label>
           <label className="field reviews-location-field">Page or project (optional)<input maxLength={300} value={pagePath} onChange={(event) => setPagePath(event.target.value)} placeholder="For example, /projects/EV-123" /></label>
         </div>
-        <label className="field">Description<textarea required minLength={8} maxLength={5000} rows={5} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Steps to reproduce, what you expected, and what happened instead" /></label>
+        <label className="field">Description<textarea required minLength={8} maxLength={5000} rows={5} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Steps to reproduce, expected result, and actual result" /></label>
         <div className="reviews-form-footer"><span>Admins can add follow-up notes and update the status.</span><button className="button button-primary" type="submit" disabled={busy || !title.trim() || !description.trim()}><Send size={14} />{busy ? "Submitting…" : "Submit review"}</button></div>
       </form>
     </section>

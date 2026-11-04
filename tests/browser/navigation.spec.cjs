@@ -51,12 +51,22 @@ test('no preview label or banner is displayed when the database needs upgrading'
  await expect(page.getByText(/preview/i)).toHaveCount(0);
  await expect(page.locator('.workspace-save-status')).toHaveCount(0);
 });
-for(const [role,color] of [['admin','rgb(248, 113, 113)'],['employee','rgb(121, 173, 255)'],['client','rgb(255, 255, 255)']]){
- test(`${role} has the requested role colour`,async({page})=>{
+for(const role of ['admin','employee','client']){
+ test(`${role} retains desktop account controls`,async({page})=>{
   await mockWorkspace(page,{role});
   if(role==='client')await page.route('**/api/client/workspace',route=>route.fulfill({json:{projects:[],proposals:[]}}));
   await page.goto(role==='client'?'/client':'/');
-  const badge=page.locator('.topbar-user-role-badge');await expect(badge).toBeVisible();await expect(badge).toHaveCSS('color',color);
+  const topbar=page.locator('#workspace-topbar');
+  await expect(topbar).toHaveCSS('background-color','rgb(255, 255, 255)');
+  await expect(topbar.locator('.topbar-user-name')).toBeVisible();
+  await expect(topbar.locator('.global-search-trigger > span')).toBeVisible();
+  await expect(topbar.locator('.mobile-topbar-title')).toHaveCount(0);
+  const account=topbar.getByRole('button',{name:'User account menu'});
+  await expect(account).toHaveAttribute('aria-expanded','false');
+  await account.click();
+  await expect(account).toHaveAttribute('aria-expanded','true');
+  await expect(page.getByRole('menu')).toBeVisible();
+  await expect(page.getByRole('menu').locator('.topbar-account-role')).toHaveText(new RegExp(role,'i'));
  });
 }
 
@@ -67,6 +77,12 @@ test('mobile sidebar expands and closes with Escape or outside tap',async({page}
  const sidebar=page.getByRole('dialog',{name:'Workspace navigation'});
  await expect(sidebar).toBeVisible();
  await expect(sidebar.getByRole('link',{name:'Projects',exact:true})).toBeVisible();
+ await expect(sidebar).toHaveCSS('background-color','rgb(17, 24, 39)');
+ const alignment=await sidebar.evaluate(el=>({logo:el.querySelector('.workspace-sidebar-brand img').getBoundingClientRect().left,icon:el.querySelector('.primary-nav .nav-icon').getBoundingClientRect().left,brand:el.querySelector('.workspace-sidebar-brand span').getBoundingClientRect().left,label:el.querySelector('.primary-nav .nav-link-label').getBoundingClientRect().left}));
+ expect(Math.abs(alignment.logo-alignment.icon)).toBeLessThanOrEqual(2);
+ expect(Math.abs(alignment.brand-alignment.label)).toBeLessThanOrEqual(1);
+ await expect(sidebar.locator('.nav-link.active')).toHaveCSS('background-color','rgb(37, 99, 235)');
+ await expect(page.locator('#workspace-topbar')).toHaveCSS('height','48px');
  expect(await page.evaluate(()=>document.body.style.overflow)).toBe('hidden');
  await page.keyboard.press('Escape');await expect(sidebar).not.toBeVisible();
  await expect(toggle).toBeFocused();
@@ -75,21 +91,21 @@ test('mobile sidebar expands and closes with Escape or outside tap',async({page}
  await expect(page.locator('.mobile-navigation-island')).toHaveCount(0);
 });
 
-for(const viewport of [{width:320,height:568},{width:390,height:844},{width:844,height:390}]){
- test(`notifications stay inside ${viewport.width}x${viewport.height} and remain usable`,async({page})=>{
+for(const viewport of [{width:320,height:568},{width:390,height:844}]){
+ test(`search and account stay separate on the right at ${viewport.width}x${viewport.height}`,async({page})=>{
   await page.setViewportSize(viewport);await mockWorkspace(page);await page.goto('/');
-  await page.getByRole('button',{name:/^Notifications(?:,|$)/}).click();
-  const panel=page.getByRole('dialog',{name:'Workspace notifications'});await expect(panel).toBeVisible();
-  const box=await panel.boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.y).toBeGreaterThanOrEqual(0);
-  expect(box.x+box.width).toBeLessThanOrEqual(viewport.width);expect(box.y+box.height).toBeLessThanOrEqual(viewport.height);
-  expect(await panel.evaluate(e=>e.scrollWidth-e.clientWidth)).toBeLessThanOrEqual(1);
-  await panel.getByRole('button',{name:/^Unread/}).click();
-  await panel.getByRole('button',{name:'Mark all notifications as read'}).click();
-  await expect(panel.getByText('You have no unread notifications.')).toBeVisible();
-  await panel.getByRole('button',{name:'Close notifications'}).click();await expect(panel).not.toBeVisible();
-  await page.getByRole('button',{name:/^Notifications(?:,|$)/}).click();
-  await page.keyboard.press('Escape');await expect(panel).not.toBeVisible();
-  await expect(page.getByRole('button',{name:/^Notifications(?:,|$)/})).toBeFocused();
+  const search=page.getByRole('button',{name:'Search workspace',exact:true});
+  const account=page.getByRole('button',{name:'User account menu'});
+  const searchBox=await search.boundingBox(),accountBox=await account.boundingBox();
+  expect(searchBox.x).toBeGreaterThan(viewport.width/2);
+  expect(searchBox.x+searchBox.width).toBeLessThanOrEqual(accountBox.x);
+  expect(accountBox.x+accountBox.width).toBeLessThanOrEqual(viewport.width-8);
+  await expect(page.locator('.workspace-contextbar,.workspace-save-status')).toHaveCount(0);
+  await account.click();await expect(page.getByRole('menu')).toBeVisible();
+  await search.click();await expect(page.getByRole('menu')).toHaveCount(0);
+  const dialog=page.getByRole('dialog',{name:'Search workspace'});await expect(dialog).toBeVisible();
+  const box=await dialog.boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(viewport.width);
+  await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);
  });
 }
 

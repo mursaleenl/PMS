@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, Check, ListTodo, FolderKanban, Handshake, Plus, Receipt, Trash2, User, Users } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
-import { deleteProject, readProjects, type Project, updateProject, getProjectDisplayTitle, isProjectAssignedToUser, isTaskAssignedToUser } from "@/lib/projects";
+import { deleteProject, readProjects, type Project, updateProject, getProjectDisplayTitle, getProjectDisplayServices, isProjectAssignedToUser, isTaskAssignedToUser } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject } from "@/lib/post-sale";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
@@ -81,6 +81,7 @@ export default function ProjectsPage() {
       const visibleTasks = role === "employee" ? (project.workItems ?? []).filter((task) => isTaskAssignedToUser(task, user?.id, employeeName)) : project.workItems ?? [];
       const openWork = visibleTasks.filter((item) => item.status !== "DONE").length;
       const managedPlan = managedProjects.find((item) => item.sourceProjectId === project.id);
+      const services = getProjectDisplayServices(project);
       const pmMember = project.team.find((member) => member.role === "Project Manager");
       const pmName = pmMember?.name && !DUMMY_ASSIGNABLE_NAMES.has(pmMember.name.toLowerCase().trim()) ? pmMember.name : "PM unassigned";
       return <article className="portfolio-card panel" key={project.id}>
@@ -92,7 +93,7 @@ export default function ProjectsPage() {
             <StatusBadge status={project.status} />
           </div>
           <h2 className="portfolio-card-title">{getProjectDisplayTitle(project)}</h2>
-          <p className="portfolio-card-subtitle">{project.clientCompany || project.clientName} · {project.services.join(", ")}</p>
+          {services && <p className="portfolio-card-subtitle">{services}</p>}
           <div className="portfolio-task-row">
             <ListTodo className="task-count-icon" size={16} strokeWidth={2} aria-hidden="true"/>
             <span>{openWork} open {openWork === 1 ? "task" : "tasks"}</span>
@@ -134,8 +135,8 @@ export default function ProjectsPage() {
             </button>
           ) : null}
           {role === "admin" && (
-            <button className="portfolio-delete-icon-button" type="button" title="Delete project" onClick={() => removeProject(project)}>
-              <Trash2 size={13} />
+            <button className="button portfolio-lifecycle-button portfolio-delete-icon-button" type="button" title="Delete project" onClick={() => removeProject(project)}>
+              <Trash2 size={13} />Delete
             </button>
           )}
         </div>
