@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const fs=require('node:fs');
+const {readDatabaseSection}=require('../scripts/database-sql.cjs');
 const {PGlite}=require('@electric-sql/pglite');
 const ADMIN='00000000-0000-0000-0000-000000000001';
 const EMPLOYEE='00000000-0000-0000-0000-000000000002';
@@ -8,7 +8,7 @@ const CLIENT='00000000-0000-0000-0000-000000000003';
 const OTHER='00000000-0000-0000-0000-000000000004';
 test('QR attendance permissions, visits, summaries and corrections',async t=>{
  const db=new PGlite();
- const migration=fs.readFileSync('supabase/qr-attendance-migration.sql','utf8');
+ const migration=readDatabaseSection('qr-attendance');
  async function identity(id,email,role='authenticated'){
   await db.exec('reset role');
   await db.query("select set_config('request.jwt.claim.sub',$1,false),set_config('request.jwt.claims',$2,false)",[id,JSON.stringify({email})]);
@@ -22,8 +22,8 @@ test('QR attendance permissions, visits, summaries and corrections',async t=>{
    create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
    create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;
    grant usage on schema auth to authenticated;grant execute on function auth.uid(),auth.jwt() to authenticated;`);
-  await db.exec(fs.readFileSync('supabase/schema.sql','utf8').replace('create extension if not exists pgcrypto;',''));
-  await db.exec(fs.readFileSync('supabase/workspace-reliability-migration.sql','utf8'));
+  await db.exec(readDatabaseSection('foundation').replace('create extension if not exists pgcrypto;',''));
+  await db.exec(readDatabaseSection('workspace-reliability'));
   await db.exec(migration);await db.exec(migration);
   for(const [id,email] of [[ADMIN,'admin@example.com'],[EMPLOYEE,'employee@example.com'],[CLIENT,'client@example.com'],[OTHER,'other@example.com']])await db.query('insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())',[id,email]);
   await db.query("insert into workspace_members(user_id,email,role) values($1,'admin@example.com','admin'),($2,'employee@example.com','employee'),($3,'client@example.com','client')",[ADMIN,EMPLOYEE,CLIENT]);

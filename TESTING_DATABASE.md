@@ -1,13 +1,22 @@
 # Create an isolated testing database
 
-`testing-database.sql` is a single installer for a **fresh Supabase project**. It includes the repository's base schema and every applicable follow-up migration, in dependency order: tables, constraints, indexes, functions, triggers, grants, RLS, attendance, reviews, notifications, and client portal tasks. The existing-production relational migration is deliberately excluded: `schema.sql` is the equivalent starting point for new databases.
+The `supabase/` folder contains exactly two SQL scripts:
+
+- `main-database.sql`: canonical application schema and updates, for the main database or an existing test database.
+- `testing-database.sql`: generated from the main script, with an empty-database guard for a fresh testing project.
+
+Both include the same tables, constraints, indexes, functions, triggers, grants, RLS, attendance, reviews, notifications, and client portal tasks in dependency order. Edit the main script, then regenerate the testing installer.
 
 This is a repository-defined schema replica, not a verified production snapshot. It contains no production users, passwords, business records, or uploaded files. It includes default attendance settings. Dashboard Auth settings, email delivery, redirect URLs, API keys, Edge Functions, and external integrations are configured separately. Attachments in this app use database data URLs; no application Storage bucket migration exists in this repo.
+
+The installer includes the current lead stages (`NEW`, `PROPOSAL_SENT`, `ACCEPTED`, `CONVERTED`, `LOST`) and the final cleanup migration that retires qualification stages. Existing proposal and project team tables support custom proposals and manager/team assignments; attendance sessions and audit tables support the personal calendar and change list. Those recent interface changes do not require additional database tables.
+
+For an already initialized testing project, review and run `supabase/main-database.sql` to update its schema. It retains application data and normalizes retired statuses. Use `supabase/testing-database.sql` only for a fresh project. Updating these local files does not apply SQL to any hosted database.
 
 ## New hosted testing project (recommended)
 
 1. Create a separate Supabase project named, for example, `pms-testing`.
-2. Confirm the SQL editor is open in that new project. Paste and run **all of `testing-database.sql`**. Do not apply the individual migrations again afterward. The installer uses one transaction and refuses to run when public application tables already exist. This check is a fresh-database check, not proof of the selected project's identity.
+2. Confirm the SQL editor is open in that new project. Paste and run **all of `supabase/testing-database.sql`**. No other database script is needed for that new project. The installer uses one transaction and refuses to run when public application tables already exist. This check is a fresh-database check, not proof of the selected project's identity.
 3. Create a testing administrator in **Authentication → Users → Add user**, with your testing email and a fresh password; confirm the email. Keep public signup disabled for administrator-managed accounts. Configure Auth's Site URL as `http://localhost:3000` and allow the local callback URLs your sign-in flow uses.
 4. In the app folder (`PMS`), create or update the gitignored `.env.local` with the following values **from the testing project**:
 
@@ -54,11 +63,14 @@ This installer cannot prove parity with an uninspected live database. To capture
 
 ## Maintain and verify the file
 
-After changing the source migrations, update the ordered source list if needed and regenerate:
+After editing a section of `supabase/main-database.sql`, regenerate and verify:
 
 ```sh
 node scripts/build-testing-database.cjs
+node scripts/build-testing-database.cjs --check
 node --test tests/testing-database.test.cjs
 ```
 
-The automated check installs the full bundle against isolated PostgreSQL with a minimal Supabase Auth fixture and checks RLS, final client task function, assignment trigger, and refusal to install over existing tables. It does not contact Supabase or verify a hosted project's configuration.
+Keep new SQL changes in a named section of `main-database.sql`; the generator automatically includes every section and rejects extra SQL files in `supabase/`. `--check` verifies that the generated testing installer matches the main script without changing it.
+
+The automated check verifies freshness, installs the full bundle against isolated PostgreSQL with a minimal Supabase Auth fixture, and checks RLS, current lead stages, rejection of retired stages, the final client task function, assignment trigger, and refusal to install over existing tables. It does not contact Supabase or verify a hosted project's configuration.

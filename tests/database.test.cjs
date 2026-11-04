@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const fs=require('node:fs');
+const {readDatabaseSection}=require('../scripts/database-sql.cjs');
 const {PGlite}=require('@electric-sql/pglite');
 const {createLoader}=require('../scripts/test-loader.cjs');
 const load=createLoader({'@/lib/assignees':{DUMMY_ASSIGNABLE_NAMES:new Set()}});
@@ -20,8 +20,8 @@ async function setup() {
  grant usage on schema auth to authenticated;
  grant execute on function auth.uid(),auth.jwt() to authenticated;
  `);
- await db.exec(fs.readFileSync('supabase/schema.sql','utf8').replace('create extension if not exists pgcrypto;',''));
- await db.exec(fs.readFileSync('supabase/workspace-reliability-migration.sql','utf8'));
+ await db.exec(readDatabaseSection('foundation').replace('create extension if not exists pgcrypto;',''));
+ await db.exec(readDatabaseSection('workspace-reliability'));
  for(const [id,email] of [[ADMIN,'admin@example.com'],[EMPLOYEE,'employee@example.com'],[CLIENT,'client@example.com'],[OUTSIDER,'outsider@example.com']]) await db.query(`insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())`,[id,email]);
  await db.query(`insert into public.workspace_members(user_id,email,role) values($1,'admin@example.com','admin'),($2,'employee@example.com','employee'),($3,'client@example.com','client')`,[ADMIN,EMPLOYEE,CLIENT]);
  await identity(ADMIN,'admin@example.com');
@@ -34,7 +34,7 @@ function change(collection,row,revision=null) {return {collection,id:row.id,expe
 
 test('workspace database migrations and transactional workflows',async t=>{
  await setup();
- await t.test('migration is rerunnable',async()=>{await db.exec(fs.readFileSync('supabase/workspace-reliability-migration.sql','utf8'));});
+ await t.test('migration is rerunnable',async()=>{await db.exec(readDatabaseSection('workspace-reliability'));});
  await t.test('retired lead stages migrate once and cannot be saved again',async()=>{
    const attachment={name:'scope.pdf',dataUrl:'data:application/pdf;base64,JVBERg=='};
    await save([change('leads',lead('LEGACY-READY',{qualification:{proposalAttachment:attachment}})),change('leads',lead('LEGACY-CLOSED'))]);
@@ -42,7 +42,7 @@ test('workspace database migrations and transactional workflows',async t=>{
     alter table public.leads add constraint leads_status_check check(status in ('NEW','QUALIFIED','PROPOSAL_SENT','ACCEPTED','CONVERTED','LOST','DISQUALIFIED'));
     update public.leads set status='QUALIFIED' where external_id='LEGACY-READY';
     update public.leads set status='DISQUALIFIED' where external_id='LEGACY-CLOSED';`);
-   const migration=fs.readFileSync('supabase/remove-lead-qualification-migration.sql','utf8');
+   const migration=readDatabaseSection('remove-lead-qualification');
    await db.exec(migration);
    const first=(await db.query("select external_id,status,revision,qualification from public.leads where external_id like 'LEGACY-%' order by external_id")).rows;
    assert.deepEqual(first.map(row=>row.status),['LOST','NEW']);
@@ -154,9 +154,9 @@ test('workspace database migrations and transactional workflows',async t=>{
    assert.equal((await db.query("select role from workspace_members where user_id=$1",[ADMIN])).rows[0].role,'admin');
  });
  await t.test('employee migrations isolate assignments and preserve client access without policy recursion',async()=>{
-   for(const file of ['employee-role-access-migration.sql','employee-client-rls-fix.sql','reviews-migration.sql']) {
-     await db.exec(fs.readFileSync(`supabase/${file}`,'utf8'));
-     await db.exec(fs.readFileSync(`supabase/${file}`,'utf8'));
+   for(const file of ['employee-role-access','employee-client-rls-fix','reviews']) {
+     await db.exec(readDatabaseSection(file));
+     await db.exec(readDatabaseSection(file));
    }
    await db.query("update project_work_items set assignee_user_id=$1 where external_id='TASK1'",[EMPLOYEE]);
    const privateProject=(await db.query("select id from projects where external_id='PRIVATE'")).rows[0].id;
@@ -212,15 +212,18 @@ test('workspace database migrations and transactional workflows',async t=>{
  });
  await t.test('client portal exposes associated progress and team only, without direct internal reads',async()=>{
    await db.query("update project_work_items set assignee_name='Assigned employee' where external_id='TASK1'");
-   const sql=fs.readFileSync('supabase/client-portal-access-migration.sql','utf8');
+   await db.query("update projects set client_company='ZeroGrid LLC' where external_id='P1'");
+   const sql=readDatabaseSection('client-portal-access');
    await db.exec(sql);await db.exec(sql);
    await identity(CLIENT,'client@example.com');await db.exec('set role authenticated');
    const projects=(await db.query('select read_client_projects() result')).rows[0].result;
    const own=projects.find(p=>p.external_id==='P1');
    assert.ok(own);assert.ok(!projects.some(p=>p.external_id==='PRIVATE'));
    assert.equal(own.total_tasks,1);
+   assert.equal(own.client_company,'ZeroGrid LLC');
+   assert.deepEqual(Object.keys(own.details).sort(),['operating_company','services','start_date','scope_included','scope_excluded','assumptions','revision_rounds'].sort());
    assert.ok(own.team.some(p=>p.name==='Assigned employee'));
-   assert.deepEqual(Object.keys(own).sort(),['id','external_id','title','status','total_tasks','completed_tasks','team'].sort());
+   assert.deepEqual(Object.keys(own).sort(),['id','external_id','title','client_company','details','status','total_tasks','completed_tasks','team'].sort());
    for(const table of ['clients','projects','project_work_items','project_links','proposals','invoices','project_messages','project_team_members']) {
      assert.equal((await db.query(`select count(*)::int n from ${table}`)).rows[0].n,0,table);
    }
@@ -230,7 +233,7 @@ test('workspace database migrations and transactional workflows',async t=>{
    await db.exec('reset role');await identity(ADMIN,'admin@example.com');
  });
  await t.test('project status migration is rerunnable and On track persists',async()=>{
-   const sql=fs.readFileSync('supabase/project-status-migration.sql','utf8');
+   const sql=readDatabaseSection('project-status');
    await db.exec(sql);await db.exec(sql);
    const tracked=project('STATUS-FLOW','L2',{status:'ON_TRACK'});
    await save([change('projects',tracked)]);
@@ -243,7 +246,7 @@ test('workspace database migrations and transactional workflows',async t=>{
  await t.test('task assignments move only Active projects to On track',async()=>{
    const work={id:'TRACK-TASK',title:'Assigned task',kind:'FEATURE_DEV',status:'TO_DO',priority:'P3',assignee:'Employee',assigneeId:EMPLOYEE,createdAt:'2026-10-31T00:00:00Z'};
    await save([change('projects',project('TRACK-EXISTING','L2',{workItems:[work]}))]);
-   const sql=fs.readFileSync('supabase/project-assignment-status-migration.sql','utf8');
+   const sql=readDatabaseSection('project-assignment-status');
    await db.exec(sql);await db.exec(sql);
    const existing=(await db.query("select status,revision from projects where external_id='TRACK-EXISTING'")).rows[0];
    assert.equal(existing.status,'ON_TRACK');assert.equal(existing.revision,1);
@@ -256,7 +259,7 @@ test('workspace database migrations and transactional workflows',async t=>{
    assert.equal((await db.query("select status from projects where external_id='UNASSIGNED'")).rows[0].status,'ACTIVE');
  });
  await t.test('notifications target recipients and audit is restricted',async()=>{
-   const sql=fs.readFileSync('supabase/activity-notifications-migration.sql','utf8');
+   const sql=readDatabaseSection('activity-notifications');
    await db.exec(sql);await db.exec(sql);
    await identity(ADMIN,'admin@example.com');
    await save([change('leads',lead('NOTICE'))]);
@@ -279,12 +282,14 @@ test('workspace database migrations and transactional workflows',async t=>{
    assert.ok((await db.query('select * from audit_events')).rows.length>0);
  });
  await t.test('client project tasks expose safe fields only',async()=>{
-   await db.exec(fs.readFileSync('supabase/client-project-tasks-migration.sql','utf8'));
+   await db.exec(readDatabaseSection('client-project-tasks'));
    await identity(CLIENT,'client@example.com');await db.exec('set role authenticated');
    const projects=(await db.query('select read_client_projects() result')).rows[0].result;
    assert.ok(!projects.some(p=>p.external_id==='PRIVATE'));
    const project=projects.find(p=>p.external_id==='NOTICE-PROJECT');
    assert.ok(project.tasks.length);
+   assert.deepEqual(Object.keys(project).sort(),['id','external_id','title','client_company','status','details','tasks','total_tasks','completed_tasks','team'].sort());
+   assert.deepEqual(Object.keys(project.details).sort(),['operating_company','services','start_date','scope_included','scope_excluded','assumptions','revision_rounds'].sort());
    assert.deepEqual(Object.keys(project.tasks[0]).sort(),['id','status','title']);
    await db.exec('reset role');
  });

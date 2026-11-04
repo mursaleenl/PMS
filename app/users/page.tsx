@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { Plus, ShieldCheck, Trash2, User, UserRoundPlus, X } from "lucide-react";
+import { Eye, EyeOff, Plus, ShieldCheck, Trash2, User, UserRoundPlus, X } from "lucide-react";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 import { RoleIcon } from "@/app/_components/role-icon";
 import type { WorkspaceRole } from "@/lib/roles";
@@ -38,6 +38,9 @@ export default function UsersPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [initialPassword, setInitialPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => { setShowPassword(false); }, [showAddUser]);
   const [accessRole, setAccessRole] = useState<WorkspaceRole>("employee");
   const [editingRole, setEditingRole] = useState<WorkspaceRole>("employee");
   const [busy, setBusy] = useState(false);
@@ -248,10 +251,12 @@ export default function UsersPage() {
                   placeholder="person@company.com"
                 />
               </label>
-              <label className="field">
-                Initial password
+              <div className="field">
+                <label htmlFor="add-user-password">Initial password</label>
+                <div className="add-user-password-control">
                 <input
-                  type="password"
+                  id="add-user-password"
+                  type={showPassword ? "text" : "password"}
                   required
                   minLength={8}
                   autoComplete="new-password"
@@ -259,8 +264,12 @@ export default function UsersPage() {
                   onChange={(event) => setInitialPassword(event.target.value)}
                   placeholder="At least 8 characters"
                 />
+                <button className="button button-quiet" type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} aria-controls="add-user-password" onClick={() => setShowPassword(value => !value)}>
+                  {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                </button>
+                </div>
                 <small>{accessRole === "employee" ? "Password changes are managed by an administrator." : "The user can change this password in Account settings."}</small>
-              </label>
+              </div>
               <label className="field">
                 Role
                 <select

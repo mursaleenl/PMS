@@ -7,7 +7,7 @@ pnpm install
 pnpm dev
 ```
 
-Open http://localhost:3000. Configure authentication and apply database migrations as described in [SETUP_AUTH_DATABASE.md](SETUP_AUTH_DATABASE.md). Existing databases need `supabase/workspace-reliability-migration.sql` before the updated persistence and proposal endpoints can save data.
+Open http://localhost:3000. Configure authentication and apply database migrations as described in [SETUP_AUTH_DATABASE.md](SETUP_AUTH_DATABASE.md). Use `supabase/main-database.sql` for the main database; it includes all schema updates in dependency order.
 
 Checks:
 
@@ -25,4 +25,4 @@ pnpm exec playwright install chromium
 pnpm test:browser
 ```
 
-For a separate testing Supabase project or a fully local Supabase stack, use the [complete testing database installer and instructions](supabase/TESTING_DATABASE.md).
+For a separate testing Supabase project or a fully local Supabase stack, use the [complete testing database installer and instructions](TESTING_DATABASE.md).
