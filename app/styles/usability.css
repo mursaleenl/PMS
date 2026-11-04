@@ -638,12 +638,6 @@ body, button, input, select, textarea { font-family: var(--font-body); }
   .app-shell #workspace-content .client-project-detail-heading > .status-badge { flex-shrink: 0; margin: 0; }
   .app-shell #workspace-content .client-project-detail > .portal-record { margin: 0 !important; padding: 24px !important; min-width: 0; }
   .app-shell #workspace-content .client-project-detail .portal-record h2 { margin: 0 !important; line-height: 1.4; }
-  .app-shell #workspace-content .client-project-progress-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 16px; }
-  .app-shell #workspace-content .client-project-progress-heading p { margin: 0 !important; }
-  .app-shell #workspace-content .client-project-progress-panel progress { display: block; width: 100%; height: 8px; margin: 0 !important; appearance: none; border: 0; background: #eef0f3; }
-  .app-shell #workspace-content .client-project-progress-panel progress::-webkit-progress-bar { background: #eef0f3; }
-  .app-shell #workspace-content .client-project-progress-panel progress::-webkit-progress-value { background: #2563eb; }
-  .app-shell #workspace-content .client-project-progress-panel progress::-moz-progress-bar { background: #2563eb; }
 }
 @media screen and (max-width:700px) {
   .app-shell #workspace-content .client-project-detail > .portal-record { padding: 16px !important; }

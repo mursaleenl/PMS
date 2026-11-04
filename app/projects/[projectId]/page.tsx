@@ -371,7 +371,6 @@ export default function ProjectWorkspacePage() {
             <div className="project-commercial-list">
               <div><small>Operating company</small><strong data-company={project.operatingCompany}>{project.operatingCompany ?? "Not selected"}</strong></div>
               <div><small>Billing structure</small><strong>{project.billingStructure}</strong></div>
-              <div><small>Included revision rounds</small><strong>{project.revisionRounds}</strong></div>
               {role === "admin" && <div className="project-scope-copy"><small>Payment terms</small><p>{project.invoice?.paymentTerms || "No additional terms recorded."}</p></div>}
               <div className="project-scope-copy"><small>Included scope</small><p>{project.scopeIncluded || "Not recorded"}</p></div>
               <div className="project-scope-copy"><small>Excluded scope</small><p>{project.scopeExcluded || "None specified"}</p></div>
