@@ -1,7 +1,7 @@
 "use client";
 import { useEffect,useState } from "react";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
-export type ClientProject = {id:string;external_id:string;title:string;client_company?:string|null;status:string;details?:{operating_company:string|null;services:string[];start_date:string|null;scope_included:string|null;scope_excluded:string|null;assumptions:string|null;revision_rounds:number};total_tasks:number;completed_tasks:number;tasks:{id:string;title:string;status:string}[];team:{name:string;role:string}[]};
+export type ClientProject = {id:string;external_id:string;title:string;client_company?:string|null;status:string;details?:{services:string[];start_date:string|null;scope_included:string|null;scope_excluded:string|null;assumptions:string|null};total_tasks:number;completed_tasks:number;tasks:{id:string;title:string;status:string}[]};
 export function useClientWorkspace() {
   const {session}=useWorkspaceAuth();
   const [data,setData]=useState<{projects:ClientProject[]}>({projects:[]});

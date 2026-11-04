@@ -1299,22 +1299,9 @@ begin
   return coalesce((
     select jsonb_agg(jsonb_build_object(
       'id',p.id,'external_id',p.external_id,'title',p.title,'client_company',coalesce(nullif(trim(p.client_company),''),(select c.company_name from public.clients c where c.id=p.client_id)),'status',p.status,
-      'details',jsonb_build_object('operating_company',p.operating_company,'services',p.services,'start_date',p.start_date,'scope_included',p.scope_included,'scope_excluded',p.scope_excluded,'assumptions',p.assumptions,'revision_rounds',p.revision_rounds),
+      'details',jsonb_build_object('services',p.services,'start_date',p.start_date,'scope_included',p.scope_included,'scope_excluded',p.scope_excluded,'assumptions',p.assumptions),
       'total_tasks',(select count(*) from public.project_work_items w where w.project_id=p.id),
-      'completed_tasks',(select count(*) from public.project_work_items w where w.project_id=p.id and w.status='DONE'),
-      'team',coalesce((select jsonb_agg(jsonb_build_object('name',a.name,'role',a.role) order by a.name,a.role) from (
-        select coalesce(nullif(trim(t.name),''),nullif(trim(m.display_name),'')) as name,t.role
-        from public.project_team_members t left join public.workspace_members m on m.user_id=t.user_id
-        where t.project_id=p.id
-        union
-        select coalesce(nullif(trim(w.assignee_name),''),nullif(trim(m.display_name),'')), 'Task assignee'
-        from public.project_work_items w left join public.workspace_members m on m.user_id=w.assignee_user_id
-        where w.project_id=p.id and not exists (
-          select 1 from public.project_team_members t where t.project_id=p.id and
-            ((t.user_id is not null and t.user_id=w.assignee_user_id) or
-             (nullif(trim(t.name),'') is not null and lower(trim(t.name))=lower(trim(w.assignee_name))))
-        )
-      ) a where a.name is not null),'[]'::jsonb)
+      'completed_tasks',(select count(*) from public.project_work_items w where w.project_id=p.id and w.status='DONE')
     ) order by p.created_at desc,p.id)
     from public.projects p
     where exists(select 1 from public.clients c where c.id=p.client_id and c.client_user_id=auth.uid())
@@ -1457,22 +1444,9 @@ begin
     select jsonb_agg(jsonb_build_object(
       'id',p.id,'external_id',p.external_id,'title',p.title,'client_company',coalesce(nullif(trim(p.client_company),''),(select c.company_name from public.clients c where c.id=p.client_id)),'status',p.status,
       'tasks',coalesce((select jsonb_agg(jsonb_build_object('id',w.id,'title',w.title,'status',w.status) order by w.created_at,w.id) from public.project_work_items w where w.project_id=p.id),'[]'::jsonb),
-      'details',jsonb_build_object('operating_company',p.operating_company,'services',p.services,'start_date',p.start_date,'scope_included',p.scope_included,'scope_excluded',p.scope_excluded,'assumptions',p.assumptions,'revision_rounds',p.revision_rounds),
+      'details',jsonb_build_object('services',p.services,'start_date',p.start_date,'scope_included',p.scope_included,'scope_excluded',p.scope_excluded,'assumptions',p.assumptions),
       'total_tasks',(select count(*) from public.project_work_items w where w.project_id=p.id),
-      'completed_tasks',(select count(*) from public.project_work_items w where w.project_id=p.id and w.status='DONE'),
-      'team',coalesce((select jsonb_agg(jsonb_build_object('name',a.name,'role',a.role) order by a.name,a.role) from (
-        select coalesce(nullif(trim(t.name),''),nullif(trim(m.display_name),'')) as name,t.role
-        from public.project_team_members t left join public.workspace_members m on m.user_id=t.user_id
-        where t.project_id=p.id
-        union
-        select coalesce(nullif(trim(w.assignee_name),''),nullif(trim(m.display_name),'')), 'Task assignee'
-        from public.project_work_items w left join public.workspace_members m on m.user_id=w.assignee_user_id
-        where w.project_id=p.id and not exists (
-          select 1 from public.project_team_members t where t.project_id=p.id and
-            ((t.user_id is not null and t.user_id=w.assignee_user_id) or
-             (nullif(trim(t.name),'') is not null and lower(trim(t.name))=lower(trim(w.assignee_name))))
-        )
-      ) a where a.name is not null),'[]'::jsonb)
+      'completed_tasks',(select count(*) from public.project_work_items w where w.project_id=p.id and w.status='DONE')
     ) order by p.created_at desc,p.id)
     from public.projects p
     where exists(select 1 from public.clients c where c.id=p.client_id and c.client_user_id=auth.uid())

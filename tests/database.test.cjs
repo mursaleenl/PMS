@@ -221,9 +221,10 @@ test('workspace database migrations and transactional workflows',async t=>{
    assert.ok(own);assert.ok(!projects.some(p=>p.external_id==='PRIVATE'));
    assert.equal(own.total_tasks,1);
    assert.equal(own.client_company,'ZeroGrid LLC');
-   assert.deepEqual(Object.keys(own.details).sort(),['operating_company','services','start_date','scope_included','scope_excluded','assumptions','revision_rounds'].sort());
-   assert.ok(own.team.some(p=>p.name==='Assigned employee'));
-   assert.deepEqual(Object.keys(own).sort(),['id','external_id','title','client_company','details','status','total_tasks','completed_tasks','team'].sort());
+   assert.deepEqual(Object.keys(own.details).sort(),['services','start_date','scope_included','scope_excluded','assumptions'].sort());
+   assert.equal(own.team,undefined);
+   assert.equal(own.details.operating_company,undefined);
+   assert.deepEqual(Object.keys(own).sort(),['id','external_id','title','client_company','details','status','total_tasks','completed_tasks'].sort());
    for(const table of ['clients','projects','project_work_items','project_links','proposals','invoices','project_messages','project_team_members']) {
      assert.equal((await db.query(`select count(*)::int n from ${table}`)).rows[0].n,0,table);
    }
@@ -288,8 +289,8 @@ test('workspace database migrations and transactional workflows',async t=>{
    assert.ok(!projects.some(p=>p.external_id==='PRIVATE'));
    const project=projects.find(p=>p.external_id==='NOTICE-PROJECT');
    assert.ok(project.tasks.length);
-   assert.deepEqual(Object.keys(project).sort(),['id','external_id','title','client_company','status','details','tasks','total_tasks','completed_tasks','team'].sort());
-   assert.deepEqual(Object.keys(project.details).sort(),['operating_company','services','start_date','scope_included','scope_excluded','assumptions','revision_rounds'].sort());
+   assert.deepEqual(Object.keys(project).sort(),['id','external_id','title','client_company','status','details','tasks','total_tasks','completed_tasks'].sort());
+   assert.deepEqual(Object.keys(project.details).sort(),['services','start_date','scope_included','scope_excluded','assumptions'].sort());
    assert.deepEqual(Object.keys(project.tasks[0]).sort(),['id','status','title']);
    await db.exec('reset role');
  });

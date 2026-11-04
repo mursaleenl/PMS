@@ -111,6 +111,12 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   }, [loading, user, pathname, router]);
 
   useEffect(() => {
+    if (!loading && user && databaseRole === "client" && !pathname.startsWith("/sign-in") && !pathname.startsWith("/proposal/") && (pathname === "/client" || !canAccessPath("client", pathname))) {
+      router.replace("/client/projects");
+    }
+  }, [loading, user, databaseRole, pathname, router]);
+
+  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
         setProfileMenuOpen(false);
@@ -146,6 +152,8 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   if (loading || !user) return <div className="access-denied" role="status"><p>Loading workspace...</p></div>;
   if (!databaseRole) return <div className="access-denied"><section className="panel"><h1>{accessError ? "Unable to verify workspace access" : "Workspace access is not assigned"}</h1><p>{accessError || "Ask an administrator to assign your account a workspace role."}</p>{signOutError&&<p role="alert">{signOutError}</p>}<button className="button button-primary" onClick={() => { void refreshAccess(); }}>Retry access check</button><button className="button button-quiet" onClick={()=>void handleSignOut()}>Sign out</button></section></div>;
   if (mustChangePassword && role === "admin" && pathname !== "/settings") return <div className="access-denied"><div className="panel"><span className="section-kicker">PASSWORD UPDATE REQUIRED</span><h1>Set your own password.</h1><p>For account security, update the temporary password before continuing to the workspace.</p><Link className="button button-primary" href="/settings">Change password <ChevronRight size={15} /></Link></div></div>;
+
+  if (role === "client" && (pathname === "/client" || !canAccessPath(role, pathname))) return <div className="access-denied" role="status"><p>Opening projects...</p></div>;
 
   const allowed = canAccessPath(role, pathname);
   if (!allowed) return <div className="access-denied"><div className="panel"><span className="section-kicker">{roleLabels[role]}</span><h1>This area is not part of your workspace.</h1><p>Your account is signed in with {roleLabels[role].toLowerCase()} access. Open the area assigned to your role.</p><Link className="button button-primary" href={role === "client" ? "/client" : "/"}>Continue to workspace <ChevronRight size={15} /></Link></div></div>;

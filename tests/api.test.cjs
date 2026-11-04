@@ -28,3 +28,40 @@ test('proposal GET returns only the scoped proposal and POST reports database re
  const result=await api.POST(new Request('http://localhost/api/proposals/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({response:'ACCEPTED',name:'Approver',note:''})}),context);
  assert.equal(result.status,409);assert.match((await result.json()).error,/expired/);
 });
+
+test('client projects require authenticated RPC access and strip internal fields from older responses', async()=>{
+ let auth=null, serviceCalls=0;
+ const project={id:'P1',title:'Branding, Website',client_company:'ZeroGrid LLC',status:'ACTIVE',total_tasks:0,completed_tasks:0,
+  team:[{name:'Private employee'}],staging_url:'https://private.example',details:{services:['Branding'],scope_included:'Website delivery',operating_company:'Servn',revision_rounds:3,secret:'private'}};
+ const load=createLoader({'@/lib/authenticated-api':{authenticatedDatabase:async()=>auth},'@/lib/server-supabase':{serverSupabase:()=>{serviceCalls++;throw new Error('Unexpected service access');}}});
+ const api=load('app/api/client/workspace/route.ts'),request=new Request('http://localhost/api/client/workspace');
+ assert.equal((await api.GET(request)).status,401);
+ auth={user:{id:'CLIENT'},client:{rpc:async()=>({error:{message:'Client access required'}})}};
+ assert.equal((await api.GET(request)).status,503);
+ auth.client.rpc=async()=>({data:[project]});
+ const response=await api.GET(request),body=await response.json();
+ assert.equal(body.projects[0].client_company,'ZeroGrid LLC');
+ assert.equal(body.projects[0].details.scope_included,'Website delivery');
+ for(const key of ['team','staging_url'])assert.equal(body.projects[0][key],undefined);
+ for(const key of ['operating_company','revision_rounds','secret'])assert.equal(body.projects[0].details[key],undefined);
+ assert.equal(serviceCalls,0);
+});
+
+test('legacy client project enrichment scopes both project IDs and account ownership',async()=>{
+ const previousKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
+ process.env.SUPABASE_SERVICE_ROLE_KEY='test-only';
+ const filters=[];
+ try {
+  const load=createLoader({'@/lib/authenticated-api':{authenticatedDatabase:async()=>({user:{id:'CLIENT'},client:{rpc:async()=>({data:[{id:'P1',title:'Branding',total_tasks:0,completed_tasks:0}]})}})},
+   '@/lib/server-supabase':{serverSupabase:()=>({from:table=>({select:columns=>{
+    assert.ok(!columns.includes('operating_company'));assert.ok(!columns.includes('project_links'));assert.ok(!columns.includes('team'));
+    if(table==='clients')return {eq:async(key,value)=>{filters.push([key,value]);return {data:[{id:'C1',company_name:'ZeroGrid LLC'}]};}};
+    return {in:(key,values)=>{filters.push([key,values]);return {in:async(key,values)=>{filters.push([key,values]);return {data:[{id:'P1',client_id:'C1',services:['Branding'],scope_included:'Agreed scope'}]};}};}};
+   }})})}});
+  const response=await load('app/api/client/workspace/route.ts').GET(new Request('http://localhost/api/client/workspace'));
+  assert.equal(response.status,200);
+  const project=(await response.json()).projects[0];
+  assert.equal(project.client_company,'ZeroGrid LLC');assert.equal(project.details.scope_included,'Agreed scope');
+  assert.deepEqual(filters,[['client_user_id','CLIENT'],['id',['P1']],['client_id',['C1']]]);
+ } finally {if(previousKey===undefined)delete process.env.SUPABASE_SERVICE_ROLE_KEY;else process.env.SUPABASE_SERVICE_ROLE_KEY=previousKey;}
+});
