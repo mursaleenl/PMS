@@ -7,6 +7,26 @@ export async function GET(request: Request) {
   if (!auth) return NextResponse.json({error: "Sign in to view your records."}, {status: 401});
   const {data, error} = await auth.client.rpc("read_client_records");
   if (error) return NextResponse.json({error: "Unable to load your records. Please retry."}, {status: 503});
+  // Older portal RPCs omit acceptance metadata. Only hydrate records already
+  // authorized by the caller-scoped RPC, never IDs supplied by the browser.
+  if (data?.proposals?.length && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const service = serverSupabase();
+    const {data: proposals, error: proposalError} = await service.from("proposals")
+      .select("id,lead_id,project_title,response_name,responded_at")
+      .in("id", data.proposals.map((proposal: {id: string}) => proposal.id));
+    if (proposalError) return NextResponse.json({error: "Unable to load acceptance details."}, {status: 503});
+    const leadIds = [...new Set((proposals ?? []).map(proposal => proposal.lead_id).filter(Boolean))];
+    const {data: leads, error: leadError} = leadIds.length
+      ? await service.from("leads").select("id,company_name,full_name,acceptance_name,accepted_at").in("id", leadIds)
+      : {data: [], error: null};
+    if (leadError) return NextResponse.json({error: "Unable to load acceptance details."}, {status: 503});
+    data.proposals = data.proposals.map((proposal: {id: string; accepted_by?: string; accepted_at?: string}) => {
+      const saved = proposals?.find(row => row.id === proposal.id);
+      const lead = leads?.find(row => row.id === saved?.lead_id);
+      return {...proposal, client_name: lead?.company_name || lead?.full_name, project_title: saved?.project_title, accepted_by: saved?.response_name || lead?.acceptance_name || proposal.accepted_by,
+        accepted_at: saved?.responded_at || lead?.accepted_at || proposal.accepted_at};
+    });
+  }
   // Render the saved invoice row, including on installations with older portal RPCs.
   if (data?.invoices?.length && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const service=serverSupabase();

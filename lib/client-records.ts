@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
 import {useWorkspaceAuth} from "@/lib/workspace-auth";
-export type ClientProposal={accepted_by?:string|null;accepted_at?:string|null;id:string;title:string;version:number;status:string;review_path:string|null;expiry_date:string|null;amount:number;currency:string;scope:string|null;deliverables:string|null;timeline:string|null;payment_terms:string|null};
+export type ClientProposal={client_name?:string|null;project_title?:string|null;accepted_by?:string|null;accepted_at?:string|null;id:string;title:string;version:number;status:string;review_path:string|null;expiry_date:string|null;amount:number;currency:string;scope:string|null;deliverables:string|null;timeline:string|null;payment_terms:string|null};
 export type ClientInvoice={gst_enabled?:boolean;contract_value?:number;deposit_amount?:number;client_name?:string|null;client_email?:string|null;transaction_reference?:string|null;bill_to?:string|null;operating_company?:string|null;quantity?:number;unit_price?:number;subtotal?:number;gst_amount?:number;gst_rate?:number;confirmed_paid_at?:string|null;id:string;number:string;description:string|null;status:string;total:number;currency:string;issue_date:string;due_date:string|null;payment_terms:string|null;payment_instructions:string|null};
 export type ClientDocument={id:string;name:string;url:string;kind:string};
 type Records={proposals:ClientProposal[];invoices:ClientInvoice[];documents:ClientDocument[]};

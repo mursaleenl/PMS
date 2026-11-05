@@ -1064,6 +1064,8 @@ body, button, input, select, textarea { font-family: var(--font-body); }
   }
   html body .app-shell #workspace-sidebar .workspace-sidebar-heading {
     justify-content: flex-start !important; width: 100% !important;
+    align-items: flex-start !important;
+    text-align: left !important;
     padding: 4px 40px 20px 12px !important;
   }
   html body .app-shell #workspace-sidebar .workspace-sidebar-brand {

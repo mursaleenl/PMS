@@ -31,6 +31,21 @@ test('client records isolate accounts, hide drafts, and reject other roles',asyn
   assert.equal(data.proposals[0].review_path,`/proposal/proposal-${index}-SENT-token-123456789`);
   assert.equal(data.proposals[0].share_token,undefined);assert.equal(data.invoices[0].client_id,undefined);
  }
+ // A client can report payment only for their own sent invoice; reporting never marks it paid.
+ await db.query("select set_config('request.jwt.claim.sub',$1,false)",[ids[0]]);
+ const own=(await db.query('select read_client_records() result')).rows[0].result.invoices[0];
+ await db.query("select submit_invoice_payment_reference($1,'UTR-123')",[own.id]);
+ let reports=(await db.query('select * from invoice_payment_references')).rows;
+ assert.equal(reports.length,1);assert.equal(reports[0].reference,'UTR-123');
+ assert.equal((await db.query('select read_client_records() result')).rows[0].result.invoices[0].status,'SENT');
+ await db.query("select submit_invoice_payment_reference($1,'   ')",[own.id]);
+ assert.equal((await db.query('select reference from invoice_payment_references')).rows[0].reference,'');
+ await assert.rejects(db.query("select submit_invoice_payment_reference($1,$2)",[own.id,'x'.repeat(201)]),/payment reference/);
+ await db.query("select set_config('request.jwt.claim.sub',$1,false)",[ids[1]]);
+ assert.equal((await db.query('select * from invoice_payment_references')).rows.length,0);
+ await assert.rejects(db.query("select submit_invoice_payment_reference($1,'OTHER')",[own.id]),/Invoice unavailable/);
+ await db.query("select set_config('request.jwt.claim.sub',$1,false)",[ids[2]]);
+ await assert.rejects(db.query("select submit_invoice_payment_reference($1,'STAFF')",[own.id]),/Client access required/);
  // The portal's review link leads to the existing acceptance workflow.
  await db.exec('reset role');
  await db.query("select respond_shared_proposal($1,'ACCEPTED','Client Approver','')",['proposal-0-SENT-token-123456789']);

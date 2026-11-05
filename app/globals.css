@@ -16866,3 +16866,54 @@ textarea:focus {
  .client-proposal-page .client-proposal-header-actions a,
  .client-proposal-page .client-proposal-header-actions button { min-height: 36px; font-size: 12px; white-space: nowrap; }
 }
+
+/* Acceptance sits on the document baseline with a single divider. */
+.client-proposal-signature-section {
+  border: 0;
+  border-top: 1px solid #e4e4e7;
+  background: transparent;
+  box-shadow: none;
+  padding: 24px 0 0;
+}
+.client-proposal-signature-section h2 {
+  text-align: left;
+  text-transform: none;
+}
+.client-proposal-acceptance-details > div { min-width: 0; }
+.client-proposal-acceptance-details dd { overflow-wrap: anywhere; }
+@media print {
+  .client-proposal-page .client-proposal-signature-section { padding: 5mm 0 0; }
+}
+
+.portal-proposal-summary { border-radius: 0; text-align: left; }
+.portal-proposal-summary .portal-proposal-subtitle { margin: 8px 0 0; color: #71717a; font-size: 14px; }
+.portal-proposal-facts { display: flex; flex-wrap: wrap; gap: 20px 40px; margin: 24px 0; }
+.portal-proposal-facts dt { color: #71717a; font-size: 12px; margin-bottom: 6px; }
+.portal-proposal-facts dd { margin: 0; color: #0f172a; font-size: 14px; font-weight: 600; }
+
+.invoice-payment-reference { margin-top: 24px; padding: 20px 0; border-top: 1px solid #e4e4e7; text-align: left; }
+.invoice-payment-reference h3 { margin: 0 0 8px; font-size: 15px; }
+.invoice-payment-reference p { color: #71717a; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.invoice-payment-reference label { display: block; margin: 16px 0 8px; font-size: 12px; color: #52525b; }
+.invoice-reference-controls { display: flex; gap: 12px; flex-wrap: wrap; }
+.invoice-reference-controls input { flex: 1; min-width: 200px; height: 38px; border: 1px solid #e2e8f0; border-radius: 0; padding: 0 12px; background: white; color: #0f172a; }
+.invoice-reference-controls input:focus { outline: 1px solid #0f172a; }
+.invoice-submitted-reference { display: block; margin-top: 6px; color: #71717a; max-width: 220px; overflow-wrap: anywhere; }
+@media print { .invoice-payment-reference { display: none !important; } }
+
+.invoice-status-select { display: block; margin-top: 8px; height: 36px; max-width: 180px; padding: 0 8px; border: 1px solid #e2e8f0; border-radius: 0; background: #ffffff; color: #0f172a; font: inherit; }
+.invoice-status-select:focus { outline: 1px solid #0f172a; outline-offset: 1px; }
+.invoice-status-select:disabled { opacity: .6; }
+
+/* Black document text; secondary descriptions and dark table headers keep their contrast. */
+html body :is(.proposals-page, .invoice-module-page, .client-proposals-records, .client-invoices-records, .client-invoice-page, .client-proposal-page, .proposal-compose-dialog, .invoice-modal-card)
+:is(h1, h2, h3, h4, dt, dd, label.field, input, textarea, select, td) {
+  color: #000000;
+}
+html body .client-proposal-page :is(.client-proposal-card p, .client-proposal-card li, .client-proposal-signature-section p, .client-proposal-acceptance-details dt, .client-proposal-acceptance-details dd) {
+  color: #000000;
+}
+html body .invoice-reference-layout :is(.invoice-paper-meta, .invoice-paper-meta p, .invoice-paper-meta span, .invoice-paper-meta strong, .invoice-title, .invoice-title span, .invoice-title h2, .invoice-lines td, .invoice-payment-details, .invoice-payment-details p, .invoice-totals, .invoice-totals span, .invoice-totals strong) {
+  color: #000000;
+}
+html body :is(.proposal-index-main, .invoice-client-cell) > strong { color: #000000; }

@@ -45,7 +45,7 @@ export default function ClientProposalPage() {
 
   const proposal = lead?.proposals?.find((item) => item.shareToken === token);
   const isOpen = proposal?.status === "SENT";
-  const expired = !!proposal && new Date(`${proposal.expiryDate}T23:59:59Z`).getTime() < Date.now();
+  const expired = !!proposal?.expiryDate && new Date(`${proposal.expiryDate}T23:59:59Z`).getTime() < Date.now();
 
   async function respond(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

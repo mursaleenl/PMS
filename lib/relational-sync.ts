@@ -402,7 +402,7 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     gstAmount: number(row.gst_amount),
     total: number(row.total),
     issueDate: text(row.issue_date, new Date().toISOString().slice(0, 10)),
-    dueDate: text(row.due_date, new Date().toISOString().slice(0, 10)),
+    dueDate: text(row.due_date),
     contractValue: number(row.contract_value),
     depositPercent: number(row.deposit_percent),
     depositAmount: number(row.deposit_amount),

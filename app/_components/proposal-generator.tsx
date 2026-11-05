@@ -22,8 +22,6 @@ export function ProposalGenerator({ lead: sourceLead, forceCompose = false }: { 
   const [pending, setPending] = useState(false);
   const [deliveryPending,setDeliveryPending]=useState(false);
   const busy = useRef(false);
-  const expiry = new Date();
-  expiry.setDate(expiry.getDate() + 30);
   const canGenerate = !lead || ["NEW", "PROPOSAL_SENT"].includes(lead.status) || (lead.status !== "LOST" && !latest);
   const sharePath = latest?.shareToken && latest.status !== "DRAFT" && latest.status !== "SUPERSEDED" ? `/proposal/${latest.shareToken}` : null;
 
@@ -48,7 +46,7 @@ export function ProposalGenerator({ lead: sourceLead, forceCompose = false }: { 
         if (!value("quotedAmount") || !Number.isFinite(quotedAmount) || quotedAmount <= 0) throw new Error("Enter a proposal amount greater than zero.");
         if (!Number.isFinite(depositPercent) || depositPercent < 0 || depositPercent > 100) throw new Error("Deposit must be between 0 and 100%.");
         if (!Number.isInteger(Number(value("revisionRounds"))) || Number(value("revisionRounds")) < 0) throw new Error("Revision rounds must be a whole number of zero or more.");
-        if (!isValidDateValue(value("expiryDate")) || value("expiryDate") < new Date().toISOString().slice(0, 10)) throw new Error("Choose a valid expiry date today or later.");
+        if (value("expiryDate") && (!isValidDateValue(value("expiryDate")) || value("expiryDate") < new Date().toISOString().slice(0, 10))) throw new Error("Choose a valid expiry date today or later.");
         const now = new Date().toISOString();
         const previous = [...(current?.proposals ?? [])].sort((a, b) => b.version - a.version)[0];
         const proposal: ProposalVersion = {
@@ -133,7 +131,7 @@ export function ProposalGenerator({ lead: sourceLead, forceCompose = false }: { 
           <label className="field">Billing structure<select name="billingStructure" defaultValue={latest?.billingStructure || "Fixed"}><option>Fixed</option><option>Hourly</option><option>Retainer</option></select></label>
           <label className="field">Deposit (%)<input name="depositPercent" type="number" min="0" max="100" step="0.01" defaultValue={latest?.depositPercent ?? 0} /></label>
           <label className="field">Timeline<input name="timeline" defaultValue={latest?.timeline || ""} placeholder="e.g. 4 weeks from approval" /></label>
-          <label className="field required">Valid until<CalendarPicker name="expiryDate" required defaultValue={expiry.toISOString().slice(0, 10)} /></label>
+          <label className="field">Valid until (optional)<CalendarPicker name="expiryDate" /></label>
         </div>
         <details className="proposal-custom-options"><summary>Additional proposal options</summary><div className="proposal-fields-grid">
           <label className="field">Excluded scope<textarea name="scopeExcluded" rows={3} defaultValue={latest?.scopeExcluded || ""} placeholder="Work outside this proposal" /></label>

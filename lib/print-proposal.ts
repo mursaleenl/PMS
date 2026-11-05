@@ -15,7 +15,7 @@ export async function printProposal(source:HTMLElement){
   style.textContent=`
    @page { size: A4 portrait; margin: 16mm 15mm; }
    * { box-sizing: border-box; }
-   html,body { margin:0; padding:0; width:auto; height:auto; overflow:visible; background:white; color:#111827; }
+   html,body { margin:0; padding:0; width:auto; height:auto; overflow:visible; background:white; color:#000000; }
    body { font-family:Arial,Helvetica,sans-serif; font-size:10pt; line-height:1.55; }
    main { width:100%; margin:0; padding:0; }
    .client-proposal-header { padding-bottom:5mm; border-bottom:1px solid #d4d4d8; }
@@ -38,7 +38,7 @@ export async function printProposal(source:HTMLElement){
    .client-proposal-price strong { font-size:20pt; letter-spacing:-.02em; margin:1mm 0; }
    .client-proposal-price small { color:#52525b; font-size:9pt; }
    .client-proposal-contact strong,.client-proposal-contact span { display:block; }
-   .client-proposal-signature-section { padding:5mm; margin-top:4mm; border:1px solid #d4d4d8; break-inside:avoid; }
+   .client-proposal-signature-section { padding:5mm 0 0; margin-top:4mm; border:0; border-top:1px solid #d4d4d8; background:transparent; break-inside:avoid; }
    .client-proposal-acceptance-details { display:flex; gap:15mm; margin:4mm 0 0; }
    .client-proposal-acceptance-details div { flex:1; }
    dt { font-size:9pt; color:#71717a; } dd { margin:1.5mm 0 0; font-weight:600; }

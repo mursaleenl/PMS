@@ -1,5 +1,6 @@
 "use client";
 
+import {usePaymentReferences} from "@/lib/payment-references";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -26,12 +27,6 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function inSevenDays() {
-  const date = new Date();
-  date.setDate(date.getDate() + 7);
-  return date.toISOString().slice(0, 10);
-}
-
 const statusLabels: Record<InvoiceStatus, string> = {
   GENERATED: "Draft",
   SENT: "Awaiting payment",
@@ -40,8 +35,10 @@ const statusLabels: Record<InvoiceStatus, string> = {
 
 export default function InvoicesPage() {
   const {session}=useWorkspaceAuth();
+  const payments=usePaymentReferences();
   async function storePdf(invoice:StoredInvoice){if(!session?.access_token)throw new Error("Sign in to save the invoice PDF.");await saveInvoicePdf(invoice,session.access_token);}
   const [invoices, setInvoices] = useState<StoredInvoice[]>([]);
+  const [changingStatus, setChangingStatus] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedInvoiceNumber, setSelectedInvoiceNumber] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -240,15 +237,15 @@ export default function InvoicesPage() {
     const isGst = data.get("gstEnabled") === "on";
     const parsedRate = isGst ? Number(data.get("gstRate") || gstRate) : 0;
     const issueDate = String(data.get("issueDate") || today());
-    const dueDate = String(data.get("dueDate") || inSevenDays());
+    const dueDate = String(data.get("dueDate") || "");
     const description = String(data.get("description") || "").trim();
 
-    if (!Number.isFinite(amount) || amount <= 0 || !issueDate || !dueDate || !description) {
-      setError("Please provide a valid description, amount, issue date, and due date.");
+    if (!Number.isFinite(amount) || amount <= 0 || !issueDate || !description) {
+      setError("Please provide a valid description, amount, and issue date.");
       return;
     }
 
-    if (!Number.isFinite(parsedRate) || parsedRate < 0 || parsedRate > 100 || !isValidDateValue(issueDate) || !isValidDateValue(dueDate) || dueDate < issueDate) {
+    if (!Number.isFinite(parsedRate) || parsedRate < 0 || parsedRate > 100 || !isValidDateValue(issueDate) || (dueDate && (!isValidDateValue(dueDate) || dueDate < issueDate))) {
       setError("Enter valid dates, a due date on or after the issue date, and tax from 0 to 100."); return;
     }
     const gstAmount = isGst ? Math.round(amount * parsedRate) / 100 : 0;
@@ -384,9 +381,9 @@ export default function InvoicesPage() {
   }
 
   async function handleConfirmPaid(inv: StoredInvoice) {
-    const ref = window.prompt("Enter bank / external payment transaction reference:", inv.transactionReference || "");
-    if (!ref?.trim()) return;
-    try{await storePdf(inv);}catch(cause){showToast({message:cause instanceof Error?cause.message:"Unable to save PDF"});return;}
+    const ref = window.prompt("Verify the payment received. Payment reference (optional):", payments.references.find(report=>report.invoices?.invoice_number===inv.invoiceNumber)?.reference || inv.transactionReference || "");
+    if (ref === null) return;
+    try{await storePdf({...inv,status:"CONFIRMED_PAID",transactionReference:ref.trim()});}catch(cause){showToast({message:cause instanceof Error?cause.message:"Unable to save PDF"});return;}
     const confirmedPaidAt = new Date().toISOString();
     updateInvoice(inv.invoiceNumber, {
       status: "CONFIRMED_PAID",
@@ -396,6 +393,24 @@ export default function InvoicesPage() {
     try { await flushWorkspaceChanges(); } catch(cause) { showToast({message:cause instanceof Error ? cause.message : "Invoice could not be saved"}); return; }
     refreshAll();
     showToast({ message: `Invoice ${inv.invoiceNumber} confirmed paid` });
+  }
+
+  async function handleStatusChange(inv: StoredInvoice, status: InvoiceStatus) {
+    if (status === inv.status || changingStatus) return;
+    setChangingStatus(inv.invoiceNumber);
+    try {
+      if (status === "CONFIRMED_PAID") { await handleConfirmPaid(inv); return; }
+      const next = {...inv, status, confirmedPaidAt: undefined,
+        transactionReference: undefined,
+        sentAt: status === "SENT" ? new Date().toISOString() : undefined};
+      await storePdf(next);
+      updateInvoice(inv.invoiceNumber, next);
+      await flushWorkspaceChanges();
+      refreshAll();
+      showToast({message: `Invoice ${inv.invoiceNumber} changed to ${statusLabels[status].toLowerCase()}`});
+    } catch (cause) {
+      showToast({message: cause instanceof Error ? cause.message : "Invoice status could not be saved"});
+    } finally { setChangingStatus(null); }
   }
 
   async function handleDelete(inv: StoredInvoice) {
@@ -412,6 +427,7 @@ export default function InvoicesPage() {
 
   return (
     <div className="page-content invoice-module-page">
+      {payments.error && <p role="alert">{payments.error}</p>}
       <section className="welcome-row">
         <div>
           <h1>Invoices</h1>
@@ -613,7 +629,13 @@ export default function InvoicesPage() {
                       {inv.gstEnabled && <small>incl. GST ({inv.gstRate}%)</small>}
                     </td>
                     <td>
-                      <StatusBadge status={inv.status}>{statusLabels[inv.status]}</StatusBadge>
+                      <StatusBadge status={inv.status}>{inv.status==="SENT"&&payments.references.some(report=>report.invoices?.invoice_number===inv.invoiceNumber)?"Awaiting verification":statusLabels[inv.status]}</StatusBadge>
+                      <select className="invoice-status-select" aria-label={`Status for ${inv.invoiceNumber}`} value={inv.status} disabled={changingStatus !== null} onChange={event => void handleStatusChange(inv, event.target.value as InvoiceStatus)}>
+                        <option value="GENERATED">Draft</option>
+                        <option value="SENT">Awaiting payment</option>
+                        <option value="CONFIRMED_PAID">Paid</option>
+                      </select>
+                      {inv.status==="SENT"&&payments.references.filter(report=>report.invoices?.invoice_number===inv.invoiceNumber).map(report=><small className="invoice-submitted-reference" key={report.invoice_id}>Reference: {report.reference || "Not provided"}</small>)}
                     </td>
                     <td>
                       <div className="invoice-actions-cell">
@@ -635,7 +657,7 @@ export default function InvoicesPage() {
                             title="Confirm payment"
                           >
                             <Check size={12} />
-                            Paid
+                            Verify payment
                           </button>
                         )}
                         <button
@@ -999,8 +1021,8 @@ export default function InvoicesPage() {
                               <CalendarPicker name="issueDate" required defaultValue={today()} />
                             </label>
                             <label className="field">
-                              Payment due date
-                              <CalendarPicker name="dueDate" required defaultValue={inSevenDays()} />
+                              Payment due date (optional)
+                              <CalendarPicker name="dueDate" />
                             </label>
                           </div>
 
@@ -1196,9 +1218,9 @@ export default function InvoicesPage() {
                       Invoice date
                       <CalendarPicker name="issueDate" required defaultValue={today()} />
                     </label>
-                    <label className="field required">
-                      Payment due date
-                      <CalendarPicker name="dueDate" required defaultValue={inSevenDays()} />
+                    <label className="field">
+                      Payment due date (optional)
+                      <CalendarPicker name="dueDate" />
                     </label>
                   </div>
 
