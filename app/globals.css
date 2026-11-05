@@ -13325,10 +13325,11 @@ textarea {
   flex-shrink: 0;
 }
 
-/* Admin: Neutral Monochrome */
+/* Shared role badges retain their neutral styling outside the account menu. */
 .user-role-badge.user-role-admin,
 .settings-page .user-role-badge.user-role-admin,
 .topbar-user-role-badge.role-admin,
+.topbar-account-role.role-admin,
 .topbar-dropdown-user-info .role-pill.role-admin {
   background: var(--ws-subtle-surface, #f4f4f5) !important;
   color: var(--ws-text, #18181b) !important;
@@ -13344,6 +13345,7 @@ textarea {
 .user-role-badge.user-role-employee,
 .settings-page .user-role-badge.user-role-employee,
 .topbar-user-role-badge.role-employee,
+.topbar-account-role.role-employee,
 .topbar-dropdown-user-info .role-pill.role-employee {
   background: var(--ws-subtle-surface, #f4f4f5) !important;
   color: var(--ws-text, #3f3f46) !important;
@@ -13359,6 +13361,7 @@ textarea {
 .user-role-badge.user-role-client,
 .settings-page .user-role-badge.user-role-client,
 .topbar-user-role-badge.role-client,
+.topbar-account-role.role-client,
 .topbar-dropdown-user-info .role-pill.role-client {
   background: var(--ws-surface, #ffffff) !important;
   color: var(--ws-text, #52525b) !important;
@@ -13538,9 +13541,9 @@ textarea {
 
 .portfolio-actions .portfolio-delete-icon-button:hover,
 .main-area .projects-page .portfolio-delete-icon-button:hover {
-  background: var(--ws-subtle-surface, #fef2f2) !important;
-  border-color: var(--ws-border, #fecaca) !important;
-  color: var(--ws-text, #dc2626) !important;
+  background: #f4f4f5 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
 }
 
 .project-lifecycle-actions .project-delete-button { color: var(--ws-text, #444); }
@@ -14321,8 +14324,32 @@ button.button:hover {
 .invoice-actions-cell {
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
+  width: max-content;
+  min-width: max-content;
   gap: 6px;
   justify-content: flex-end;
+}
+
+.invoice-actions-cell .button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+  text-transform: none !important;
+  border-radius: 0 !important;
+}
+
+.invoice-actions-cell .button svg {
+  flex-shrink: 0;
 }
 
 /* Invoice Preview Modal */
@@ -16607,4 +16634,235 @@ textarea:focus {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 16px;
+}
+
+/* Account role colours: keep the compact neutral badge and rectangular border. */
+.topbar-user-role-badge.role-admin,
+.topbar-dropdown-user-info .role-pill.role-admin {
+  color: #7e22ce !important;
+}
+
+.topbar-user-role-badge.role-employee,
+.topbar-dropdown-user-info .role-pill.role-employee {
+  color: #0369a1 !important;
+}
+
+.topbar-user-role-badge.role-client,
+.topbar-dropdown-user-info .role-pill.role-client {
+  color: #047857 !important;
+}
+
+@media print {
+  body:has(.client-invoice-sheet) > .app-shell {
+    display: block !important;
+  }
+
+  body:has(.client-invoice-sheet) * { visibility: hidden !important; }
+  body:has(.client-invoice-sheet) .client-invoice-sheet,
+  body:has(.client-invoice-sheet) .client-invoice-sheet * { visibility: visible !important; }
+  body:has(.client-invoice-sheet) .client-invoice-sheet {
+    min-height: 297mm !important;
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+}
+
+.client-proposal-brand .client-proposal-logo {
+  display: block;
+  width: 64px;
+  height: 76px;
+  object-fit: contain;
+}
+.client-proposal-brand .client-proposal-logo-servn {
+  width: 175px;
+  height: auto;
+  max-width: 100%;
+}
+
+/* Client invoice detail: document workspace. */
+.client-invoice-page { max-width: 1280px; margin-inline: auto; }
+.client-invoice-navigation { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.client-invoice-navigation .text-link { display: inline-flex; align-items: center; gap: 8px; color: #71717a; font-size: 13px; text-decoration: none; }
+.client-invoice-page-header { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 28px; }
+.client-invoice-eyebrow { display: block; font-size: 11px; color: #71717a; letter-spacing: .08em; margin-bottom: 10px; }
+.client-invoice-page-header h1 { margin: 0; font-size: clamp(22px, 3vw, 30px); letter-spacing: -.035em; text-transform: none; overflow-wrap: anywhere; }
+.client-invoice-page-header p { margin: 8px 0 0; color: #71717a; font-size: 14px; }
+.client-invoice-payment-state { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: #0f172a; white-space: nowrap; }
+.client-invoice-summary { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; margin: 0 0 30px; padding: 24px 0; border-block: 1px solid #e4e4e7; gap: 24px; }
+.client-invoice-summary dt { color: #71717a; font-size: 12px; margin-bottom: 9px; }
+.client-invoice-summary dd { margin: 0; font-size: 14px; font-weight: 500; color: #0f172a; }
+.client-invoice-summary > div:first-child dd { font-size: 23px; font-weight: 600; letter-spacing: -.025em; }
+.client-invoice-pdf-panel { border: 1px solid #e4e4e7; background: #ffffff; }
+.client-invoice-pdf-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 22px; border-bottom: 1px solid #e4e4e7; }
+.client-invoice-pdf-title { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.client-invoice-pdf-title h2 { margin: 0; font-size: 14px; font-weight: 600; text-transform: none; }
+.client-invoice-pdf-title p { margin: 4px 0 0; font-size: 11px; color: #71717a; overflow-wrap: anywhere; }
+.client-invoice-pdf-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.client-invoice-pdf-actions .button { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 12px; }
+.client-invoice-pdf-canvas { padding: 20px; background: #f4f4f5; }
+.client-invoice-pdf-canvas iframe { display: block; width: 100%; height: 76vh; min-height: 480px; border: 0; background: #ffffff; }
+.client-invoice-pdf-placeholder { display: grid; justify-items: center; gap: 12px; padding: 60px 24px; border: 1px solid #e4e4e7; background: #f8fafc; text-align: center; color: #71717a; }
+.client-invoice-pdf-placeholder h2 { margin: 0; font-size: 16px; color: #0f172a; }
+@media (max-width: 700px) {
+ .client-invoice-page-header { align-items: flex-start; flex-direction: column; gap: 14px; }
+ .client-invoice-summary { grid-template-columns: 1fr 1fr; }
+ .client-invoice-pdf-toolbar { align-items: flex-start; flex-direction: column; padding: 16px; }
+ .client-invoice-pdf-actions { width: 100%; }
+ .client-invoice-pdf-canvas { padding: 8px; }
+}
+
+.client-proposal-acceptance-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 24px 0 0;
+}
+.client-proposal-acceptance-details dt { font-size: 12px; color: #71717a; margin-bottom: 8px; }
+.client-proposal-acceptance-details dd { margin: 0; font-size: 15px; color: #0f172a; font-weight: 600; }
+@media (max-width: 600px) {
+ .client-proposal-acceptance-details { grid-template-columns: 1fr; }
+}
+
+/* Proposal document: readable editorial layout with independent A4 pagination. */
+.client-proposal-page { max-width: 1040px; margin-inline: auto; padding: 32px 40px; background: #ffffff; }
+.client-proposal-page .client-proposal-header { padding-bottom: 24px; }
+.client-proposal-page .client-proposal-hero { padding: 36px 0 30px; }
+.client-proposal-page .client-proposal-hero h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.18; text-transform: none; }
+.client-proposal-page .client-proposal-meta { display: flex; border-top: 1px solid #e4e4e7; padding-top: 16px; margin-top: 20px; }
+.client-proposal-page .client-proposal-card { padding: 24px; box-shadow: none; border: 1px solid #e4e4e7; }
+.client-proposal-page .client-proposal-card h2,
+.client-proposal-page .client-proposal-signature-section h2 { font-size: 19px; letter-spacing: -.02em; text-transform: none; }
+.client-proposal-page .client-proposal-card h3 { font-size: 13px; font-weight: 600; text-transform: none; }
+.client-proposal-page .client-proposal-card p,
+.client-proposal-page .client-proposal-card li { line-height: 1.7; overflow-wrap: anywhere; }
+.client-proposal-page .client-proposal-footer { font-size: 11px; border-top: 1px solid #e4e4e7; padding-top: 18px; margin-top: 28px; }
+@media (max-width: 700px) {
+ .client-proposal-page { padding: 24px 18px; }
+ .client-proposal-page .client-proposal-header { flex-wrap: wrap; }
+ .client-proposal-page .client-proposal-header-actions { flex-wrap: wrap; }
+ .client-proposal-page .client-proposal-two-column { grid-template-columns: 1fr; }
+}
+@media print {
+ @page proposal-document { size: A4 portrait; margin: 16mm 15mm; }
+ html:has(.client-proposal-page),
+ body:has(.client-proposal-page) {
+  width: auto !important; min-width: 0 !important;
+  height: auto !important; min-height: 0 !important; max-height: none !important;
+  overflow: visible !important; background: #ffffff !important;
+ }
+ body:has(.client-proposal-page) { page: proposal-document; }
+ body:has(.client-proposal-page) > .app-shell,
+ body:has(.client-proposal-page) .main-area {
+  display: block !important; width: auto !important; height: auto !important;
+  min-height: 0 !important; max-height: none !important; overflow: visible !important;
+  margin: 0 !important; padding: 0 !important;
+ }
+ body:has(.client-proposal-page) .client-proposal-page,
+ body:has(.client-proposal-page) .client-proposal-page * { visibility: visible !important; }
+ body:has(.client-proposal-page) .client-proposal-page {
+  display: block !important; position: static !important; width: 100% !important;
+  max-width: none !important; height: auto !important; overflow: visible !important;
+  margin: 0 !important; padding: 0 !important; color: #111827 !important;
+  font-size: 10pt !important; print-color-adjust: exact; -webkit-print-color-adjust: exact;
+ }
+ .client-proposal-page .client-proposal-header-actions,
+ .client-proposal-page .client-proposal-actions,
+ .client-proposal-page .client-proposal-response-form,
+ .client-proposal-page .client-proposal-response-saved,
+ .client-proposal-page .client-proposal-notice { display: none !important; }
+ .client-proposal-page .client-proposal-header { padding: 0 0 5mm !important; break-inside: avoid; }
+ .client-proposal-page .client-proposal-logo { width: 14mm; height: 17mm; }
+ .client-proposal-page .client-proposal-logo-servn { width: 42mm; height: auto; }
+ .client-proposal-page .client-proposal-hero { padding: 7mm 0 6mm !important; break-inside: avoid; }
+ .client-proposal-page .client-proposal-hero h1 { font-size: 24pt !important; margin-bottom: 4mm; }
+ .client-proposal-page .client-proposal-kicker { font-size: 8pt; margin-bottom: 3mm; }
+ .client-proposal-page .client-proposal-intro { font-size: 11pt; }
+ .client-proposal-page .client-proposal-meta { font-size: 8pt; margin-top: 5mm; padding-top: 4mm; }
+ .client-proposal-page .client-proposal-content { display: block; padding-top: 5mm; }
+ .client-proposal-page .client-proposal-two-column { display: block; }
+ .client-proposal-page .client-proposal-card {
+  margin: 0 0 5mm; padding: 5mm 0; border: 0; border-bottom: 1px solid #e4e4e7;
+  break-inside: auto; page-break-inside: auto; background: #ffffff; box-shadow: none !important;
+ }
+ .client-proposal-page .client-proposal-card h2,
+ .client-proposal-page .client-proposal-signature-section h2 { font-size: 13pt; margin-bottom: 3mm; break-after: avoid; }
+ .client-proposal-page .client-proposal-card h3 { font-size: 10pt; margin: 4mm 0 2mm; break-after: avoid; }
+ .client-proposal-page .client-proposal-card p,
+ .client-proposal-page .client-proposal-card li,
+ .client-proposal-page .client-proposal-signature-section p { font-size: 10pt; line-height: 1.55; orphans: 3; widows: 3; }
+ .client-proposal-page .client-proposal-card ul { display: block; }
+ .client-proposal-page .client-proposal-card li { margin-bottom: 2mm; break-inside: avoid; }
+ .client-proposal-page .client-proposal-price { break-inside: avoid; margin: 4mm 0; padding: 4mm; }
+ .client-proposal-page .client-proposal-price strong { font-size: 19pt; }
+ .client-proposal-page .client-proposal-signature-section { break-inside: avoid; padding: 5mm; margin-top: 5mm; }
+ .client-proposal-page .client-proposal-footer { font-size: 8pt; margin-top: 5mm !important; break-inside: avoid; }
+}
+
+.client-proposal-page .client-proposal-hero h1,
+.client-proposal-page .client-proposal-card h2,
+.client-proposal-page .client-proposal-card h3,
+.client-proposal-page .client-proposal-signature-section h2 {
+  text-transform: none !important;
+  letter-spacing: -.02em !important;
+}
+
+/* Project card actions: two compact controls, then a full-row delete action. */
+.main-area .projects-page .portfolio-actions.portfolio-actions-admin {
+ display: grid !important;
+ grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+ gap: 8px !important;
+ align-items: start !important;
+}
+.main-area .projects-page .portfolio-actions.portfolio-actions-admin > .portfolio-lifecycle-button {
+ width: 100% !important;
+ min-width: 0 !important;
+ max-width: none !important;
+ height: 36px !important;
+ min-height: 36px !important;
+ max-height: 36px !important;
+ margin: 0 !important;
+ padding: 0 8px !important;
+ font-size: 12px !important;
+ line-height: 1 !important;
+ white-space: nowrap !important;
+ background: #ffffff !important;
+ border: 1px solid #e2e8f0 !important;
+ color: #0f172a !important;
+}
+.main-area .projects-page .portfolio-actions.portfolio-actions-admin > .portfolio-delete-icon-button {
+ grid-column: 1 / -1;
+ color: #64748b !important;
+}
+.main-area .projects-page .portfolio-actions.portfolio-actions-admin > .portfolio-lifecycle-button:hover {
+ background: #f4f4f5 !important;
+ border-color: #cbd5e1 !important;
+}
+.main-area .projects-page .portfolio-actions.portfolio-actions-admin > .portfolio-lifecycle-button svg {
+ width: 14px !important;
+ height: 14px !important;
+ flex-shrink: 0;
+}
+
+/* Retain the updated proposal typography within the original card layout. */
+@media screen {
+ .client-proposal-page .client-proposal-kicker { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #71717a; margin-bottom: 16px; }
+ .client-proposal-page .client-proposal-hero h1 { max-width: 740px; font-size: clamp(30px, 4vw, 44px); line-height: 1.15; font-weight: 600; margin-bottom: 22px; }
+ .client-proposal-page .client-proposal-intro { font-size: 15px; color: #52525b; }
+ .client-proposal-page .client-proposal-intro strong { color: #111827; font-weight: 600; }
+ .client-proposal-page .client-proposal-card h2,
+ .client-proposal-page .client-proposal-signature-section h2 { margin: 0 0 22px; font-size: 20px; font-weight: 600; }
+ .client-proposal-page .client-proposal-card h3 { margin: 22px 0 10px; font-size: 13px; color: #111827; }
+ .client-proposal-page .client-proposal-card p,
+ .client-proposal-page .client-proposal-card li { color: #52525b; font-size: 14px; line-height: 1.75; }
+ .client-proposal-page .client-proposal-price span { font-size: 12px; color: #71717a; }
+ .client-proposal-page .client-proposal-price strong { font-size: 36px; font-weight: 600; letter-spacing: -.035em; color: #111827; }
+ .client-proposal-page .client-proposal-price small { font-size: 12px; }
+ .client-proposal-page .client-proposal-header-actions a,
+ .client-proposal-page .client-proposal-header-actions button { min-height: 36px; font-size: 12px; white-space: nowrap; }
 }

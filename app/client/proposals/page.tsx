@@ -1,2 +1,2 @@
-import { redirect } from "next/navigation";
-export default function Page() { redirect("/client/projects"); }
+import {ClientRecordsView} from "../records-view";
+export default function Page(){return <ClientRecordsView section="proposals"/>;}

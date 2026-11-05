@@ -1,11 +1,9 @@
 "use client";
-import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { ArrowRight, Check, Download, FileText, Receipt, Send, ShieldCheck } from "lucide-react";
+import { Check, Download, FileText, ShieldCheck } from "lucide-react";
 import { type Lead, type ProposalVersion, updateLead } from "@/lib/leads";
 import { flushWorkspaceChanges } from "@/lib/workspace-sync";
 import { updateProject } from "@/lib/projects";
-import { updateInvoice } from "@/lib/invoices";
 import { ProposalGenerator } from "@/app/_components/proposal-generator";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { operatingCompanies, type OperatingCompany } from "@/lib/companies";
@@ -19,11 +17,6 @@ function readFile(file: File): Promise<string> {
     reader.onerror = () => reject(new Error("Unable to read file"));
     reader.readAsDataURL(file);
   });
-}
-
-function money(amount: number, currency: string) {
-  try { return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(amount); }
-  catch { return `${currency} ${amount.toFixed(2)}`; }
 }
 
 export function ProposalWorkspace({ lead }: { lead: Lead }) {
@@ -72,7 +65,7 @@ export function ProposalWorkspace({ lead }: { lead: Lead }) {
     event.preventDefault();
     if (!lead) return;
     const data = new FormData(event.currentTarget);
-    const proposals = (lead.proposals ?? []).map((item) => item.version === proposal.version ? { ...item, status: "ACCEPTED" as const } : item);
+    const proposals = (lead.proposals ?? []).map((item) => item.version === proposal.version ? { ...item, status: "ACCEPTED" as const, responseName: String(data.get("acceptanceName") || "").trim(), respondedAt: new Date().toISOString() } : item);
     saveLead({
       status: "ACCEPTED",
       acceptedAt: new Date().toISOString(),
@@ -96,25 +89,6 @@ export function ProposalWorkspace({ lead }: { lead: Lead }) {
     if (!lead) return;
     const proposals = (lead.proposals ?? []).map((item) => item.version === proposal.version ? { ...item, status: "DECLINED" as const } : item);
     saveLead({ status: "LOST", disqualificationReason: "No response from client", proposals });
-  }
-
-  function markInvoiceSent() {
-    if (!lead?.invoice) return;
-    const invoice = { ...lead.invoice, status: "SENT" as const, sentAt: new Date().toISOString() };
-    saveLead({ invoice });
-    if (lead.projectId) updateProject(lead.projectId, { invoice });
-    updateInvoice(lead.invoice.invoiceNumber, { status: "SENT", sentAt: invoice.sentAt });
-  }
-
-  function confirmExternalPayment(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!lead?.invoice) return;
-    const data = new FormData(event.currentTarget);
-    const ref = String(data.get("transactionReference") || "").trim();
-    const invoice = { ...lead.invoice, status: "CONFIRMED_PAID" as const, transactionReference: ref, confirmedPaidAt: new Date().toISOString() };
-    saveLead({ invoice });
-    if (lead.projectId) updateProject(lead.projectId, { invoice, depositStatus: "CONFIRMED_PAID", depositAmount: invoice.depositAmount });
-    updateInvoice(lead.invoice.invoiceNumber, { status: "CONFIRMED_PAID", transactionReference: ref, confirmedPaidAt: invoice.confirmedPaidAt });
   }
 
   async function saveSignedSow(event:FormEvent<HTMLFormElement>) {
@@ -150,20 +124,14 @@ export function ProposalWorkspace({ lead }: { lead: Lead }) {
         <div className="silent-form"><h3>Client goes silent</h3><p>Archive the lead as no response if the client becomes unresponsive.</p><button className="button button-quiet" onClick={() => markNoResponse(latest)}>Mark lost · no response</button></div>
       </div>}
 
-      {lead.status === "ACCEPTED" && latest && <div className="invoice-generator"><div className="invoice-generator-heading"><span className="section-icon"><FileText size={17} /></span><div><h2>{lead.invoice ? "Invoice generated" : "Proposal accepted"}</h2><p>{lead.invoice ? `${lead.invoice.invoiceNumber} · ${lead.invoice.status.replaceAll("_", " ")}` : "Create the client invoice from the accepted proposal."}</p></div></div><Link className="button button-primary" href={`/invoices?lead=${lead.id}`}>{lead.invoice ? "View invoice" : "Open invoice generator"} <ArrowRight size={14} /></Link></div>}
-
-      {lead.invoice && <div className="invoice-block"><div className="record-section-heading"><div><span className="section-icon"><FileText size={17} /></span><div><h2>Invoice</h2><p>{lead.invoice.invoiceNumber} · {lead.invoice.status.replaceAll("_", " ")}{lead.invoice.sentAt ? ` · sent ${new Date(lead.invoice.sentAt).toLocaleString()}` : ""}</p></div></div><div className="invoice-actions"><Link className="button button-quiet" href={`/invoices?lead=${lead.id}`}>View / print invoice <ArrowRight size={13} /></Link>{lead.invoice.status === "GENERATED" && <button className="button button-primary" onClick={markInvoiceSent}><Send size={14} />Log invoice sent</button>}</div></div>
-        <p className="payment-boundary">Print or save the invoice and send it through the studio billing workflow. Payment remains external.</p>
-        {lead.invoice.status === "SENT" ? <form className="confirm-payment-form" onSubmit={confirmExternalPayment}><div><strong>Confirm external payment</strong><small>Only mark paid after finance confirms receipt outside this module.</small></div><input name="transactionReference" required placeholder="Bank / accounting transaction reference" /><button className="button button-quiet" type="submit">Confirm paid externally</button></form> : lead.invoice.status === "GENERATED" ? <p className="payment-boundary">Log the invoice as sent before confirming external payment.</p> : <div className="payment-confirmed"><Check size={15} /><span>Confirmed paid {lead.invoice.confirmedPaidAt ? new Date(lead.invoice.confirmedPaidAt).toLocaleString() : ""}</span>{lead.invoice.transactionReference && <small>Reference: {lead.invoice.transactionReference}</small>}</div>}
-      </div>}
     </section>
 
-    <section className="panel record-section"><h2>Signed SOW</h2>
+    <section className="panel record-section"><h2>Signed SOW (optional)</h2>
       {lead.acceptanceDocumentDataUrl&&<a className="button button-quiet" href={lead.acceptanceDocumentDataUrl} download={lead.acceptanceDocumentName}><Download size={14}/>Download signed SOW</a>}
-      <form aria-label="Signed SOW document" onSubmit={saveSignedSow}><label className="field">Signed SOW document<input type="file" accept=".pdf,.doc,.docx" onChange={event=>{setSowFile(null);void selectDocument(event.target.files?.[0],setSowFile);}}/><small>{sowFile?.name||"Attach a signed PDF or Word document, up to 1.2 MB."}</small></label>{sowFile&&<button className="button button-quiet" disabled={savingSow}>{savingSow?"Saving…":"Save signed SOW"}</button>}</form>
+      <form aria-label="Signed SOW document" onSubmit={saveSignedSow}><label className="field">Signed SOW document (optional)<input type="file" accept=".pdf,.doc,.docx" onChange={event=>{setSowFile(null);void selectDocument(event.target.files?.[0],setSowFile);}}/><small>{sowFile?.name||"Attach a signed PDF or Word document, up to 1.2 MB. You can leave this empty."}</small></label>{sowFile&&<button className="button button-quiet" disabled={savingSow}>{savingSow?"Saving…":"Save signed SOW"}</button>}</form>
     </section>
 
-    {lead.proposals && lead.proposals.length > 0 && <section className="panel record-section proposal-history"><div className="record-section-heading"><div><span className="section-icon"><FileText size={17} /></span><div><h2>Proposal versions</h2><p>Version history remains attached to this lead record.</p></div></div>{lead.proposals.some((proposal) => proposal.status === "ACCEPTED") && <Link className="button button-quiet" href={`/invoices?lead=${lead.id}`}><Receipt size={14} />Invoice generator</Link>}</div>{[...lead.proposals].sort((a, b) => b.version - a.version).map((proposal) => <details className="proposal-history-item" key={proposal.version}><summary><strong>Proposal v{proposal.version}</strong><StatusBadge status={proposal.status}/><span>{money(proposal.quotedAmount, proposal.currency)}</span><span>Expires {proposal.expiryDate}</span></summary><div className="proposal-history-content"><p><b>Included:</b> {proposal.scopeIncluded}</p><p><b>Excluded:</b> {proposal.scopeExcluded || "None specified"}</p><p><b>Deliverables:</b> {proposal.deliverables}</p><p>{proposal.revisionRounds ? <><b>Revisions:</b> {proposal.revisionRounds} rounds · </> : null}<b>Deposit:</b> {proposal.depositPercent}%</p><p><b>Assumptions:</b> {proposal.assumptions || "None specified"}</p>{proposal.documentDataUrl && <a href={proposal.documentDataUrl} download={proposal.documentName}><Download size={13} />Download {proposal.documentName}</a>}</div></details>)}</section>}
+
 
     {error&&<p className="form-error" role="alert">{error}</p>}
   </div>;

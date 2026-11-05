@@ -269,3 +269,64 @@ test('moving a lead to projects assigns only its manager and the manager can cha
  await expect.poll(()=>calls.flatMap(call=>call.p_changes).filter(change=>change.collection==='projects').at(-1)?.data.team[0]?.user_id).toBe('00000000-0000-0000-0000-000000000002');
  await expect(page.locator('.project-detail-side')).not.toContainText(/Allocation|%/);
 });
+
+
+test('invoice is generated as draft and sent to the client on request',async({page})=>{
+ await page.route('**/api/invoices/*/pdf',route=>route.fulfill({contentType:'application/pdf',body:'%PDF-1.4 saved'}));
+ const {calls}=await mockWorkspace(page);
+ await page.goto('/invoices');
+ await page.getByRole('button',{name:'Generate invoice',exact:true}).click();
+ await page.getByRole('tab',{name:'Direct / custom invoice'}).click();
+ const form=page.locator('form.invoice-modal-form').filter({has:page.locator('input[name="billTo"]')});
+ await form.locator('input[name="billTo"]').fill('Northstar Studio');
+ await form.locator('input[name="clientName"]').fill('Sam Taylor');
+ await form.locator('input[name="clientEmail"]').fill('sam@example.com');
+ await form.locator('input[name="description"]').fill('Website delivery');
+ await form.locator('input[name="amount"]').fill('1200');
+ await form.getByRole('button',{name:'Generate & Save to Database'}).click();
+ await expect.poll(()=>calls.flatMap(call=>call.p_changes).some(change=>change.collection==='invoices')).toBe(true);
+ const invoice=calls.flatMap(call=>call.p_changes).find(change=>change.collection==='invoices').data.row;
+ expect(invoice.status).toBe('GENERATED');
+ await page.getByRole('button',{name:'Send to client',exact:true}).last().click();
+ await expect.poll(()=>calls.flatMap(call=>call.p_changes).filter(change=>change.collection==='invoices').at(-1)?.data.row.status).toBe('SENT');
+ expect(calls.flatMap(call=>call.p_changes).filter(change=>change.collection==='invoices').at(-1).data.row.sent_at).toBeTruthy();
+});
+
+test('paid client invoice loads the saved admin PDF without generating another invoice',async({page})=>{
+ const {calls}=await mockWorkspace(page,{role:'client'});
+ const pdf=Buffer.from('%PDF-1.4\nExact saved admin invoice bytes');let reads=0;
+ await page.route('**/api/client/records',route=>route.fulfill({json:{proposals:[],documents:[],invoices:[{id:'own-invoice',number:'SER-INV-2026-001',status:'CONFIRMED_PAID',total:1200,currency:'USD'}]}}));
+ await page.route('**/api/invoices/SER-INV-2026-001/pdf',route=>{reads++;return route.fulfill({contentType:'application/pdf',body:pdf});});
+ await page.goto('/client/invoices/own-invoice');
+ await expect(page.getByRole('link',{name:'Download saved invoice PDF'})).toBeVisible();
+ await expect(page.getByTitle('Saved admin invoice PDF')).toBeVisible();
+ const href=await page.getByRole('link',{name:'Download saved invoice PDF'}).getAttribute('href');
+ const bytes=await page.evaluate(async url=>Array.from(new Uint8Array(await (await fetch(url)).arrayBuffer())),href);
+ expect(Buffer.from(bytes)).toEqual(pdf);expect(reads).toBeGreaterThanOrEqual(1);expect(calls).toHaveLength(0);
+ await expect(page.locator('.invoice-print-area')).toHaveCount(0);
+ await page.goto('/client/invoices/another-invoice');
+ await expect(page.getByText('This invoice is not available for your account.')).toBeVisible();
+});
+
+test('admin saves an actual PDF from the invoice template',async({page})=>{
+ await mockWorkspace(page);let saved;
+ await page.route('**/api/invoices/*/pdf',route=>{
+  if(route.request().method()==='GET')return route.fulfill({status:404,json:{error:'Not saved'}});
+  saved=route.request().postDataBuffer();return route.fulfill({json:{saved:true}});
+ });
+ await page.goto('/invoices?invoice=EVE-INV-2026-001');
+ await page.getByRole('button',{name:'Download saved PDF',exact:true}).click();
+ await expect.poll(()=>saved?.subarray(0,5).toString(),{timeout:20000}).toBe('%PDF-');
+ expect(saved.length).toBeGreaterThan(5000);
+});
+
+
+test('employees automatically return to their dashboard from restricted pages',async({page})=>{
+ await mockWorkspace(page,{role:'employee'});
+ await page.goto('/invoices');
+ await expect(page).toHaveURL('/');
+ await expect(page.getByRole('heading',{name:'Dashboard',exact:true})).toBeVisible();
+ await expect(page.getByText('This area is not part of your workspace.')).toHaveCount(0);
+ await page.goto('/proposal/12345678-1234-1234-1234-123456789012');
+ await expect(page).toHaveURL('/');
+});

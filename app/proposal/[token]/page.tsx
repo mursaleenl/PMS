@@ -1,8 +1,11 @@
 "use client";
 
+import {printProposal} from "@/lib/print-proposal";
 import { useEffect, useState, type FormEvent } from "react";
 import { useParams } from "next/navigation";
-import { Check, Download, Printer, Send } from "lucide-react";
+import Link from "next/link";
+import {useWorkspaceAuth} from "@/lib/workspace-auth";
+import { ArrowLeft, Check, Download, Printer, Send } from "lucide-react";
 import { type Lead, type ProposalVersion } from "@/lib/leads";
 
 function money(amount: number, currency: string) {
@@ -15,6 +18,7 @@ function lines(value: string) {
 }
 
 export default function ClientProposalPage() {
+  const {role}=useWorkspaceAuth();
   const params = useParams<{ token: string }>();
   const token = params.token;
   const [lead, setLead] = useState<Lead | null>(null);
@@ -25,6 +29,8 @@ export default function ClientProposalPage() {
   const [responseSaved, setResponseSaved] = useState(false);
   const [error, setError] = useState("");
   const [submitting,setSubmitting] = useState(false);
+  const [printing,setPrinting]=useState(false);
+  const [printError,setPrintError]=useState("");
 
   useEffect(() => {
     const controller=new AbortController();
@@ -130,17 +136,17 @@ export default function ClientProposalPage() {
 
   return <main className="client-proposal-page">
     <header className="client-proposal-header">
-      <div className="client-proposal-brand"><strong>{company}</strong></div>
-      <div className="client-proposal-header-actions"><button type="button" onClick={() => window.print()}><Printer size={15} />Save A4 PDF</button>{proposal.documentDataUrl && <a href={proposal.documentDataUrl} download={proposal.documentName}><Download size={15} />Download attachment</a>}</div>
+      <div className="client-proposal-brand"><img className={`client-proposal-logo${company === "Servn" ? " client-proposal-logo-servn" : ""}`} src={company === "Servn" ? "/servn-logo.png" : "/invoice-logo.png"} alt={`${company} logo`} /></div>
+      <div className="client-proposal-header-actions"><Link href={role === "admin" ? "/proposals" : "/client/proposals"}><ArrowLeft size={15}/>Back to proposals</Link><button type="button" disabled={printing} onClick={async (event) => {const source=event.currentTarget.closest('main');if(!source)return;setPrinting(true);setPrintError("");try{await printProposal(source);}catch{setPrintError("Unable to prepare the PDF. Please retry.");}finally{setPrinting(false);}}}><Printer size={15} />Save A4 PDF</button>{proposal.documentDataUrl && <a href={proposal.documentDataUrl} download={proposal.documentName}><Download size={15} />Download attachment</a>}</div>
     </header>
 
+    {printError&&<p role="alert" className="client-proposal-notice">{printError}</p>}
     <section className="client-proposal-hero">
       <p className="client-proposal-kicker">Proposal v{proposal.version}</p>
       <h1>{proposal.proposalTitle || proposal.projectTitle || `Proposal for ${lead.companyName || lead.fullName}`}</h1>
       {proposal.projectTitle && proposal.projectTitle !== proposal.proposalTitle && <p className="client-proposal-project-title">Project: {proposal.projectTitle}</p>}
       <p className="client-proposal-intro">Prepared for <strong>{lead.companyName || lead.fullName}</strong></p>
       {proposal.preparedBy && proposal.preparedBy !== company && <p className="client-proposal-prepared-by">Prepared by {lines(proposal.preparedBy).join(" · ")}</p>}
-      <div className="client-proposal-meta"><span>Prepared by {company}</span><span>Valid until {proposal.expiryDate}</span><span>{proposal.currency} {proposal.billingStructure}</span></div>
     </section>
 
     {!basic && <nav className="client-proposal-toc" aria-label="Table of contents"><h2>Table of Contents</h2><ol>{contents.map((item) => <li key={item.id}><a href={`#${item.id}`}>{item.label}</a></li>)}</ol></nav>}
@@ -151,12 +157,12 @@ export default function ClientProposalPage() {
     <div className="client-proposal-content">
       <section id="overview" className="client-proposal-card client-proposal-summary"><h2>Executive summary</h2><p>{proposal.executiveSummary || lead.description || "This proposal outlines the recommended scope, delivery approach, and investment for your project."}</p></section>
       {narrativeSections.length > 0 && <div className="client-proposal-template-grid client-proposal-narrative-grid">{narrativeSections.map((section) => <section id={section.id} className="client-proposal-card client-proposal-template-section" key={section.id}><h2>{section.title}</h2><p className="client-proposal-longform">{section.body}</p></section>)}</div>}
-      <div id="scope" className="client-proposal-two-column"><section className="client-proposal-card"><h2>{basic ? "Scope and deliverables" : "4. Scope and deliverables"}</h2><h3>Included scope</h3><ul>{lines(proposal.scopeIncluded).map((item) => <li key={item}>{item}</li>)}</ul><h3>Deliverables</h3><ul>{lines(proposal.deliverables).map((item) => <li key={item}>{item}</li>)}</ul>{proposal.scopeExcluded && <><h3>Not included</h3><ul>{lines(proposal.scopeExcluded).map((item) => <li key={item}>{item}</li>)}</ul></>}</section><section id="timeline" className="client-proposal-card"><h2>Timeline and investment</h2><h3>Timeline</h3><ul>{lines(proposal.timeline || "").map((item) => <li key={item}>{item}</li>)}</ul><div className="client-proposal-price"><span>Total investment</span><strong>{money(proposal.quotedAmount, proposal.currency)}</strong><small>{proposal.billingStructure} · {proposal.depositPercent}% deposit{proposal.revisionRounds ? ` · ${proposal.revisionRounds} revision rounds` : ""}</small></div><h3>Payment terms</h3><p>{proposal.paymentTerms || "Payment terms will be confirmed before the project begins."}</p></section></div>
+      <div id="scope" className="client-proposal-two-column"><section className="client-proposal-card"><h2>Scope and deliverables</h2><h3>Included scope</h3><ul>{lines(proposal.scopeIncluded).map((item) => <li key={item}>{item}</li>)}</ul><h3>Deliverables</h3><ul>{lines(proposal.deliverables).map((item) => <li key={item}>{item}</li>)}</ul>{proposal.scopeExcluded && <><h3>Not included</h3><ul>{lines(proposal.scopeExcluded).map((item) => <li key={item}>{item}</li>)}</ul></>}</section><section id="timeline" className="client-proposal-card"><h2>Timeline and investment</h2><h3>Timeline</h3><ul>{lines(proposal.timeline || "").map((item) => <li key={item}>{item}</li>)}</ul><div className="client-proposal-price"><span>Total investment</span><strong>{money(proposal.quotedAmount, proposal.currency)}</strong><small>{proposal.billingStructure} · {proposal.depositPercent}% deposit{proposal.revisionRounds ? ` · ${proposal.revisionRounds} revision rounds` : ""}</small></div><h3>Payment terms</h3><p>{proposal.paymentTerms || "Payment terms will be confirmed before the project begins."}</p></section></div>
       {detailSections.length > 0 && <div className="client-proposal-template-grid">{detailSections.map((section) => <section id={section.id} className="client-proposal-card client-proposal-template-section" key={section.id}><h2>{section.title}</h2><p className="client-proposal-longform">{section.body}</p></section>)}</div>}
-      <div className="client-proposal-two-column"><section id="working-together" className="client-proposal-card"><h2>Working together</h2><h3>Client requirements</h3><p>{proposal.clientRequirements || "The client will provide timely access, content, feedback, and approvals needed to keep delivery on track."}</p><h3>Assumptions and exclusions</h3><p>{proposal.assumptions || "Any work outside the included scope will be discussed and approved separately."}</p></section><section id="questions" className="client-proposal-card"><h2>Questions</h2><p>For questions about this proposal, contact:</p><div className="client-proposal-contact"><strong>{company} project team</strong><span>Contact the team member who shared this proposal with you.</span></div></section></div>
+      <div className="client-proposal-two-column"><section id="working-together" className="client-proposal-card"><h2>Working together</h2><h3>Client requirements</h3><p>{proposal.clientRequirements || "The client will provide timely access, content, feedback, and approvals needed to keep delivery on track."}</p>{proposal.approvalProcess && <><h3>Approval process</h3><p>{proposal.approvalProcess}</p></>}<h3>Assumptions and exclusions</h3><p>{proposal.assumptions || "Any work outside the included scope will be discussed and approved separately."}</p></section><section id="questions" className="client-proposal-card"><h2>Questions</h2><p>For questions about this proposal, contact:</p><div className="client-proposal-contact"><strong>{company} project team</strong><span>Contact the team member who shared this proposal with you.</span></div></section></div>
     </div>
 
-    <section id="acceptance" className="client-proposal-signature-section"><h2>Acceptance</h2><p>By accepting this proposal, the client confirms the scope, investment, payment terms, and assumptions described above.</p><div className="client-proposal-signature-grid"><span>Client name</span><span>Signature</span><span>Date</span></div></section>
+    {proposal.status === "ACCEPTED" && <section id="acceptance" className="client-proposal-signature-section"><h2>Acceptance</h2><p>The client accepted the scope, investment, payment terms, and assumptions described above.</p><dl className="client-proposal-acceptance-details"><div><dt>Client name</dt><dd>{proposal.responseName || lead.acceptanceName || lead.fullName}</dd></div><div><dt>Accepted on</dt><dd>{proposal.respondedAt || lead.acceptedAt ? new Intl.DateTimeFormat("en", {dateStyle:"medium", timeZone:"Asia/Kolkata"}).format(new Date((proposal.respondedAt || lead.acceptedAt)!)) : "Not recorded"}</dd></div></dl></section>}
 
     {isOpen && !responseSaved && <section className="client-proposal-actions"><div><h2>Ready to respond?</h2><p>Accept this proposal, request changes, or let us know if it is not the right fit.</p></div><div className="client-proposal-action-buttons"><button type="button" className="client-proposal-accept" disabled={expired || submitting} onClick={() => { setResponseMode("accept"); setError(""); }}><Check size={16} />Accept proposal</button><button type="button" onClick={() => { setResponseMode("changes"); setError(""); }}>Request changes</button><button type="button" onClick={() => { setResponseMode("decline"); setError(""); }}>Decline</button></div></section>}
     {responseMode && !responseSaved && <div className="client-proposal-response-form"><form onSubmit={respond}><h2>{responseMode === "accept" ? "Accept proposal" : responseMode === "changes" ? "Request changes" : "Decline proposal"}</h2>{responseMode === "accept" ? <label>Name of approving contact<input value={responseName} onChange={(event) => setResponseName(event.target.value)} placeholder="Approving contact’s full name" autoFocus /></label> : <label>{responseMode === "changes" ? "Requested changes" : "Reason for declining"}<textarea value={responseNote} onChange={(event) => setResponseNote(event.target.value)} placeholder={responseMode === "changes" ? "Add notes for the team" : "Optional context for the team"} autoFocus /></label>}{error && <p className="client-proposal-error">{error}</p>}<div><button type="button" onClick={() => setResponseMode(null)}>Cancel</button><button type="submit" disabled={submitting || expired} className="client-proposal-accept"><Send size={15} />{submitting ? "Saving response…" : "Submit response"}</button></div></form></div>}

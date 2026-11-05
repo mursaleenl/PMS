@@ -55,7 +55,7 @@ export default function OverviewPage() {
   const pendingInvoices = useMemo(() => {
     return invoices.filter((inv) => inv.status !== "CONFIRMED_PAID");
   }, [invoices]);
-  const newCount = leads.filter((lead) => lead.status === "NEW").length;
+  const openLeadCount = leads.filter((lead) => ["NEW", "PROPOSAL_SENT", "ACCEPTED"].includes(lead.status)).length;
   return <div className={`page-content overview-dashboard${role === "employee" ? " employee-dashboard" : ""}`}>
     <section className="welcome-row">
       <div><h1>Dashboard</h1><p className="welcome-subtitle">{role === "employee" ? "Your assigned projects and tasks." : "See what needs attention across your workspace."}</p></div>
@@ -79,7 +79,7 @@ export default function OverviewPage() {
         </div>
         <strong>{activeProjects.length}</strong>
         <span className="overview-summary-subtext">
-          {activeProjects.length === 1 ? "1 in active delivery" : `${activeProjects.length} in active delivery`}
+          {`${activeProjects.length} Active Delivery`}
         </span>
       </Link>
       <Link href="/work" className="overview-summary-card">
@@ -104,12 +104,12 @@ export default function OverviewPage() {
       </Link>}
       {role === "admin" && <Link href="/requests" className="overview-summary-card">
         <div className="overview-summary-top">
-          <small>Needs review</small>
+          <small>Open Leads</small>
           <Inbox size={24} strokeWidth={1.6} className="overview-summary-icon" aria-hidden="true" />
         </div>
-        <strong>{newCount}</strong>
+        <strong>{openLeadCount}</strong>
         <span className="overview-summary-subtext">
-          {newCount === 0 ? "Pipeline up to date" : `${newCount === 1 ? "1 new enquiry" : `${newCount} new enquiries`}`}
+          {`${openLeadCount} awaiting conversion`}
         </span>
       </Link>}
       {role === "employee" && <>

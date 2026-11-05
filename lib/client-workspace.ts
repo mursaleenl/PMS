@@ -8,10 +8,11 @@ export function useClientWorkspace() {
   const [loading,setLoading]=useState(true),[error,setError]=useState("");
   const [attempt,setAttempt]=useState(0);
   useEffect(()=>{
+    setData({projects:[]});
     if(!session?.access_token) return;
     const controller=new AbortController();setLoading(true);setError("");
     void fetch("/api/client/workspace",{headers:{Authorization:`Bearer ${session.access_token}`},signal:controller.signal,cache:"no-store"})
-      .then(async response=>{const value=await response.json();if(!response.ok)throw new Error(value.error);setData(value);})
+      .then(async response=>{const value=await response.json();if(!response.ok)throw new Error(value.error);if(!controller.signal.aborted)setData(value);})
       .catch(cause=>{if(!controller.signal.aborted)setError(cause instanceof Error?cause.message:"Unable to load workspace.");})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return ()=>controller.abort();

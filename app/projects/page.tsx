@@ -110,7 +110,7 @@ export default function ProjectsPage() {
           </div>
         </Link>
         <div className={`portfolio-actions${role === "admin" ? " portfolio-actions-admin" : ""}`}>
-          {role === "admin" && (project.invoice ? <Link className="button button-quiet portfolio-lifecycle-button" href={`/invoices?invoice=${project.invoice.invoiceNumber}`} title={`View invoice ${project.invoice.invoiceNumber}`}><Receipt size={13}/>{project.invoice.invoiceNumber}</Link> : <Link className="button button-quiet portfolio-lifecycle-button" href={`/invoices?project=${project.id}`} title="Generate invoice for this project"><Receipt size={13}/>Invoice</Link>)}
+          {role === "admin" && (project.invoice ? <Link className="button button-quiet portfolio-lifecycle-button" href={`/invoices?invoice=${project.invoice.invoiceNumber}`} title={`View invoice ${project.invoice.invoiceNumber}`}><Receipt size={13}/>View invoice</Link> : <Link className="button button-quiet portfolio-lifecycle-button" href={`/invoices?project=${project.id}`} title="Generate invoice for this project"><Receipt size={13}/>Invoice</Link>)}
           {role === "admin" && project.status !== "COMPLETED" ? (
             <button className="button button-quiet portfolio-lifecycle-button" type="button" onClick={() => markComplete(project)}>
               <Check size={13} />Mark complete
@@ -135,8 +135,8 @@ export default function ProjectsPage() {
             </button>
           ) : null}
           {role === "admin" && (
-            <button className="button portfolio-lifecycle-button portfolio-delete-icon-button" type="button" title="Delete project" onClick={() => removeProject(project)}>
-              <Trash2 size={13} />Delete
+            <button className="button button-quiet portfolio-lifecycle-button portfolio-delete-icon-button" type="button" title="Delete project" aria-label={`Delete ${getProjectDisplayTitle(project)}`} onClick={() => removeProject(project)}>
+              <Trash2 size={15} aria-hidden="true" />Delete
             </button>
           )}
         </div>

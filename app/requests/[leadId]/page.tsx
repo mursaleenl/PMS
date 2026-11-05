@@ -57,8 +57,8 @@ export default function LeadWorkspacePage() {
       ?? [...(lead.proposals ?? [])].sort((a, b) => b.version - a.version)[0];
     const data = new FormData(event.currentTarget);
     const manager = assignableUsers.find(person => person.id === String(data.get("projectManager")));
-    if (!manager) { setError("Select a project manager from the workspace directory."); return; }
-    const team: ProjectTeamMember[] = [{ role: "Project Manager", name: manager.name, userId: manager.id, allocationPercent: 0 }];
+    if (data.get("projectManager") && !manager) { setError("Select a project manager from the workspace directory."); return; }
+    const team: ProjectTeamMember[] = manager ? [{ role: "Project Manager", name: manager.name, userId: manager.id, allocationPercent: 0 }] : [];
     converting.current = true;
     try {
       const project = await projectFromLead({
@@ -111,13 +111,13 @@ export default function LeadWorkspacePage() {
       <div className="commercial-proof"><span className={lead.acceptanceDocumentDataUrl ? "" : "commercial-proof-pending"}>{lead.acceptanceDocumentDataUrl ? <Check size={13} /> : <Clock3 size={13} />}Signed SOW · {lead.acceptanceDocumentDataUrl ? lead.acceptanceDocumentName : "not attached"}</span><span className={lead.invoice?.status === "CONFIRMED_PAID" ? "" : "commercial-proof-pending"}>{lead.invoice?.status === "CONFIRMED_PAID" ? <Check size={13} /> : <Clock3 size={13} />}Deposit · {lead.invoice ? lead.invoice.status.replaceAll("_", " ") : "not recorded"}</span></div>
       <form className="project-create-form" onSubmit={createProjectFromLead}>
         <div className="proposal-fields-grid"><label className="field required">Project title<input name="projectTitle" required defaultValue={lead.services.length > 0 ? lead.services.join(", ") : `${lead.companyName || lead.fullName} Delivery`} /></label><label className="field required">Project classification<select name="classification" required defaultValue={lead.acquisitionSource === "Referral" ? "Referral" : lead.acquisitionSource === "Repeat client" ? "Repeat Client" : "New Client"}><option>New Client</option><option>Repeat Client</option><option>Referral</option></select></label><label className="field required">Project start date<CalendarPicker name="startDate" required /></label></div>
-        {!projectProposal && <div className="proposal-fields-grid"><label className="field required">Contract amount<input name="contractedValue" type="number" min="0" step="0.01" required placeholder="0.00" /></label><label className="field">Currency<select name="currency" defaultValue="USD">{["USD","INR","EUR","GBP","AED","AUD","CAD"].map(currency=><option key={currency}>{currency}</option>)}</select></label><label className="field">Billing structure<select name="billingStructure" defaultValue="Fixed"><option>Fixed</option><option>Hourly</option><option>Retainer</option></select></label></div>}
-        <label className="field required">Project manager
-          <select name="projectManager" required defaultValue="">
-            <option value="" disabled>Select a project manager</option>
+        {!projectProposal && <div className="proposal-fields-grid"><label className="field">Contract amount (optional)<input name="contractedValue" type="number" min="0" step="0.01" placeholder="0.00" /></label><label className="field">Currency<select name="currency" defaultValue="USD">{["USD","INR","EUR","GBP","AED","AUD","CAD"].map(currency=><option key={currency}>{currency}</option>)}</select></label><label className="field">Billing structure<select name="billingStructure" defaultValue="Fixed"><option>Fixed</option><option>Hourly</option><option>Retainer</option></select></label></div>}
+        <label className="field">Project manager (optional)
+          <select name="projectManager" defaultValue="">
+            <option value="">Unassigned</option>
             {assignableUsers.filter(person=>person.id).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}
           </select>
-          <small>The project manager can be changed in the project workspace.</small>
+          <small>A project manager can be assigned or changed in the project workspace.</small>
         </label>
         <div className="project-template-note"><span><Check size={13} /></span><p>Proposal scope, exclusions, assumptions, revision rounds, billing structure, and payment terms carry over. Any SOW or invoice records already captured will be linked. The assigned Project Manager is recorded on the project team.</p></div>
         <div className="form-actions"><button className="button button-primary" type="submit">Move to Projects <ArrowRight size={14} /></button></div>

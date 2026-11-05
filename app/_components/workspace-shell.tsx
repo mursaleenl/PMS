@@ -38,7 +38,7 @@ const employeeGroups = [
 ];
 
 const clientGroups = [
-  { title: "CLIENT PORTAL", items: [{ label: "Projects", href: "/client/projects", icon: FolderOpenDot }] },
+  { title: "CLIENT PORTAL", items: [{ label: "Overview", href: "/client", icon: PanelsTopLeft }, { label: "Projects", href: "/client/projects", icon: FolderOpenDot }, { label: "Proposals", href: "/client/proposals", icon: Files }, { label: "Invoices", href: "/client/invoices", icon: ReceiptText }] },
 
 ];
 
@@ -111,8 +111,10 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   }, [loading, user, pathname, router]);
 
   useEffect(() => {
-    if (!loading && user && databaseRole === "client" && !pathname.startsWith("/sign-in") && !pathname.startsWith("/proposal/") && (pathname === "/client" || !canAccessPath("client", pathname))) {
-      router.replace("/client/projects");
+    if (loading || !user || !databaseRole || pathname.startsWith("/sign-in")) return;
+    if (pathname.startsWith("/proposal/") && databaseRole !== "employee") return;
+    if (!canAccessPath(databaseRole, pathname)) {
+      router.replace(databaseRole === "client" ? "/client" : "/");
     }
   }, [loading, user, databaseRole, pathname, router]);
 
@@ -153,13 +155,10 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   if (!databaseRole) return <div className="access-denied"><section className="panel"><h1>{accessError ? "Unable to verify workspace access" : "Workspace access is not assigned"}</h1><p>{accessError || "Ask an administrator to assign your account a workspace role."}</p>{signOutError&&<p role="alert">{signOutError}</p>}<button className="button button-primary" onClick={() => { void refreshAccess(); }}>Retry access check</button><button className="button button-quiet" onClick={()=>void handleSignOut()}>Sign out</button></section></div>;
   if (mustChangePassword && role === "admin" && pathname !== "/settings") return <div className="access-denied"><div className="panel"><span className="section-kicker">PASSWORD UPDATE REQUIRED</span><h1>Set your own password.</h1><p>For account security, update the temporary password before continuing to the workspace.</p><Link className="button button-primary" href="/settings">Change password <ChevronRight size={15} /></Link></div></div>;
 
-  if (role === "client" && (pathname === "/client" || !canAccessPath(role, pathname))) return <div className="access-denied" role="status"><p>Opening projects...</p></div>;
-
-  const allowed = canAccessPath(role, pathname);
-  if (!allowed) return <div className="access-denied"><div className="panel"><span className="section-kicker">{roleLabels[role]}</span><h1>This area is not part of your workspace.</h1><p>Your account is signed in with {roleLabels[role].toLowerCase()} access. Open the area assigned to your role.</p><Link className="button button-primary" href={role === "client" ? "/client" : "/"}>Continue to workspace <ChevronRight size={15} /></Link></div></div>;
+  if (!canAccessPath(role, pathname)) return <div className="access-denied" role="status"><p>Opening your workspace...</p></div>;
 
   const sidebarExpanded = hoverNavigation;
-  const isActiveRoute = (href:string) => pathname === href || (href !== "/" && href !== "/work" && pathname.startsWith(`${href}/`));
+  const isActiveRoute = (href:string) => pathname === href || (href !== "/" && href !== "/client" && href !== "/work" && pathname.startsWith(`${href}/`));
   return <div className={`app-shell sidebar-collapsed${sidebarExpanded ? " sidebar-expanded" : ""}`}>
     <a className="workspace-skip-link" href="#workspace-content">Skip to content</a>
     <header id="workspace-topbar" className={`topbar workspace-topbar ${navScrolled ? "is-scrolled" : ""}`}>
@@ -192,7 +191,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
                   <div className="topbar-dropdown-user-info">
                     <strong>{user.user_metadata?.full_name || user.email?.split("@")[0] || "Workspace user"}</strong>
                     <small>{user.email || "evecture@workspace"}</small>
-                    <span className="topbar-account-role">{roleLabels[role]}</span>
+                    <span className={`topbar-account-role role-${role}`}>{roleLabels[role]}</span>
                   </div>
                 </div>
                 <div className="topbar-dropdown-divider" />

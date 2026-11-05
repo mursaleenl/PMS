@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ArrowRight, Building2, Check, CheckCircle2, ExternalLink, FileText, FolderKanban, Plus, Printer, Receipt, Search, Send, Trash2, X } from "lucide-react";
+import {saveInvoicePdf} from "@/app/_components/save-invoice-pdf";
+import {useWorkspaceAuth} from "@/lib/workspace-auth";
+import {InvoiceDocument} from "@/app/_components/invoice-document";
+import { ArrowRight, Building2, Check, CheckCircle2, ExternalLink, FileText, FolderKanban, Plus, Printer, Receipt, Search, Trash2, X } from "lucide-react";
 import type { OperatingCompany } from "@/lib/companies";
 import { readProjects, updateProject, type Project } from "@/lib/projects";
 import { deleteInvoice, nextInvoiceNumber as getNextInvoiceNumber, readInvoices, saveInvoice, updateInvoice, type InvoiceStatus, type StoredInvoice } from "@/lib/invoices";
@@ -15,7 +18,6 @@ import { convertCurrency, formatMoney, getExchangeRates, refreshExchangeRates } 
 import { CalendarPicker } from "@/app/_components/calendar-picker";
 
 const SAMPLE_PAYMENT_TERMS = "Payment due within 7 days of invoice date.";
-const SAMPLE_CONTACT = "billing@vrkspace.example · +91 00000 00000";
 
 const money = formatMoney;
 
@@ -32,11 +34,13 @@ function inSevenDays() {
 
 const statusLabels: Record<InvoiceStatus, string> = {
   GENERATED: "Draft",
-  SENT: "Sent",
+  SENT: "Awaiting payment",
   CONFIRMED_PAID: "Paid",
 };
 
 export default function InvoicesPage() {
+  const {session}=useWorkspaceAuth();
+  async function storePdf(invoice:StoredInvoice){if(!session?.access_token)throw new Error("Sign in to save the invoice PDF.");await saveInvoicePdf(invoice,session.access_token);}
   const [invoices, setInvoices] = useState<StoredInvoice[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedInvoiceNumber, setSelectedInvoiceNumber] = useState<string | null>(null);
@@ -223,8 +227,10 @@ export default function InvoicesPage() {
       creating.current = true; setSaving(true);
       try {
         await flushWorkspaceChanges();
+        await storePdf(pendingInvoice.current);
         setSelectedInvoiceNumber(pendingInvoice.current.invoiceNumber); pendingInvoice.current = null;
         setShowGenerateModal(false); setError(""); refreshAll();
+        showToast({message:"Invoice draft saved. Send to client when ready"});
       } catch(cause) { setError(cause instanceof Error ? cause.message : "Invoice could not be saved."); }
       finally { creating.current = false; setSaving(false); }
       return;
@@ -296,12 +302,13 @@ export default function InvoicesPage() {
       pendingInvoice.current = newInvoice;
       saveInvoice(newInvoice);
       await flushWorkspaceChanges();
+      await storePdf(newInvoice);
       pendingInvoice.current = null;
       refreshAll();
       setShowGenerateModal(false);
       setSelectedInvoiceNumber(invNumber);
       setError("");
-      showToast({ message: `Invoice ${invNumber} generated for ${activeProject.title}` });
+      showToast({ message: `Invoice ${invNumber} generated as a draft. Send to client when ready` });
     } else {
       // Direct custom invoice
       const customProject = customProjectId ? projects.find((p) => p.id === customProjectId) : undefined;
@@ -355,28 +362,31 @@ export default function InvoicesPage() {
       pendingInvoice.current = newInvoice;
       saveInvoice(newInvoice);
       await flushWorkspaceChanges();
+      await storePdf(newInvoice);
       pendingInvoice.current = null;
       refreshAll();
       setShowGenerateModal(false);
       setSelectedInvoiceNumber(invNumber);
       setError("");
-      showToast({ message: `Invoice ${invNumber} generated and saved to database` });
+      showToast({ message: `Invoice ${invNumber} generated as a draft. Send to client when ready` });
     }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Invoice could not be saved."); }
     finally { creating.current = false; setSaving(false); }
   }
 
-  async function handleMarkSent(inv: StoredInvoice) {
-    const sentAt = new Date().toISOString();
-    updateInvoice(inv.invoiceNumber, { status: "SENT", sentAt });
-    try { await flushWorkspaceChanges(); } catch(cause) { showToast({message:cause instanceof Error ? cause.message : "Invoice could not be saved"}); return; }
+  async function handleSendToClient(inv: StoredInvoice) {
+    try{await storePdf(inv);}catch(cause){showToast({message:cause instanceof Error?cause.message:"Unable to save PDF"});return;}
+    updateInvoice(inv.invoiceNumber, {status: "SENT", sentAt: new Date().toISOString()});
+    try { await flushWorkspaceChanges(); }
+    catch(cause) { showToast({message:cause instanceof Error ? cause.message : "Invoice could not be sent"}); return; }
     refreshAll();
-    showToast({ message: `Invoice ${inv.invoiceNumber} marked as sent` });
+    showToast({message: `Invoice ${inv.invoiceNumber} sent to the associated client portal`});
   }
 
   async function handleConfirmPaid(inv: StoredInvoice) {
     const ref = window.prompt("Enter bank / external payment transaction reference:", inv.transactionReference || "");
     if (!ref?.trim()) return;
+    try{await storePdf(inv);}catch(cause){showToast({message:cause instanceof Error?cause.message:"Unable to save PDF"});return;}
     const confirmedPaidAt = new Date().toISOString();
     updateInvoice(inv.invoiceNumber, {
       status: "CONFIRMED_PAID",
@@ -399,11 +409,6 @@ export default function InvoicesPage() {
     showToast({ message: `Invoice ${inv.invoiceNumber} deleted` });
   }
 
-  const isServnInvoice = activeInvoice?.operatingCompany === "Servn";
-  const invoiceLegalName = isServnInvoice ? "Servn Pvt Limited" : "Evecture Pvt Limited";
-  const invoiceAmount = activeInvoice?.subtotal ?? activeInvoice?.contractValue ?? 0;
-  const invoiceGst = activeInvoice?.gstEnabled ? activeInvoice.gstAmount ?? 0 : 0;
-  const invoiceTotal = activeInvoice ? activeInvoice.total ?? activeInvoice.depositAmount : 0;
 
   return (
     <div className="page-content invoice-module-page">
@@ -460,7 +465,7 @@ export default function InvoicesPage() {
             <small>Awaiting payment</small>
             <strong>{formatMoney(sentAmount, "USD")}</strong>
           </div>
-          <span className="invoice-stat-note">{sentInvoices.length} sent to clients</span>
+          <span className="invoice-stat-note">{sentInvoices.length} awaiting payment</span>
         </button>
 
         <button
@@ -516,7 +521,7 @@ export default function InvoicesPage() {
             >
               <option value="ALL">All statuses</option>
               <option value="GENERATED">Draft (Generated)</option>
-              <option value="SENT">Sent</option>
+              <option value="SENT">Awaiting payment</option>
               <option value="CONFIRMED_PAID">Paid</option>
             </select>
           </div>
@@ -621,17 +626,7 @@ export default function InvoicesPage() {
                           <Printer size={13} />
                           Preview
                         </button>
-                        {inv.status === "GENERATED" && (
-                          <button
-                            type="button"
-                            className="button button-quiet button-micro"
-                            onClick={() => handleMarkSent(inv)}
-                            title="Log invoice sent"
-                          >
-                            <Send size={12} />
-                            Sent
-                          </button>
-                        )}
+                        {inv.status === "GENERATED" && <button type="button" className="button button-quiet button-micro" onClick={()=>handleSendToClient(inv)}>Send to client</button>}
                         {inv.status === "SENT" && (
                           <button
                             type="button"
@@ -679,21 +674,19 @@ export default function InvoicesPage() {
                 <button
                   type="button"
                   className="button button-primary"
-                  onClick={() => window.print()}
+                  onClick={async () => {
+                    try {
+                      await storePdf(activeInvoice);
+                      const response=await fetch(`/api/invoices/${encodeURIComponent(activeInvoice.invoiceNumber)}/pdf`,{headers:{Authorization:`Bearer ${session?.access_token}`}});
+                      if(!response.ok)throw new Error("Saved PDF unavailable");
+                      const url=URL.createObjectURL(await response.blob());const link=document.createElement('a');link.href=url;link.download=`${activeInvoice.invoiceNumber}.pdf`;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
+                    } catch(cause){showToast({message:cause instanceof Error?cause.message:"PDF unavailable"});}
+                  }}
                 >
                   <Printer size={14} />
-                  Print / Save PDF
+                  Download saved PDF
                 </button>
-                {activeInvoice.status === "GENERATED" && (
-                  <button
-                    type="button"
-                    className="button button-quiet"
-                    onClick={() => handleMarkSent(activeInvoice)}
-                  >
-                    <Send size={14} />
-                    Log sent
-                  </button>
-                )}
+                {activeInvoice.status === "GENERATED" && <button type="button" className="button button-primary" onClick={()=>handleSendToClient(activeInvoice)}>Send to client</button>}
                 {activeInvoice.status === "SENT" && (
                   <button
                     type="button"
@@ -728,105 +721,7 @@ export default function InvoicesPage() {
             </div>
 
             <div className="invoice-preview-scroll">
-              <div className={`invoice-print-area invoice-reference-layout${isServnInvoice ? " invoice-company-servn" : ""}`}>
-                <div className="invoice-paper-head">
-                  <div>
-                    <span className={`invoice-logo-crop${isServnInvoice ? " invoice-logo-servn" : ""}`}>
-                      <img
-                        className={`invoice-company-logo${isServnInvoice ? " invoice-company-logo-servn" : ""}`}
-                        src={isServnInvoice ? "/servn-logo.png" : "/invoice-logo.png"}
-                        alt={`${activeInvoice.operatingCompany} invoice logo`}
-                      />
-                    </span>
-                  </div>
-                  <div className="invoice-title">
-                    <span>INVOICE</span>
-                    <h2>{activeInvoice.invoiceNumber}</h2>
-                  </div>
-                </div>
-
-                <div className="invoice-paper-meta">
-                  <div>
-                    <small>INVOICE TO</small>
-                    <strong>{activeInvoice.billTo}</strong>
-                    {activeInvoice.clientName && <span>{activeInvoice.clientName}</span>}
-                    {activeInvoice.clientEmail && <span>{activeInvoice.clientEmail}</span>}
-                  </div>
-                  <div className="invoice-meta-right">
-                    <small>INVOICE DATE</small>
-                    <strong>{activeInvoice.issueDate}</strong>
-                    {activeInvoice.dueDate && (
-                      <>
-                        <small>DUE DATE</small>
-                        <strong>{activeInvoice.dueDate}</strong>
-                      </>
-                    )}
-                    <small>COMPANY</small>
-                    <strong>{invoiceLegalName}</strong>
-                  </div>
-                </div>
-
-                <table className="invoice-lines">
-                  <thead>
-                    <tr>
-                      <th>DESCRIPTION</th>
-                      <th>QTY</th>
-                      <th>UNIT PRICE</th>
-                      <th>PRICE</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>{activeInvoice.description || "Project services"}</td>
-                      <td>{activeInvoice.quantity ?? 1}</td>
-                      <td>{money(activeInvoice.unitPrice ?? invoiceAmount, activeInvoice.currency)}</td>
-                      <td>{money(activeInvoice.subtotal ?? invoiceAmount, activeInvoice.currency)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <div className="invoice-summary-row">
-                  <div className="invoice-payment-details">
-                    <strong>PAYMENT DETAILS</strong>
-                    <p>
-                      {activeInvoice.paymentInstructions ||
-                        `Sample account: ${activeInvoice.operatingCompany} Studio · Account no. 0000 0000 0000 · IFSC: SAMPLE0001`}
-                    </p>
-                    {activeInvoice.transactionReference && (
-                      <p style={{ marginTop: 6, color: "var(--ws-muted, #16a34a)", fontWeight: 600 }}>
-                        Reference: {activeInvoice.transactionReference}
-                      </p>
-                    )}
-                  </div>
-                  <div className="invoice-totals">
-                    <div>
-                      <span>Sub total</span>
-                      <strong>{money(invoiceAmount, activeInvoice.currency)}</strong>
-                    </div>
-                    {activeInvoice.gstEnabled && (
-                      <div>
-                        <span>GST ({activeInvoice.gstRate ?? 0}%)</span>
-                        <strong>{money(invoiceGst, activeInvoice.currency)}</strong>
-                      </div>
-                    )}
-                    <div className="invoice-grand-total">
-                      <span>Total</span>
-                      <strong>{money(invoiceTotal, activeInvoice.currency)}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="invoice-sample-details">
-                  <div className="invoice-sample-signature">
-                    <span>Hanan Lateef</span>
-                    <strong>AUTHORIZED SIGNATORY</strong>
-                  </div>
-                  <div>
-                    <strong>CONTACT US</strong>
-                    <p>{SAMPLE_CONTACT}</p>
-                  </div>
-                </div>
-              </div>
+              <InvoiceDocument invoice={activeInvoice}/>
             </div>
           </div>
         </div>,

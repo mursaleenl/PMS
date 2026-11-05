@@ -1,5 +1,6 @@
 "use client";
 
+import {readLeads,type Lead} from "@/lib/leads";
 import { createUuid } from "@/lib/uuid";
 import Link from "next/link";
 import {StatusBadge} from "@/app/_components/status-badge";
@@ -237,6 +238,7 @@ export default function ProjectWorkspacePage() {
   const { role, user, members } = useWorkspaceAuth();
   const { users: managerOptions } = useAssignableUsers();
   const [project, setProject] = useState<Project | null>(null);
+  const [linkedLead,setLinkedLead]=useState<Lead|null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ProjectTab>("Overview");
   const [showDispatch, setShowDispatch] = useState(false);
@@ -248,16 +250,19 @@ export default function ProjectWorkspacePage() {
     const refresh = () => {
       const candidate = readProjects().find((item) => item.id === projectId) ?? null;
       setProject(candidate && (role !== "employee" || isProjectAssignedToUser(candidate, user?.id, employeeName)) ? candidate : null);
+      setLinkedLead(role === "admin" && candidate ? readLeads().find(lead=>lead.id===candidate.leadId||lead.projectId===candidate.id)??null:null);
       setManagedPlan(role === "admin" ? readManagedProjects().find((item) => item.sourceProjectId === projectId) ?? null : null);
       setLoading(false);
     };
     refresh();
     window.addEventListener("evecture:projects-updated", refresh);
     window.addEventListener("evecture:post-sale-updated", refresh);
+    window.addEventListener("evecture:leads-updated", refresh);
     window.addEventListener("storage", refresh);
     return () => {
       window.removeEventListener("evecture:projects-updated", refresh);
       window.removeEventListener("evecture:post-sale-updated", refresh);
+      window.removeEventListener("evecture:leads-updated", refresh);
       window.removeEventListener("storage", refresh);
     };
   }, [projectId, role, user?.id, employeeName]);
@@ -324,6 +329,9 @@ export default function ProjectWorkspacePage() {
   const teamMembers = getProjectTeamMembers(project);
   const services = getProjectDisplayServices(project);
 
+  const acceptedProposal=[...(linkedLead?.proposals??[])].filter(item=>item.status==="ACCEPTED").sort((a,b)=>b.version-a.version)[0];
+  const sowUrl=linkedLead?.acceptanceDocumentDataUrl||project.signedContractDataUrl;
+  const sowName=linkedLead?.acceptanceDocumentName||project.signedContractName;
   return <div className="page-content project-detail-page">
     <Link className="back-link" href="/projects"><ArrowLeft size={15} />Project portfolio</Link>
     <header className="record-heading project-room-heading"><div><h1>{getProjectDisplayTitle(project)}</h1>{services && <p className="project-room-services">{services}</p>}</div><div className="project-lifecycle-actions"><div className="project-lifecycle-status"><StatusBadge status={project.status}/>{health && <StatusBadge status={health}/>}</div><div className="project-lifecycle-buttons">{role === "admin"&&((project.status === "COMPLETED" || project.status === "AMC") ? managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-quiet" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>)}{role === "admin" && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></div></header>
@@ -391,7 +399,7 @@ export default function ProjectWorkspacePage() {
             {teamMembers.length ? <ul>{teamMembers.map(member=><li key={member.userId||member.name.trim().toLowerCase()}><span>{member.name}</span><small>Team member</small></li>)}</ul> : <p>Team members appear here when tasks are assigned.</p>}
           </div>
         </article>
-          <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Project documents</h2><p>Signed project records</p></div><FileText size={16} /></div><div className="document-links">{project.signedContractDataUrl && project.signedContractName ? <a href={project.signedContractDataUrl} download={project.signedContractName}><Download size={14} />{project.signedContractName}</a> : <span className="document-pending">Signed SOW not attached</span>}{role === "admin" && (project.invoice ? <Link href={`/invoices?invoice=${project.invoice.invoiceNumber}`}><ExternalLink size={14} />{project.invoice.invoiceNumber} · invoice record</Link> : <Link className="document-pending" href={`/invoices?project=${project.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px", color: "inherit" }}><Receipt size={13} />No invoice recorded · Create invoice</Link>)}</div></article></aside>
+          <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Project documents</h2><p>Accepted proposal and project records</p></div><FileText size={16} /></div><div className="document-links">{acceptedProposal?.shareToken && <Link href={`/proposal/${acceptedProposal.shareToken}`}><FileText size={14}/>{acceptedProposal.proposalTitle || "Accepted proposal"} · Accepted</Link>}{acceptedProposal?.documentDataUrl && <a href={acceptedProposal.documentDataUrl} download={acceptedProposal.documentName}><Download size={14}/>Accepted proposal attachment</a>}{sowUrl && sowName && <a href={sowUrl} download={sowName}><Download size={14}/>{sowName} · Signed SOW</a>}{role === "admin" && (project.invoice ? <Link href={`/invoices?invoice=${project.invoice.invoiceNumber}`}><ExternalLink size={14} />{project.invoice.invoiceNumber} · invoice record</Link> : <Link className="document-pending" href={`/invoices?project=${project.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px", color: "inherit" }}><Receipt size={13} />No invoice recorded · Create invoice</Link>)}</div></article></aside>
       </section>
     </>}
 
