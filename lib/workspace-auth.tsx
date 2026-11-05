@@ -20,6 +20,7 @@ type AuthContextValue = {
   signOut: () => Promise<boolean>;
   provisionUser: (name: string, email: string, password: string, role: WorkspaceRole) => Promise<void>;
   updateMemberRole: (id: string, role: WorkspaceRole) => Promise<void>;
+  updateMemberAccount: (id: string, role: WorkspaceRole, email: string, password: string) => Promise<void>;
   removeMember: (id: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   accessError: string;
@@ -168,6 +169,7 @@ export function WorkspaceAuthProvider({ children }: { children: ReactNode }) {
     },
     provisionUser:async (name,email,password,role) => { await userManagementRequest(session,"POST",{name,email,password,role}); await refreshAccess(); },
     updateMemberRole:async (id,role) => { await userManagementRequest(session,"PATCH",{id,role}); await refreshAccess(); },
+    updateMemberAccount:async (id,role,email,password) => { await userManagementRequest(session,"PATCH",{id,role,email,...(password ? {password} : {})}); await refreshAccess(); },
     removeMember:async id => { await userManagementRequest(session,"DELETE",{id}); await refreshAccess(); },
     updatePassword:async password => {
       if (databaseRole !== "admin") throw new Error("Password changes are managed by an administrator.");

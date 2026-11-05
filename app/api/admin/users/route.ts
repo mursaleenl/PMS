@@ -96,7 +96,7 @@ export async function PATCH(request: Request) {
   if (!userBody(body) || typeof body.id !== "string" || typeof body.role !== "string" || !validRoles.includes(body.role as WorkspaceRole)) {
     return NextResponse.json({ error: "Choose a valid user and access role." }, { status: 400 });
   }
-  const { data: target, error: lookupError } = await auth.client.from("workspace_members").select("id,user_id,role").eq("id", body.id).maybeSingle();
+  const { data: target, error: lookupError } = await auth.client.from("workspace_members").select("id,user_id,role,email").eq("id", body.id).maybeSingle();
   if (lookupError || !target) return NextResponse.json({ error: lookupError?.message || "User not found." }, { status: 404 });
   if (target.user_id === auth.user.id && body.role !== "admin") return NextResponse.json({ error: "You cannot remove your own administrator access." }, { status: 400 });
   if (target.role === "admin" && body.role !== "admin") {
@@ -104,16 +104,34 @@ export async function PATCH(request: Request) {
     if (admins.error) return NextResponse.json({ error: admins.error.message }, { status: 500 });
     if ((admins.count ?? 0) <= 1) return NextResponse.json({ error: "The workspace must keep at least one administrator." }, { status: 400 });
   }
-  if (target.role === body.role) return NextResponse.json({ success: true });
+  const email = body.email === undefined ? target.email : typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const password = body.password === undefined ? "" : typeof body.password === "string" ? body.password : null;
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
+  if (password === null || (password && password.length < 8)) return NextResponse.json({ error: "Use a password with at least 8 characters." }, { status: 400 });
+  const emailChanged = email !== target.email;
+  if ((emailChanged || password) && !target.user_id) return NextResponse.json({ error: "This membership has no linked sign-in account. Create or link its account before changing credentials." }, { status: 400 });
+  if (emailChanged) {
+    const duplicate = await auth.client.from("workspace_members").select("id").eq("email", email).neq("id", target.id).maybeSingle();
+    if (duplicate.error) return NextResponse.json({ error: duplicate.error.message }, { status: 500 });
+    if (duplicate.data) return NextResponse.json({ error: "That email is already assigned to another user." }, { status: 400 });
+  }
+  if (target.role === body.role && !emailChanged && !password) return NextResponse.json({ success: true });
   // Stamp the account before changing access so existing app sessions must reauthenticate.
   if (target.user_id) {
     const { error: invalidateError } = await auth.client.auth.admin.updateUserById(target.user_id, {
+      ...(emailChanged ? { email, email_confirm: true } : {}),
+      ...(password ? { password } : {}),
       app_metadata: { access_changed_at: new Date().toISOString() },
     });
-    if (invalidateError) return NextResponse.json({ error: "Unable to require re-login. The role was not changed." }, { status: 500 });
+    if (invalidateError) return NextResponse.json({ error: invalidateError.message || "Unable to update the account. No workspace changes were saved." }, { status: 400 });
   }
-  const { error } = await auth.client.from("workspace_members").update({ role: body.role }).eq("id", body.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const { error } = await auth.client.from("workspace_members").update({ role: body.role, email }).eq("id", body.id);
+  if (error) {
+    const rollback = emailChanged && target.user_id
+      ? await auth.client.auth.admin.updateUserById(target.user_id, { email: target.email, email_confirm: true })
+      : null;
+    return NextResponse.json({ error: `Unable to save workspace changes: ${error.message}.${password ? " The new password was saved." : ""}${rollback?.error ? " The sign-in email was changed; retry to synchronize the workspace email." : ""}` }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }
 

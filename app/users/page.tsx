@@ -32,7 +32,7 @@ function joinedDate(value: string) {
 }
 
 export default function UsersPage() {
-  const { role: workspaceRole, members, provisionUser, updateMemberRole, removeMember, user } = useWorkspaceAuth();
+  const { role: workspaceRole, members, provisionUser, updateMemberAccount, removeMember, user } = useWorkspaceAuth();
   const [showAddUser, setShowAddUser] = useState(false);
   const [editingMember, setEditingMember] = useState<WorkspaceMember | null>(null);
   const [name, setName] = useState("");
@@ -42,6 +42,9 @@ export default function UsersPage() {
 
   useEffect(() => { setShowPassword(false); }, [showAddUser]);
   const [accessRole, setAccessRole] = useState<WorkspaceRole>("employee");
+  const [editingEmail, setEditingEmail] = useState("");
+  const [editingPassword, setEditingPassword] = useState("");
+  const [showEditingPassword, setShowEditingPassword] = useState(false);
   const [editingRole, setEditingRole] = useState<WorkspaceRole>("employee");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -89,11 +92,12 @@ export default function UsersPage() {
     setBusy(true);
     setMessage("");
     try {
-      await updateMemberRole(editingMember.id, editingRole);
-      setMessage(`Updated role for ${editingMember.display_name || editingMember.email} to ${roleLabel(editingRole)}.`);
+      await updateMemberAccount(editingMember.id, editingRole, editingEmail, editingPassword);
+      setEditingPassword("");
+      setMessage(`Updated account for ${editingMember.display_name || editingMember.email}.`);
       setEditingMember(null);
     } catch (error) {
-      setMessage(readError(error, "Unable to update the role."));
+      setMessage(readError(error, "Unable to update this account."));
     } finally {
       setBusy(false);
     }
@@ -178,10 +182,13 @@ export default function UsersPage() {
                           onClick={() => {
                             setEditingMember(member);
                             setEditingRole(member.role);
+                            setEditingEmail(member.email);
+                            setEditingPassword("");
+                            setShowEditingPassword(false);
                             setMessage("");
                           }}
                         >
-                          Change role
+                          Edit account
                         </button>
                         <button
                           className="user-remove-button"
@@ -310,8 +317,8 @@ export default function UsersPage() {
             <div className="user-modal-heading">
               <div>
                 <span className="section-kicker">WORKSPACE ACCESS</span>
-                <h2 id="edit-user-title">Change user role</h2>
-                <p>Update access level and workspace permissions.</p>
+                <h2 id="edit-user-title">Edit account</h2>
+                <p>Update the sign-in email, password, and workspace role.</p>
               </div>
               <button type="button" aria-label="Close dialog" onClick={() => setEditingMember(null)}>
                 <X size={20} />
@@ -337,6 +344,20 @@ export default function UsersPage() {
 
             <form className="edit-user-form" onSubmit={handleRoleUpdate}>
               <label className="field">
+                Email address
+                <input type="email" required autoComplete="off" disabled={!editingMember.user_id || busy} value={editingEmail} onChange={event => setEditingEmail(event.target.value)} />
+              </label>
+              <div className="field">
+                <label htmlFor="edit-user-password">New password</label>
+                <div className="add-user-password-control">
+                  <input id="edit-user-password" type={showEditingPassword ? "text" : "password"} minLength={8} autoComplete="new-password" disabled={!editingMember.user_id || busy} value={editingPassword} onChange={event => setEditingPassword(event.target.value)} placeholder="Leave blank to keep current password" />
+                  <button className="button button-quiet" type="button" aria-label={showEditingPassword ? "Hide new password" : "Show new password"} aria-pressed={showEditingPassword} aria-controls="edit-user-password" onClick={() => setShowEditingPassword(value => !value)}>
+                    {showEditingPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                <small>{editingMember.user_id ? "Use at least 8 characters. Saving changes requires the user to sign in again." : "No sign-in account is linked to this membership. Only its role can be changed."}</small>
+              </div>
+              <label className="field">
                 Select role
                 <select
                   value={editingRole}
@@ -361,7 +382,7 @@ export default function UsersPage() {
                 <button
                   className="button button-primary"
                   type="submit"
-                  disabled={busy || editingRole === editingMember.role}
+                  disabled={busy || (editingRole === editingMember.role && editingEmail.trim().toLowerCase() === editingMember.email && !editingPassword)}
                 >
                   {busy ? "Updating…" : "Save changes"}
                 </button>
