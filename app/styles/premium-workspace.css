@@ -528,7 +528,7 @@
     text-align: left;
   }
   .app-shell .workspace-topbar .topbar-dropdown-link:hover,
-  .app-shell .workspace-topbar .topbar-dropdown-link.signout-action:hover { color: #ffffff !important; background: #1f2937 !important; }
+  .app-shell .workspace-topbar .topbar-dropdown-link.signout-action:hover { color: #0f172a !important; background: #f4f4f5 !important; }
   .app-shell .workspace-topbar .topbar-dropdown-link svg { color: #94a3b8; }
   .app-shell .workspace-topbar :is(.topbar-user-role-badge,.role-pill) { color: #52525b !important; background: #f4f4f5 !important; border: 1px solid #e4e4e7 !important; }
   .app-shell .workspace-topbar .topbar-dropdown-user-info .role-pill { color: #cbd5e1 !important; background: #1f2937 !important; border-color: #374151 !important; }

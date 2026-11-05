@@ -27,18 +27,18 @@ export async function GET(request:Request,context:Context){
  const result=await access(request,context);if(result.error)return result.error;
  const {data,error}=await result.service.storage.from(bucket).download(`${result.invoice.id}.pdf`);
  if(error||!data)return NextResponse.json({error:"Saved PDF unavailable. Ask your team to save the admin invoice PDF."},{status:404});
- return new Response(await data.arrayBuffer(),{headers:{'Content-Type':'application/pdf','Content-Disposition':`inline; filename="${result.invoice.invoice_number.replace(/[^A-Za-z0-9_-]/g,'_')}.pdf"`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
+ const bytes=await data.arrayBuffer();
+ if(!new TextDecoder().decode(bytes.slice(-1024)).includes('%%EOF'))return NextResponse.json({error:'The saved invoice PDF is incomplete. Ask your administrator to open Preview and save the PDF again.'},{status:422});
+ return new Response(bytes,{headers:{'Content-Type':'application/pdf','Content-Disposition':`inline; filename="${result.invoice.invoice_number.replace(/[^A-Za-z0-9_-]/g,'_')}.pdf"`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
 }
 export async function POST(request:Request,context:Context){
  const result=await access(request,context);if(result.error)return result.error;
  if(!result.admin)return NextResponse.json({error:'Admin access required'},{status:403});
  const bytes=await request.arrayBuffer();
- if(bytes.byteLength>15_000_000||new TextDecoder().decode(bytes.slice(0,5))!=='%PDF-')return NextResponse.json({error:'Invalid PDF'},{status:400});
- const {data:existing}=await result.service.storage.from(bucket).download(`${result.invoice.id}.pdf`);
- if(existing)return NextResponse.json({saved:true});
+ if(bytes.byteLength>8_000_000||new TextDecoder().decode(bytes.slice(0,5))!=='%PDF-'||!new TextDecoder().decode(bytes.slice(-1024)).includes('%%EOF'))return NextResponse.json({error:'Invalid PDF'},{status:400});
  const {error:bucketError}=await result.service.storage.createBucket(bucket,{public:false,fileSizeLimit:15000000,allowedMimeTypes:['application/pdf']});
  if(bucketError&&!/exist|duplicate/i.test(bucketError.message))return NextResponse.json({error:'PDF storage unavailable'},{status:503});
- const {error}=await result.service.storage.from(bucket).upload(`${result.invoice.id}.pdf`,bytes,{contentType:'application/pdf',upsert:false});
- if(error&&!/exist|duplicate/i.test(error.message))return NextResponse.json({error:'Unable to save invoice PDF'},{status:503});
+ const {error}=await result.service.storage.from(bucket).upload(`${result.invoice.id}.pdf`,bytes,{contentType:'application/pdf',upsert:true});
+ if(error)return NextResponse.json({error:'Unable to save invoice PDF'},{status:503});
  return NextResponse.json({saved:true});
 }

@@ -1,4 +1,5 @@
 "use client";
+import {useLiveRefresh} from "@/lib/live-refresh";
 
 import {printProposal} from "@/lib/print-proposal";
 import { useEffect, useState, type FormEvent } from "react";
@@ -42,6 +43,12 @@ export default function ClientProposalPage() {
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   },[token]);
+
+  useLiveRefresh(()=>{
+    void fetch(`/api/proposals/${encodeURIComponent(token)}`,{cache:"no-store"})
+      .then(async response=>{if(!response.ok)return;const result=await response.json();setLead(result.lead);})
+      .catch(()=>{});
+  },!!lead&&!responseMode&&!submitting&&!printing);
 
   const proposal = lead?.proposals?.find((item) => item.shareToken === token);
   const isOpen = proposal?.status === "SENT";

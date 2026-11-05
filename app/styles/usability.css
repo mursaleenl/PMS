@@ -1251,3 +1251,53 @@ body, button, input, select, textarea { font-family: var(--font-body); }
     overflow-wrap: anywhere;
   }
 }
+
+/* Light controls must keep dark text in every interaction state. */
+@media screen {
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-dropdown-link:is(:hover,:focus-visible,:active),
+  html body :is(.profile-menu,.filter-menu,.task-action-popover) :is(a,button):is(:hover,:focus-visible,:active),
+  html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop,.client-proposal-page) :is(.button-quiet,.button-secondary,.icon-button):is(:hover,:focus-visible,:active) {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    background: #f4f4f5 !important;
+    --control-ink: #0f172a !important;
+    --control-bg: #f4f4f5 !important;
+  }
+  html body :is(.topbar-dropdown-link,.profile-menu a,.profile-menu button,.button-quiet,.button-secondary,.icon-button):is(:hover,:focus-visible,:active) :is(span,svg) {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+  html body .app-shell .workspace-topbar .topbar-user-menu-container .topbar-account-role {
+    color: #52525b !important;
+    -webkit-text-fill-color: #52525b !important;
+    background: #f4f4f5 !important;
+    border-color: #e4e4e7 !important;
+  }
+}
+
+.invoice-payment-dialog { width: min(460px,calc(100vw - 32px)); padding: 28px; border: 1px solid #e4e4e7; border-radius: 0; background: #fff; color: #000; }
+.invoice-payment-dialog::backdrop { background: rgb(0 0 0 / 40%); }
+.invoice-payment-dialog h2 { margin: 0 0 16px; font-size: 20px; }
+.invoice-payment-dialog p { font-size: 14px; line-height: 1.6; }
+.invoice-payment-dialog label { display: block; font-size: 13px; margin: 20px 0 8px; }
+.invoice-payment-dialog input { width: 100%; height: 38px; padding: 0 10px; border: 1px solid #e2e8f0; border-radius: 0; background: #fff; color: #000; }
+.invoice-payment-dialog input:focus-visible { outline: 1px solid #0f172a; }
+.invoice-payment-dialog .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.invoice-payment-dialog .button-primary { background: #0f172a !important; color: #fff !important; border-color: #0f172a !important; }
+
+html body :is(.invoice-payment-reference,.invoice-payment-dialog) .payment-reference-toggle { display: flex; align-items: center; gap: 8px; margin: 16px 0; font-size: 13px; color: #0f172a; }
+html body :is(.invoice-payment-reference,.invoice-payment-dialog) .payment-reference-toggle input[type="checkbox"] { flex: 0 0 16px; width: 16px; height: 16px; margin: 0; padding: 0; accent-color: #ffffff; }
+
+.payment-report-disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; list-style: none; font-size: 15px; font-weight: 600; color: #0f172a; text-transform: none !important; }
+.payment-report-disclosure > summary::-webkit-details-marker { display: none; }
+.payment-report-disclosure > summary::after { content: '+'; font-size: 20px; font-weight: 400; }
+.payment-report-disclosure[open] > summary::after { content: '−'; }
+.payment-report-disclosure > summary:focus-visible { outline: 1px solid #0f172a; outline-offset: 4px; }
+.payment-report-disclosure > form { padding-top: 12px; }
+html body .payment-report-disclosure .button-primary { background: #0f172a !important; color: #fff !important; border-color: #0f172a !important; border-radius: 0 !important; text-transform: none !important; }
+
+/* Keep invoice status controls on the same baseline as the amount and actions. */
+html body .app-shell #workspace-content .invoice-table tbody td { vertical-align: middle; }
+html body .app-shell #workspace-content .invoice-status-controls { display: flex; align-items: center; gap: 12px; }
+html body .app-shell #workspace-content .invoice-status-controls .status-badge { display: inline-flex; align-items: center; flex-shrink: 0; margin: 0 !important; white-space: nowrap; }
+html body .app-shell #workspace-content .invoice-status-controls .invoice-status-select { margin: 0 !important; width: 160px; min-width: 140px; height: 36px !important; border-radius: 0 !important; padding: 0 8px !important; line-height: normal; }

@@ -16917,3 +16917,12 @@ html body .invoice-reference-layout :is(.invoice-paper-meta, .invoice-paper-meta
   color: #000000;
 }
 html body :is(.proposal-index-main, .invoice-client-cell) > strong { color: #000000; }
+
+/* Invoice metadata stays black in previews and browser-generated printouts. */
+html body .invoice-print-area.invoice-reference-layout .invoice-paper-meta :is(small,strong,span) {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  text-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}

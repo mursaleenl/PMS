@@ -38,6 +38,13 @@ export default function InvoicesPage() {
   const payments=usePaymentReferences();
   async function storePdf(invoice:StoredInvoice){if(!session?.access_token)throw new Error("Sign in to save the invoice PDF.");await saveInvoicePdf(invoice,session.access_token);}
   const [invoices, setInvoices] = useState<StoredInvoice[]>([]);
+  const [paymentInvoice,setPaymentInvoice]=useState<StoredInvoice|null>(null);
+  const [paymentReference,setPaymentReference]=useState("");
+  const [includePaymentReference,setIncludePaymentReference]=useState(false);
+  const [paymentBusy,setPaymentBusy]=useState(false);
+  const [paymentError,setPaymentError]=useState("");
+  const paymentDialog=useRef<HTMLDialogElement>(null);
+  useEffect(()=>{if(paymentInvoice){paymentDialog.current?.showModal();}},[paymentInvoice]);
   const [changingStatus, setChangingStatus] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedInvoiceNumber, setSelectedInvoiceNumber] = useState<string | null>(null);
@@ -372,7 +379,6 @@ export default function InvoicesPage() {
   }
 
   async function handleSendToClient(inv: StoredInvoice) {
-    try{await storePdf(inv);}catch(cause){showToast({message:cause instanceof Error?cause.message:"Unable to save PDF"});return;}
     updateInvoice(inv.invoiceNumber, {status: "SENT", sentAt: new Date().toISOString()});
     try { await flushWorkspaceChanges(); }
     catch(cause) { showToast({message:cause instanceof Error ? cause.message : "Invoice could not be sent"}); return; }
@@ -381,18 +387,28 @@ export default function InvoicesPage() {
   }
 
   async function handleConfirmPaid(inv: StoredInvoice) {
-    const ref = window.prompt("Verify the payment received. Payment reference (optional):", payments.references.find(report=>report.invoices?.invoice_number===inv.invoiceNumber)?.reference || inv.transactionReference || "");
-    if (ref === null) return;
-    try{await storePdf({...inv,status:"CONFIRMED_PAID",transactionReference:ref.trim()});}catch(cause){showToast({message:cause instanceof Error?cause.message:"Unable to save PDF"});return;}
-    const confirmedPaidAt = new Date().toISOString();
-    updateInvoice(inv.invoiceNumber, {
-      status: "CONFIRMED_PAID",
-      transactionReference: ref.trim() || undefined,
-      confirmedPaidAt,
-    });
-    try { await flushWorkspaceChanges(); } catch(cause) { showToast({message:cause instanceof Error ? cause.message : "Invoice could not be saved"}); return; }
-    refreshAll();
-    showToast({ message: `Invoice ${inv.invoiceNumber} confirmed paid` });
+    setPaymentReference(payments.references.find(report=>report.invoices?.invoice_number===inv.invoiceNumber)?.reference || inv.transactionReference || "");
+    setIncludePaymentReference(false);
+    setPaymentError("");setPaymentInvoice(inv);
+  }
+
+  async function confirmPayment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if(!paymentInvoice || paymentBusy)return;
+    setPaymentBusy(true);setPaymentError("");
+    const paid={...paymentInvoice,status:"CONFIRMED_PAID" as const,
+      transactionReference:includePaymentReference ? paymentReference.trim() || undefined : undefined,confirmedPaidAt:new Date().toISOString()};
+    try {
+      updateInvoice(paid.invoiceNumber,paid);
+      await flushWorkspaceChanges();
+      refreshAll();
+    } catch(cause) {
+      setPaymentError(cause instanceof Error?cause.message:"Payment could not be confirmed. Please retry.");
+      setPaymentBusy(false);return;
+    }
+    setPaymentBusy(false);setPaymentInvoice(null);
+    showToast({message:`Invoice ${paid.invoiceNumber} confirmed paid`});
+    void storePdf(paid).catch(()=>showToast({message:`Payment confirmed. PDF could not be updated; open Preview and save the PDF again.`}));
   }
 
   async function handleStatusChange(inv: StoredInvoice, status: InvoiceStatus) {
@@ -403,7 +419,6 @@ export default function InvoicesPage() {
       const next = {...inv, status, confirmedPaidAt: undefined,
         transactionReference: undefined,
         sentAt: status === "SENT" ? new Date().toISOString() : undefined};
-      await storePdf(next);
       updateInvoice(inv.invoiceNumber, next);
       await flushWorkspaceChanges();
       refreshAll();
@@ -427,6 +442,17 @@ export default function InvoicesPage() {
 
   return (
     <div className="page-content invoice-module-page">
+      {paymentInvoice&&createPortal(<dialog ref={paymentDialog} className="invoice-payment-dialog" aria-labelledby="confirm-payment-title" onCancel={event=>{if(paymentBusy)event.preventDefault();else setPaymentInvoice(null);}}>
+        <form onSubmit={confirmPayment}>
+          <h2 id="confirm-payment-title">Confirm payment</h2>
+          <p>{paymentInvoice.invoiceNumber} · {money(paymentInvoice.total,paymentInvoice.currency)}</p>
+          <p>Confirm that you have received this payment to mark the invoice paid.</p>
+          <label className="payment-reference-toggle"><input type="checkbox" checked={includePaymentReference} disabled={paymentBusy} onChange={event=>setIncludePaymentReference(event.target.checked)}/>Add a payment reference (optional)</label>
+          {includePaymentReference&&<><label htmlFor="admin-payment-reference">Payment reference</label><input id="admin-payment-reference" value={paymentReference} maxLength={200} disabled={paymentBusy} onChange={event=>setPaymentReference(event.target.value)}/></>}
+          {paymentError&&<p role="alert">{paymentError}</p>}
+          <div className="form-actions"><button type="button" className="button button-quiet" disabled={paymentBusy} onClick={()=>setPaymentInvoice(null)}>Cancel</button><button className="button button-primary" disabled={paymentBusy}>{paymentBusy?"Confirming…":"Confirm paid"}</button></div>
+        </form>
+      </dialog>,document.body)}
       {payments.error && <p role="alert">{payments.error}</p>}
       <section className="welcome-row">
         <div>
@@ -628,14 +654,14 @@ export default function InvoicesPage() {
                       <strong>{money(inv.total ?? inv.depositAmount ?? 0, inv.currency)}</strong>
                       {inv.gstEnabled && <small>incl. GST ({inv.gstRate}%)</small>}
                     </td>
-                    <td>
-                      <StatusBadge status={inv.status}>{inv.status==="SENT"&&payments.references.some(report=>report.invoices?.invoice_number===inv.invoiceNumber)?"Awaiting verification":statusLabels[inv.status]}</StatusBadge>
+                    <td className="invoice-status-cell">
+                      <div className="invoice-status-controls"><StatusBadge status={inv.status}>{inv.status==="SENT"&&payments.references.some(report=>report.invoices?.invoice_number===inv.invoiceNumber)?"Awaiting verification":statusLabels[inv.status]}</StatusBadge>
                       <select className="invoice-status-select" aria-label={`Status for ${inv.invoiceNumber}`} value={inv.status} disabled={changingStatus !== null} onChange={event => void handleStatusChange(inv, event.target.value as InvoiceStatus)}>
                         <option value="GENERATED">Draft</option>
                         <option value="SENT">Awaiting payment</option>
                         <option value="CONFIRMED_PAID">Paid</option>
-                      </select>
-                      {inv.status==="SENT"&&payments.references.filter(report=>report.invoices?.invoice_number===inv.invoiceNumber).map(report=><small className="invoice-submitted-reference" key={report.invoice_id}>Reference: {report.reference || "Not provided"}</small>)}
+                      </select></div>
+                      {inv.status==="SENT"&&payments.references.filter(report=>report.invoices?.invoice_number===inv.invoiceNumber&&report.reference).map(report=><small className="invoice-submitted-reference" key={report.invoice_id}>Reference: {report.reference || "Not provided"}</small>)}
                     </td>
                     <td>
                       <div className="invoice-actions-cell">

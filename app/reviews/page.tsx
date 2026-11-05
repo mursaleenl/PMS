@@ -1,4 +1,5 @@
 "use client";
+import {useLiveRefresh} from "@/lib/live-refresh";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ClipboardCheck, MessageSquareWarning, RefreshCw, Send } from "lucide-react";
@@ -58,14 +59,14 @@ export default function ReviewsPage() {
       setLoading(false);
       return;
     }
-    setLoading(true);
     setError("");
     const result = await supabase.from("workspace_reviews").select("*").order("created_at", { ascending: false });
     if (result.error) setError(result.error.message || "Unable to load reviews.");
     else setReviews((result.data ?? []) as WorkspaceReview[]);
     setLoading(false);
-  }, [session]);
+  }, [session?.user.id]);
 
+  useLiveRefresh(()=>{void loadReviews();},!!session);
   useEffect(() => { void loadReviews(); }, [loadReviews, refreshKey]);
 
   async function submitReview(event: FormEvent<HTMLFormElement>) {

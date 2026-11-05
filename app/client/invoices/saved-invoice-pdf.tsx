@@ -10,7 +10,7 @@ export function SavedInvoicePdf({number}:{number:string}){
   const controller=new AbortController();let objectUrl='';
   setUrl('');setError('');
   void fetch(`/api/invoices/${encodeURIComponent(number)}/pdf`,{headers:{Authorization:`Bearer ${session.access_token}`},signal:controller.signal,cache:'no-store'})
-   .then(async response=>{if(!response.ok)throw new Error('The saved admin invoice PDF is not available yet. Please contact your project team.');return response.blob();})
+   .then(async response=>{if(!response.ok){const result=await response.json().catch(()=>null);throw new Error(result?.error||'The saved admin invoice PDF is not available yet. Please contact your project team.');}return response.blob();})
    .then(blob=>{if(!controller.signal.aborted){objectUrl=URL.createObjectURL(blob);setUrl(objectUrl);}})
    .catch(cause=>{if(!controller.signal.aborted)setError(cause.message);});
   return()=>{controller.abort();if(objectUrl)URL.revokeObjectURL(objectUrl);};
