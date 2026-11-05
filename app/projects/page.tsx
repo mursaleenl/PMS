@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, Check, ListTodo, FolderKanban, Handshake, Plus, Receipt, Trash2, User, Users } from "lucide-react";
+import { ArrowRight, Check, ListTodo, FolderKanban, Handshake, Plus, Receipt, Trash2, User } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
 import { deleteProject, readProjects, type Project, updateProject, getProjectDisplayTitle, getProjectDisplayServices, isProjectAssignedToUser, isTaskAssignedToUser } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject } from "@/lib/post-sale";
@@ -66,10 +66,6 @@ export default function ProjectsPage() {
         {role === "admin" && <Link className="button button-quiet" href="/invoices">
           <Receipt size={15} />
           Invoices
-        </Link>}
-        {role === "admin" && <Link className="button button-quiet" href="/projects/assignments">
-          <Users size={15} />
-          Project assignments
         </Link>}
         {role === "admin" && <Link className="button button-primary" href="/requests">
           <Plus size={15} />
