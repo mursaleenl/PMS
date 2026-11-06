@@ -4,10 +4,10 @@ const {createLoader}=require('../scripts/test-loader.cjs');
 const {canViewProjectTask}=createLoader()('lib/projects.ts');
 const project={team:[{role:'Project Manager',userId:'manager',name:'Manager'}]};
 const task={assigneeId:'employee',assignee:'Employee'};
-test('project managers see delegated tasks only in projects they manage',()=>{
+test('project managers oversee workspace tasks while employee visibility stays scoped',()=>{
  assert.equal(canViewProjectTask(project,task,'project_manager','manager','Manager'),true);
- assert.equal(canViewProjectTask(project,task,'project_manager','other','Other'),false);
- assert.equal(canViewProjectTask(project,task,'project_manager','other','Manager'),false);
+ assert.equal(canViewProjectTask(project,task,'project_manager','other','Other'),true);
+ assert.equal(canViewProjectTask(project,task,'project_manager','other','Manager'),true);
  assert.equal(canViewProjectTask(project,task,'employee','employee','Employee'),true);
  assert.equal(canViewProjectTask(project,task,'employee','other','Other'),false);
  assert.equal(canViewProjectTask(project,task,'client','employee','Employee'),false);

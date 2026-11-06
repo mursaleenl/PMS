@@ -28,6 +28,7 @@ export function getWorkspaceRole(user: AuthUserLike | null | undefined): Workspa
 
 export function canAccessPath(role: WorkspaceRole, pathname: string) {
   if (role === "admin") return true;
+  if (role === "project_manager") return !["/admin", "/users", "/client", "/career"].some(path => pathname === path || pathname.startsWith(`${path}/`));
   if (role === "client") {
     return pathname === "/client" || ["/client/proposals", "/client/invoices"].includes(pathname) || pathname.startsWith("/client/invoices/") || pathname === "/client/projects" || pathname.startsWith("/client/projects/") || pathname === "/settings";
   }

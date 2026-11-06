@@ -236,7 +236,7 @@ export default function MyWorkPage() {
         <p className="welcome-subtitle">Manage and track assigned work across projects.</p>
       </div>
       <div className="task-page-actions">
-        {(role !== "employee" && role !== "project_manager") && <>
+        {(role !== "employee") && <>
         <div className="work-assignee-filter">
           <span className="filter-label">Assignee</span>
           <div className="filter-select-wrap">
@@ -286,7 +286,7 @@ export default function MyWorkPage() {
       </button>
     </section>
 
-    {allTasks.length === 0 ? <EmptyState icon={<FileCheck2 size={22} />} title={(role === "employee" || role === "project_manager") ? "No tasks assigned" : "No dispatched tasks yet"} description={(role === "employee" || role === "project_manager") ? "Tasks assigned to you will appear here." : "Dispatch a task from any project workspace to see it on the Tasks board."} action={<Link className="button button-primary" href="/projects"><Plus size={14} />Open projects</Link>} /> : <section className="panel task-table-panel">
+    {allTasks.length === 0 ? <EmptyState icon={<FileCheck2 size={22} />} title={(role === "employee") ? "No tasks assigned" : "No dispatched tasks yet"} description={(role === "employee") ? "Tasks assigned to you will appear here." : "Dispatch a task from any project workspace to see it on the Tasks board."} action={<Link className="button button-primary" href="/projects"><Plus size={14} />Open projects</Link>} /> : <section className="panel task-table-panel">
       <div className="task-table-heading">
         <div>
           <h2>All tasks</h2>
@@ -377,7 +377,7 @@ export default function MyWorkPage() {
                 <thead>
                   <tr>
                     <th className="task-check-col">
-                      {(role !== "employee" && role !== "project_manager") && <>
+                      {(role !== "employee") && <>
                       <button
                         type="button"
                         className={`task-row-check ${allVisibleDone ? "checked" : ""}`}

@@ -38,7 +38,7 @@ test('main database installs fresh, preserves populated records on rerun, and up
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [manager]);
     await db.exec('set role authenticated');
     assert.equal((await db.query('select id from projects')).rows.length, 1);
-    assert.equal((await db.query('select id from leads')).rows.length, 0);
+    assert.equal((await db.query('select id from leads')).rows.length, 1);
     await db.exec('reset role');
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [admin]);
     const clientsBefore = (await db.query('select count(*)::int n from clients')).rows[0].n;
@@ -57,6 +57,9 @@ test('main database installs fresh, preserves populated records on rerun, and up
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [manager]);
     await db.exec('set role authenticated');
     const task = {id:'INTERNAL-TASK',title:'Build tools',kind:'FEATURE_DEV',assignee:'Manager',assigneeId:manager,priority:'P3',estimatedHours:2,loggedHours:0,status:'TO_DO',createdAt:'2026-11-06T00:00:00Z'};
+    await db.exec('reset role');
+    await db.query("select set_config('request.jwt.claim.sub',$1,false)", [employee]);
+    await db.exec('set role authenticated');
     await assert.rejects(saveInternal({...internal,workItems:[task]},0), /Employees can update only/);
     await db.exec('reset role');
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [admin]);

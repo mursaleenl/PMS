@@ -1438,3 +1438,33 @@ html body .app-shell .main-area .project-detail-main .project-task-summary-list 
 html body .app-shell .main-area .project-task-summary-item > div { min-width: 0; }
 html body .app-shell .main-area .project-task-summary-item strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 html body .app-shell .main-area .project-task-summary-list:focus-visible { outline: 1px solid #0f172a; outline-offset: 3px; }
+
+/* Match both project choices, including their smaller sentence-case subtitles. */
+html body .new-project-dialog .new-project-choices :is(button,a) strong { font-size: 14px !important; font-weight: 600 !important; text-transform: none !important; }
+html body .new-project-dialog .new-project-choices :is(button,a) span { font-size: 12px !important; font-weight: 400 !important; line-height: 1.5 !important; text-transform: none !important; color: #71717a !important; }
+.project-card-logo { display: block; width: 44px; height: 44px; object-fit: contain; margin: 14px 0 10px; }
+.project-workspace-logo { display: block; width: 56px; height: 56px; object-fit: contain; margin-bottom: 12px; }
+.project-logo-upload { grid-column: 1 / -1; min-width: 0; }
+.project-logo-preview { display: flex; align-items: center; gap: 16px; margin: 12px 0; }
+.project-logo-preview img { width: 56px; height: 56px; object-fit: contain; }
+
+/* Align project logos with the title rather than stacking above it. */
+html body .app-shell #workspace-content .projects-page .portfolio-project-identity { display: flex; align-items: center; gap: 14px; margin: 20px 0 18px; min-height: 48px; }
+html body .app-shell #workspace-content .projects-page .portfolio-project-identity .project-card-logo { width: 44px; height: 44px; flex: 0 0 44px; object-fit: contain; margin: 0; }
+.portfolio-project-copy { flex: 1; min-width: 0; }
+html body .app-shell #workspace-content .projects-page .portfolio-project-copy .portfolio-card-title { margin: 0 !important; line-height: 1.35; overflow-wrap: anywhere; }
+html body .app-shell #workspace-content .projects-page .portfolio-project-copy .portfolio-card-subtitle { margin: 5px 0 0 !important; line-height: 1.5; }
+html body .app-shell #workspace-content .projects-page .portfolio-card-top { align-items: center; gap: 12px; }
+html body .app-shell #workspace-content .projects-page .portfolio-card-meta { align-items: center; gap: 12px; }
+html body .app-shell #workspace-content .projects-page .portfolio-pm-chip { min-width: 0; }
+html body .app-shell #workspace-content .projects-page .portfolio-pm-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html body .app-shell #workspace-content .projects-page .portfolio-id-badge { flex-shrink: 0; }
+
+/* Logo actions sit immediately before task dispatch and wrap on small screens. */
+html body .app-shell .project-dispatch-row { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 10px; }
+html body .app-shell .project-dispatch-row .project-logo-upload-compact { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; width: auto; min-width: 0; }
+.project-logo-upload-compact .form-error { flex-basis: 100%; max-width: 320px; margin: 0; }
+@media (max-width: 480px) {
+  html body .app-shell .project-dispatch-row { justify-content: flex-start; }
+  html body .app-shell .project-dispatch-row .button { flex-shrink: 0; }
+}

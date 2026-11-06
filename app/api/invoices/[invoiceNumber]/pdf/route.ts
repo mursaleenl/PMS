@@ -11,7 +11,7 @@ async function access(request:Request,context:Context){
  const {data:role,error}=await auth.client.rpc("current_workspace_role");
  if(error)return {error:NextResponse.json({error:"Access unavailable"},{status:503})};
  const service=serverSupabase();
- if(role==='admin'){
+ if(role==='admin'||role==='project_manager'){
   const {data:invoice,error}=await service.from('invoices').select('id,invoice_number,status').eq('invoice_number',invoiceNumber).single();
   if(error||!invoice)return {error:NextResponse.json({error:"Invoice unavailable"},{status:404})};
   return {service,invoice,admin:true};

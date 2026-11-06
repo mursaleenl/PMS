@@ -24,8 +24,8 @@ export async function GET(request: Request) {
     }
     if (membership.error) return NextResponse.json({error:"Unable to verify workspace access"}, {status:503});
     const role = membership.data?.role;
-    if (role !== "admin") {
-      return NextResponse.json({ error: "Only administrators can view workspace assignees." }, { status: 403 });
+    if (role !== "admin" && role !== "project_manager") {
+      return NextResponse.json({ error: "Only administrators and project managers can view workspace assignees." }, { status: 403 });
     }
   }
 

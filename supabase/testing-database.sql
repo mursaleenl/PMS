@@ -72,6 +72,11 @@ security definer
 set search_path = public
 as $$ select coalesce(public.current_workspace_role() in ('admin', 'employee', 'project_manager'),false); $$;
 
+-- Operational access below administrator; does not grant user/role administration.
+create or replace function public.can_manage_workspace()
+returns boolean language sql stable security definer set search_path = public
+as $$ select coalesce(public.current_workspace_role() in ('admin','project_manager'),false); $$;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -318,6 +323,9 @@ create table if not exists public.projects (
   updated_at timestamptz not null default now()
 );
 
+alter table public.projects add column if not exists logo_data_url text;
+alter table public.projects drop constraint if exists projects_logo_check;
+alter table public.projects add constraint projects_logo_check check (logo_data_url is null or (length(logo_data_url) <= 700000 and logo_data_url ~ '^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$'));
 alter table public.projects add column if not exists objectives text;
 alter table public.projects add column if not exists deliverables text;
 alter table public.projects add column if not exists target_date date;
@@ -691,7 +699,7 @@ begin
   for field_name in select jsonb_object_keys(p_data->'row') loop
     if field_name='created_at' then
       if (p_data->'row'->>field_name)::timestamptz is distinct from (existing_row->>field_name)::timestamptz then return false; end if;
-    elsif field_name in ('objectives','deliverables','target_date','client_company','client_name','client_email','operating_company','start_date','scope_included','scope_excluded','assumptions','signed_contract_name','signed_contract_data_url') then
+    elsif field_name in ('logo_data_url','objectives','deliverables','target_date','client_company','client_name','client_email','operating_company','start_date','scope_included','scope_excluded','assumptions','signed_contract_name','signed_contract_data_url') then
       if nullif(p_data->'row'->>field_name,'') is distinct from nullif(existing_row->>field_name,'') then return false; end if;
     elsif (p_data->'row'->field_name) is distinct from (existing_row->field_name) then return false; end if;
   end loop;
@@ -763,7 +771,7 @@ begin
     if (root_id is not null and (expected is null or expected<>existing_revision)) or (root_id is null and expected is not null) then
       raise exception 'CONFLICT: % was changed or deleted in another session. Reload the latest data.',external_key using errcode='40001';
     end if;
-    if not public.is_workspace_admin() then
+    if not public.can_manage_workspace() then
       if collection_name<>'projects' or change->>'operation'<>'save' or root_id is null
         or not exists(select 1 from public.projects p where p.id=root_id and (
           exists(select 1 from public.project_team_members t where t.project_id=p.id and t.user_id=auth.uid())
@@ -773,7 +781,7 @@ begin
       end if;
     end if;
     if change->>'operation'='delete' then
-      if collection_name='projects' and not public.is_workspace_admin() then raise exception 'Only administrators can delete projects'; end if;
+      if collection_name='projects' and not public.can_manage_workspace() then raise exception 'Only administrators can delete projects'; end if;
       execute format('delete from public.%I where id=$1',table_name) using root_id;
       output=output||jsonb_build_object(collection_name||':'||external_key,-1);
       continue;
@@ -786,7 +794,7 @@ begin
       client_id_value=public.workspace_client(coalesce(payload->>'company_name',payload->>'full_name'),payload->>'full_name',payload->>'email');
       payload=payload||jsonb_build_object('client_id',client_id_value,'created_by',auth.uid());
     elsif collection_name='projects' then
-      if public.is_workspace_admin() then
+      if public.can_manage_workspace() then
         if payload->>'project_type' = 'internal' then
           if nullif(data->>'leadId','') is not null then raise exception 'Internal projects cannot be linked to leads'; end if;
           lead_id_value=null; proposal_id_value=null; client_id_value=null;
@@ -1658,5 +1666,15 @@ end; $$;
 drop trigger if exists prevent_project_type_change on public.projects;
 create trigger prevent_project_type_change before update of project_type on public.projects
 for each row execute function public.prevent_project_type_change();
+
+-- ===== Section: project-manager-operational-access =====
+-- Managers may handle the sales-to-delivery workflow; identity administration stays admin-only.
+do $$ declare table_name text;
+begin
+  foreach table_name in array array['clients','leads','proposals','proposal_follow_ups','proposal_events','projects','project_team_members','project_work_items','project_links','invoices','managed_projects'] loop
+    execute format('drop policy if exists "project managers operational access" on public.%I',table_name);
+    execute format('create policy "project managers operational access" on public.%I for all to authenticated using (public.current_workspace_role()=''project_manager'') with check (public.current_workspace_role()=''project_manager'')',table_name);
+  end loop;
+end $$;
 
 commit;

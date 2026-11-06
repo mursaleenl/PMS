@@ -44,6 +44,7 @@ const clientGroups = [
 
 function groupsForRole(role: WorkspaceRole) {
   if (role === "admin") return adminGroups;
+  if (role === "project_manager") return workspaceGroups;
   if (role === "client") return clientGroups;
   return employeeGroups;
 }

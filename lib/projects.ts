@@ -39,6 +39,7 @@ export type ProjectLinks = { staging?: string; repository?: string; design?: str
 export type Project = {
   id: string;
   leadId: string;
+  logoDataUrl?: string;
   projectType?: "client" | "internal";
   objectives?: string;
   deliverables?: string;
@@ -89,7 +90,7 @@ export function isTaskAssignedToUser(task: ProjectWorkItem, userId?: string | nu
 
 /** Managers oversee every task in projects they manage; other members see their own work. */
 export function canViewProjectTask(project: Project, task: ProjectWorkItem, role: string, userId?: string | null, userName?: string) {
-  if (role === "admin") return true;
+  if (role === "admin" || role === "project_manager") return true;
   if (role === "project_manager" && project.team.some(member => member.role === "Project Manager" && (member.userId
     ? Boolean(userId && member.userId === userId)
     : Boolean(userName?.trim() && member.name.trim().toLowerCase() === userName.trim().toLowerCase())))) return true;

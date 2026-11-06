@@ -44,7 +44,7 @@ export default function ProjectsPage() {
   }, []);
 
   const employeeName = (members.find((member) => member.user_id === user?.id)?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "").trim();
-  const accessibleProjects = (role === "employee" || role === "project_manager") ? projects.filter((project) => isProjectAssignedToUser(project, user?.id, employeeName)) : projects.filter(project=>project.status!=="AMC");
+  const accessibleProjects = (role === "employee") ? projects.filter((project) => isProjectAssignedToUser(project, user?.id, employeeName)) : projects.filter(project=>project.status!=="AMC");
 
   const projectSections = ["All projects", "Servn", "Evecture", "Internal"];
   const inSection = (project: Project, section: string) => section === "All projects" || (section === "Internal"
@@ -67,7 +67,7 @@ export default function ProjectsPage() {
   }
 
   function removeProject(project: Project) {
-    if (role !== "admin") return;
+    if ((role !== "admin" && role !== "project_manager")) return;
     if (!window.confirm(`Delete “${project.title}”? This will permanently remove its workspace and tasks.`)) return;
     deleteProject(project.id);
     setProjects(readProjects());
@@ -80,14 +80,14 @@ export default function ProjectsPage() {
         <p className="welcome-subtitle">Keep client delivery and internal projects together.</p>
       </div>
       <div className="welcome-actions">
-        {role === "admin" && <button className="button button-primary" type="button" aria-haspopup="dialog" onClick={() => setShowProjectOptions(true)}><Plus size={15} />New project</button>}
-        {role === "admin" && <Link className="button button-quiet" href="/invoices">
+        {(role === "admin" || role === "project_manager") && <button className="button button-primary" type="button" aria-haspopup="dialog" onClick={() => setShowProjectOptions(true)}><Plus size={15} />New project</button>}
+        {(role === "admin" || role === "project_manager") && <Link className="button button-quiet" href="/invoices">
           <Receipt size={15} />
           Invoices
         </Link>}
       </div>
     </section>
-    {role === "admin" && <dialog ref={projectOptions} className="new-project-dialog" aria-labelledby="new-project-title" onCancel={() => setShowProjectOptions(false)} onClose={() => setShowProjectOptions(false)} onClick={event => {
+    {(role === "admin" || role === "project_manager") && <dialog ref={projectOptions} className="new-project-dialog" aria-labelledby="new-project-title" onCancel={() => setShowProjectOptions(false)} onClose={() => setShowProjectOptions(false)} onClick={event => {
       if (event.target === event.currentTarget) {
         const bounds = event.currentTarget.getBoundingClientRect();
         if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) setShowProjectOptions(false);
@@ -105,7 +105,7 @@ export default function ProjectsPage() {
         <span>{section}</span><span className="project-section-count">{accessibleProjects.filter(project => inSection(project, section)).length}</span>
       </button>)}
     </div>
-    {visibleProjects.length === 0 ? <EmptyState icon={<FolderKanban size={22} />} title={accessibleProjects.length > 0 ? `No ${projectSection} projects` : role === "admin" ? "No project workspaces yet" : "No projects assigned"} description={role === "admin" ? "Create an internal project or move a lead here to start client delivery." : "Projects assigned to you will appear here."} action={role === "admin" ? <Link className="button button-primary" href="/requests">Open leads <ArrowRight size={15} /></Link> : undefined} /> : <section className="project-portfolio">{visibleProjects.map((project) => {
+    {visibleProjects.length === 0 ? <EmptyState icon={<FolderKanban size={22} />} title={accessibleProjects.length > 0 ? `No ${projectSection} projects` : (role === "admin" || role === "project_manager") ? "No project workspaces yet" : "No projects assigned"} description={(role === "admin" || role === "project_manager") ? "Create an internal project or move a lead here to start client delivery." : "Projects assigned to you will appear here."} action={(role === "admin" || role === "project_manager") ? <Link className="button button-primary" href="/requests">Open leads <ArrowRight size={15} /></Link> : undefined} /> : <section className="project-portfolio">{visibleProjects.map((project) => {
       const visibleTasks = (project.workItems ?? []).filter(task => canViewProjectTask(project, task, role, user?.id, employeeName));
       const openWork = visibleTasks.filter((item) => item.status !== "DONE").length;
       const managedPlan = managedProjects.find((item) => item.sourceProjectId === project.id);
@@ -120,8 +120,13 @@ export default function ProjectsPage() {
             </span>
             <StatusBadge status={project.status} />
           </div>
-          <h2 className="portfolio-card-title">{getProjectDisplayTitle(project)}</h2>
-          {services && <p className="portfolio-card-subtitle">{services}</p>}
+          <div className="portfolio-project-identity">
+            {project.logoDataUrl && <img className="project-card-logo" src={project.logoDataUrl} alt={`${getProjectDisplayTitle(project)} logo`} />}
+            <div className="portfolio-project-copy">
+              <h2 className="portfolio-card-title">{getProjectDisplayTitle(project)}</h2>
+              {services && <p className="portfolio-card-subtitle">{services}</p>}
+            </div>
+          </div>
           <div className="portfolio-task-row">
             <ListTodo className="task-count-icon" size={16} strokeWidth={2} aria-hidden="true"/>
             <span>{openWork} open {openWork === 1 ? "task" : "tasks"}</span>
@@ -137,13 +142,13 @@ export default function ProjectsPage() {
             </span>
           </div>
         </Link>
-        <div className={`portfolio-actions${role === "admin" ? " portfolio-actions-admin" : ""}`}>
-          {role === "admin" && project.projectType !== "internal" && (project.invoice ? <Link className="button button-quiet portfolio-lifecycle-button" href={`/invoices?invoice=${project.invoice.invoiceNumber}`} title={`View invoice ${project.invoice.invoiceNumber}`}><Receipt size={13}/>View invoice</Link> : <Link className="button button-quiet portfolio-lifecycle-button" href={`/invoices?project=${project.id}`} title="Generate invoice for this project"><Receipt size={13}/>Invoice</Link>)}
-          {role === "admin" && project.status !== "COMPLETED" ? (
+        <div className={`portfolio-actions${(role === "admin" || role === "project_manager") ? " portfolio-actions-admin" : ""}`}>
+          {(role === "admin" || role === "project_manager") && project.projectType !== "internal" && (project.invoice ? <Link className="button button-quiet portfolio-lifecycle-button" href={`/invoices?invoice=${project.invoice.invoiceNumber}`} title={`View invoice ${project.invoice.invoiceNumber}`}><Receipt size={13}/>View invoice</Link> : <Link className="button button-quiet portfolio-lifecycle-button" href={`/invoices?project=${project.id}`} title="Generate invoice for this project"><Receipt size={13}/>Invoice</Link>)}
+          {(role === "admin" || role === "project_manager") && project.status !== "COMPLETED" ? (
             <button className="button button-quiet portfolio-lifecycle-button" type="button" onClick={() => markComplete(project)}>
               <Check size={13} />Mark complete
             </button>
-          ) : role === "admin" && project.projectType !== "internal" && managedPlan ? (
+          ) : (role === "admin" || role === "project_manager") && project.projectType !== "internal" && managedPlan ? (
             <>
               <Link className="button button-quiet portfolio-lifecycle-button" href="/post-sale" title="View retainer plan">
                 <Handshake size={13} />In retainer · {managedPlan.id}
@@ -157,12 +162,12 @@ export default function ProjectsPage() {
                 <FolderKanban size={13} />Move to projects
               </button>
             </>
-          ) : role === "admin" && project.projectType !== "internal" ? (
+          ) : (role === "admin" || role === "project_manager") && project.projectType !== "internal" ? (
             <button className="button button-quiet portfolio-lifecycle-button" type="button" onClick={() => setSelectedProject(project)}>
               <Handshake size={13} />Move to retainer
             </button>
           ) : null}
-          {role === "admin" && (
+          {(role === "admin" || role === "project_manager") && (
             <button className="button button-quiet portfolio-lifecycle-button portfolio-delete-icon-button" type="button" title="Delete project" aria-label={`Delete ${getProjectDisplayTitle(project)}`} onClick={() => removeProject(project)}>
               <Trash2 size={15} aria-hidden="true" />Delete
             </button>
@@ -170,7 +175,7 @@ export default function ProjectsPage() {
         </div>
       </article>;
     })}</section>}
-    {role === "admin" && showInternalProject && <InternalProjectDrawer onClose={() => setShowInternalProject(false)} onCreated={project => { setShowInternalProject(false); router.push(`/projects/${project.id}`); }} />}
-    {role === "admin" && selectedProject && <ManagedPlanDrawer projects={[selectedProject]} initialProjectId={selectedProject.id} onClose={() => setSelectedProject(null)} onCreated={() => setManagedProjects(readManagedProjects())} />}
+    {(role === "admin" || role === "project_manager") && showInternalProject && <InternalProjectDrawer onClose={() => setShowInternalProject(false)} onCreated={project => { setShowInternalProject(false); router.push(`/projects/${project.id}`); }} />}
+    {(role === "admin" || role === "project_manager") && selectedProject && <ManagedPlanDrawer projects={[selectedProject]} initialProjectId={selectedProject.id} onClose={() => setSelectedProject(null)} onCreated={() => setManagedProjects(readManagedProjects())} />}
   </div>;
 }

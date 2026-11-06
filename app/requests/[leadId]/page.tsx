@@ -87,7 +87,7 @@ export default function LeadWorkspacePage() {
 
   const latest = [...(lead.proposals ?? [])].sort((a, b) => b.version - a.version)[0];
   const projectProposal = [...(lead.proposals ?? [])].sort((a, b) => b.version - a.version).find((proposal) => proposal.status === "ACCEPTED") ?? latest;
-  if ((role === "employee" || role === "project_manager")) return <div className="page-content lead-workspace-page">
+  if ((role === "employee")) return <div className="page-content lead-workspace-page">
     <Link className="back-link" href="/requests"><ArrowLeft size={15} />Leads</Link>
     <header className="record-heading"><div><h1>{lead.companyName || lead.fullName}</h1><p className="welcome-subtitle">{lead.fullName}{lead.designation ? ` · ${lead.designation}` : ""} · {lead.email}{lead.phone ? ` · ${lead.phone}` : ""}</p></div><StatusBadge status={lead.status} /></header>
     <section className="panel record-section"><div className="record-section-heading"><div><h2>Enquiry details</h2><p>{lead.services.join(" · ") || "Project enquiry"}</p></div></div><div className="enquiry-summary-grid"><div><small>Company</small><p>{lead.companyName || "Individual enquiry"}</p></div><div><small>Industry</small><p>{lead.industry || "Not recorded"}</p></div><div><small>Urgency</small><p>{lead.urgency || "Not recorded"}</p></div><div><small>Country</small><p>{lead.country || "Not recorded"}</p></div></div><p className="lead-description">{lead.description || "No enquiry description recorded."}</p>{lead.referenceLinks && <p><a href={lead.referenceLinks.startsWith("http") ? lead.referenceLinks : `https://${lead.referenceLinks}`} target="_blank" rel="noreferrer">Reference link</a></p>}</section>

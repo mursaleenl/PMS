@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ProjectLogoUpload } from "@/app/_components/project-logo";
 import { X } from "lucide-react";
 import { addProject, createInternalProject, type Project } from "@/lib/projects";
 import { useAssignableUsers } from "@/lib/assignees";
@@ -9,6 +10,7 @@ import { CalendarPicker } from "@/app/_components/calendar-picker";
 
 export function InternalProjectDrawer({ onClose, onCreated }: { onClose: () => void; onCreated: (project: Project) => void }) {
   const { users } = useAssignableUsers();
+  const [logoDataUrl, setLogoDataUrl] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const pending = useRef<Project | null>(null);
@@ -38,6 +40,7 @@ export function InternalProjectDrawer({ onClose, onCreated }: { onClose: () => v
             ...users.filter(person => person.id && person.id !== managerId && data.getAll("team").includes(person.id)).map(person => ({role: "Supporting team member" as const, name: person.name, userId: person.id, allocationPercent: 0})),
           ],
         });
+        pending.current.logoDataUrl = logoDataUrl;
         addProject(pending.current);
       }
       await flushWorkspaceChanges();
@@ -60,6 +63,7 @@ export function InternalProjectDrawer({ onClose, onCreated }: { onClose: () => v
       <p>Organize internal work with tasks, a project manager, messages, and project links.</p>
       <form ref={form} onSubmit={submit}>
         <fieldset disabled={busy || Boolean(pending.current)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+          <ProjectLogoUpload value={logoDataUrl} onChange={setLogoDataUrl} />
           <label className="field required">Project name<input name="title" required maxLength={200} /></label>
           <label className="field">Description<textarea name="description" rows={5} placeholder="What are we working on?" /></label>
           <label className="field">Objectives<textarea name="objectives" rows={3} placeholder="What should this project achieve?" /></label>

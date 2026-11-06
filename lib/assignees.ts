@@ -20,7 +20,7 @@ export function useAssignableUsers(): { users: AssignableUser[]; loading: boolea
 
   useEffect(() => {
     let mounted = true;
-    if (userRole !== "admin") {
+    if (userRole !== "admin" && userRole !== "project_manager") {
       setApiUsers([]);
       return () => { mounted = false; };
     }

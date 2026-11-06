@@ -1,5 +1,6 @@
 "use client";
 
+import { ProjectLogoUpload } from "@/app/_components/project-logo";
 import {readLeads,type Lead} from "@/lib/leads";
 import { createUuid } from "@/lib/uuid";
 import Link from "next/link";
@@ -249,9 +250,9 @@ export default function ProjectWorkspacePage() {
   useEffect(() => {
     const refresh = () => {
       const candidate = readProjects().find((item) => item.id === projectId) ?? null;
-      setProject(candidate && ((role !== "employee" && role !== "project_manager") || isProjectAssignedToUser(candidate, user?.id, employeeName)) ? candidate : null);
-      setLinkedLead(role === "admin" && candidate ? readLeads().find(lead=>lead.id===candidate.leadId||lead.projectId===candidate.id)??null:null);
-      setManagedPlan(role === "admin" ? readManagedProjects().find((item) => item.sourceProjectId === projectId) ?? null : null);
+      setProject(candidate && ((role !== "employee") || isProjectAssignedToUser(candidate, user?.id, employeeName)) ? candidate : null);
+      setLinkedLead((role === "admin" || role === "project_manager") && candidate ? readLeads().find(lead=>lead.id===candidate.leadId||lead.projectId===candidate.id)??null:null);
+      setManagedPlan((role === "admin" || role === "project_manager") ? readManagedProjects().find((item) => item.sourceProjectId === projectId) ?? null : null);
       setLoading(false);
     };
     refresh();
@@ -268,18 +269,18 @@ export default function ProjectWorkspacePage() {
   }, [projectId, role, user?.id, employeeName]);
 
   function save(updates: Partial<Project>) {
-    if (!project || role !== "admin") return;
+    if (!project || (role !== "admin" && role !== "project_manager")) return;
     updateProject(project.id, updates);
     setProject(readProjects().find(item => item.id === project.id) ?? null);
   }
 
   function markProjectComplete() {
-    if (role !== "admin") return;
+    if ((role !== "admin" && role !== "project_manager")) return;
     save({ status: "COMPLETED" });
   }
 
   function moveFromRetainerToProjects() {
-    if (!project || role !== "admin") return;
+    if (!project || (role !== "admin" && role !== "project_manager")) return;
     if (!window.confirm(`Move "${project.title}" out of Retainers and back to active Projects?`)) return;
     if (managedPlan) {
       deleteManagedProject(managedPlan.id);
@@ -290,14 +291,14 @@ export default function ProjectWorkspacePage() {
   }
 
   function removeProject() {
-    if (!project || role !== "admin") return;
+    if (!project || (role !== "admin" && role !== "project_manager")) return;
     if (!window.confirm(`Delete “${project.title}”? This will permanently remove its workspace and tasks.`)) return;
     deleteProject(project.id);
     router.push("/projects");
   }
 
   function dispatchTask(task: ProjectWorkItem) {
-    if (role !== "admin") return;
+    if ((role !== "admin" && role !== "project_manager")) return;
     save({ workItems: [task, ...(project?.workItems ?? [])] });
     setShowDispatch(false);
     setActiveTab("Overview");
@@ -305,13 +306,13 @@ export default function ProjectWorkspacePage() {
   }
 
   function setProjectLink(key: "staging" | "repository" | "design" | "other") {
-    if (!project || (role !== "admin" && !((role === "employee" || role === "project_manager") && key === "staging"))) return;
+    if (!project || ((role !== "admin" && role !== "project_manager") && !((role === "employee") && key === "staging"))) return;
     const labels = { staging: "Staging URL", repository: "Repository URL", design: "Design file URL", other: "Other project link" };
     const value = window.prompt(labels[key], project.links?.[key] || "");
     if (value === null) return;
     if (value.trim() && !/^https?:\/\//i.test(value.trim())) { showToast({message:"Enter a link starting with https:// or http://"}); return; }
     const updates = { links: { ...project.links, [key]: value.trim() || undefined } };
-    if (role === "admin") save(updates);
+    if ((role === "admin" || role === "project_manager")) save(updates);
     else {
       updateProject(project.id, updates);
       setProject(readProjects().find(item => item.id === project.id) ?? null);
@@ -336,11 +337,11 @@ export default function ProjectWorkspacePage() {
   const sowName=linkedLead?.acceptanceDocumentName||project.signedContractName;
   return <div className="page-content project-detail-page">
     <Link className="back-link" href="/projects"><ArrowLeft size={15} />Project portfolio</Link>
-    <header className="record-heading project-room-heading"><div><h1>{getProjectDisplayTitle(project)}</h1><p className="project-room-services">Project type: {project.projectType === "internal" ? "Internal" : "External"}</p>{services && <p className="project-room-services">{services}</p>}</div><div className="project-lifecycle-actions"><div className="project-lifecycle-status"><StatusBadge status={project.status}/>{health && <StatusBadge status={health}/>}</div><div className="project-lifecycle-buttons">{role === "admin"&&((project.status === "COMPLETED" || project.status === "AMC") ? project.projectType === "internal" ? null : managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-quiet" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>)}{role === "admin" && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></div></header>
+    <header className="record-heading project-room-heading"><div>{project.logoDataUrl && <img className="project-workspace-logo" src={project.logoDataUrl} alt={`${getProjectDisplayTitle(project)} logo`} />}<h1>{getProjectDisplayTitle(project)}</h1><p className="project-room-services">Project type: {project.projectType === "internal" ? "Internal" : "External"}</p>{services && <p className="project-room-services">{services}</p>}</div><div className="project-lifecycle-actions"><div className="project-lifecycle-status"><StatusBadge status={project.status}/>{health && <StatusBadge status={health}/>}</div><div className="project-lifecycle-buttons">{(role === "admin" || role === "project_manager")&&((project.status === "COMPLETED" || project.status === "AMC") ? project.projectType === "internal" ? null : managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-quiet" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>)}{(role === "admin" || role === "project_manager") && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></div></header>
 
     <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{project.status === "COMPLETED" ? "Completed" : "Active"}</strong></div><div><small>OPEN WORK ITEMS</small><strong><Link href="/work" style={{ textDecoration: "none", color: "inherit" }}>{workItems.filter((task) => task.status !== "DONE").length} · In Tasks</Link></strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim() && !DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim())).length}</strong></div></section>
 
-    {role === "admin" && <div className="project-dispatch-row"><button type="button" className="button button-primary room-dispatch-button" onClick={() => setShowDispatch(true)}><Plus size={14} />Dispatch task</button></div>}
+    {(role === "admin" || role === "project_manager") && <div className="project-dispatch-row"><ProjectLogoUpload compact value={project.logoDataUrl} onChange={logoDataUrl => save({logoDataUrl})} /><button type="button" className="button button-primary room-dispatch-button" onClick={() => setShowDispatch(true)}><Plus size={14} />Dispatch task</button></div>}
 
     <nav className="project-room-tabs" aria-label="Project room sections">
       {projectTabs.map((tab) => <button key={tab} type="button" className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>)}
@@ -355,7 +356,7 @@ export default function ProjectWorkspacePage() {
               <div><small>Project type</small><strong>{project.projectType === "internal" ? "Internal" : "External"}</strong></div>
               {project.projectType !== "internal" && <div><small>Operating company</small><strong data-company={project.operatingCompany}>{project.operatingCompany ?? "Not selected"}</strong></div>}
               {project.projectType !== "internal" && <div><small>Billing structure</small><strong>{project.billingStructure}</strong></div>}
-              {role === "admin" && project.projectType !== "internal" && <div className="project-scope-copy"><small>Payment terms</small><p>{project.invoice?.paymentTerms || "No additional terms recorded."}</p></div>}
+              {(role === "admin" || role === "project_manager") && project.projectType !== "internal" && <div className="project-scope-copy"><small>Payment terms</small><p>{project.invoice?.paymentTerms || "No additional terms recorded."}</p></div>}
               {project.projectType === "internal" && <>
                 <div><small>Priority</small><strong>{project.priority || "Normal"}</strong></div>
                 <div><small>Start date</small><strong>{project.startDate || "Not set"}</strong></div>
@@ -393,7 +394,7 @@ export default function ProjectWorkspacePage() {
         </div>
         <aside className="project-detail-side"><article className="panel project-data-panel project-team-panel">
           <div className="panel-heading"><div><h2>Project Team</h2><p>Project manager and assigned team members</p></div></div>
-          {role === "admin" ? <label className="field">Assigned project manager<select aria-label="Assigned project manager" value={project.team.find(member=>member.role==="Project Manager")?.userId||managerOptions.find(person=>person.name===project.team.find(member=>member.role==="Project Manager")?.name)?.id||""} onChange={event=>{
+          {(role === "admin" || role === "project_manager") ? <label className="field">Assigned project manager<select aria-label="Assigned project manager" value={project.team.find(member=>member.role==="Project Manager")?.userId||managerOptions.find(person=>person.name===project.team.find(member=>member.role==="Project Manager")?.name)?.id||""} onChange={event=>{
             if(role!=="admin")return;
             const manager=managerOptions.find(person=>person.id===event.target.value && person.role === "project_manager");
             if(!manager)return;
@@ -404,16 +405,16 @@ export default function ProjectWorkspacePage() {
             {teamMembers.length ? <ul>{teamMembers.map(member=><li key={member.userId||member.name.trim().toLowerCase()}><span>{member.name}</span><small>Team member</small></li>)}</ul> : <p>Team members appear here when tasks are assigned.</p>}
           </div>
         </article>
-          {project.projectType !== "internal" && <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Project documents</h2><p>Accepted proposal and project records</p></div><FileText size={16} /></div><div className="document-links">{acceptedProposal?.shareToken && <Link href={`/proposal/${acceptedProposal.shareToken}`}><FileText size={14}/>{acceptedProposal.proposalTitle || "Accepted proposal"} · Accepted</Link>}{acceptedProposal?.documentDataUrl && <a href={acceptedProposal.documentDataUrl} download={acceptedProposal.documentName}><Download size={14}/>Accepted proposal attachment</a>}{sowUrl && sowName && <a href={sowUrl} download={sowName}><Download size={14}/>{sowName} · Signed SOW</a>}{role === "admin" && (project.invoice ? <Link href={`/invoices?invoice=${project.invoice.invoiceNumber}`}><ExternalLink size={14} />{project.invoice.invoiceNumber} · invoice record</Link> : <Link className="document-pending" href={`/invoices?project=${project.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px", color: "inherit" }}><Receipt size={13} />No invoice recorded · Create invoice</Link>)}</div></article>}</aside>
+          {project.projectType !== "internal" && <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Project documents</h2><p>Accepted proposal and project records</p></div><FileText size={16} /></div><div className="document-links">{acceptedProposal?.shareToken && <Link href={`/proposal/${acceptedProposal.shareToken}`}><FileText size={14}/>{acceptedProposal.proposalTitle || "Accepted proposal"} · Accepted</Link>}{acceptedProposal?.documentDataUrl && <a href={acceptedProposal.documentDataUrl} download={acceptedProposal.documentName}><Download size={14}/>Accepted proposal attachment</a>}{sowUrl && sowName && <a href={sowUrl} download={sowName}><Download size={14}/>{sowName} · Signed SOW</a>}{(role === "admin" || role === "project_manager") && (project.invoice ? <Link href={`/invoices?invoice=${project.invoice.invoiceNumber}`}><ExternalLink size={14} />{project.invoice.invoiceNumber} · invoice record</Link> : <Link className="document-pending" href={`/invoices?project=${project.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px", color: "inherit" }}><Receipt size={13} />No invoice recorded · Create invoice</Link>)}</div></article>}</aside>
       </section>
     </>}
 
     {activeTab === "Project status" && <ProjectStatusBoard project={project} />}
     {activeTab === "Messages" && <section className="panel portal-record"><ProjectConversation projectId={project.id}/></section>}
-    {activeTab === "Staging & Links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"]] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16} /></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12} /></a> : <strong>Not added</strong>}</div>{(role === "admin" || ((role === "employee" || role === "project_manager") && key === "staging")) && <button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button>}</article>; })}</div><p className="storage-note">Project links are saved to your workspace. Repository and hosting permissions are managed by their providers.</p></section>}
+    {activeTab === "Staging & Links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"]] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16} /></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12} /></a> : <strong>Not added</strong>}</div>{((role === "admin" || role === "project_manager") || ((role === "employee") && key === "staging")) && <button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button>}</article>; })}</div><p className="storage-note">Project links are saved to your workspace. Repository and hosting permissions are managed by their providers.</p></section>}
 
-    {role === "admin" && showDispatch && <TaskDispatchDrawer project={project} onClose={() => setShowDispatch(false)} onDispatch={dispatchTask} />}
-    {role === "admin" && showManagedPlan && <ManagedPlanDrawer projects={[project]} initialProjectId={project.id} onClose={() => setShowManagedPlan(false)} onCreated={(item) => setManagedPlan(item)} />}
+    {(role === "admin" || role === "project_manager") && showDispatch && <TaskDispatchDrawer project={project} onClose={() => setShowDispatch(false)} onDispatch={dispatchTask} />}
+    {(role === "admin" || role === "project_manager") && showManagedPlan && <ManagedPlanDrawer projects={[project]} initialProjectId={project.id} onClose={() => setShowManagedPlan(false)} onCreated={(item) => setManagedPlan(item)} />}
     <p className="storage-note">Changes are saved to your workspace database.</p>
   </div>;
 }
