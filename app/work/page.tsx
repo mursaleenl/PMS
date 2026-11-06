@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AssignTaskDialog } from "@/app/_components/assign-task-dialog";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDownUp, ArrowRight, Check, ChevronDown, CircleAlert, FileCheck2, Filter, GripVertical, Kanban, List, MoreHorizontal, Plus, Search, ShieldAlert, Users } from "lucide-react";
 import { EmptyState } from "@/app/_components/empty-state";
@@ -39,6 +40,7 @@ function updateTask(projectId: string, taskId: string, updates: Partial<ProjectW
 export default function MyWorkPage() {
   const {role,user,members}=useWorkspaceAuth();
   const { users: assignableUsers } = useAssignableUsers();
+  const [showAssignTask, setShowAssignTask] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [assignee, setAssignee] = useState("");
   const [filter, setFilter] = useState<TaskFilter>("TO_DO");
@@ -74,6 +76,21 @@ export default function MyWorkPage() {
 
   const employeeName=(members.find((member)=>member.user_id===user?.id)?.display_name||user?.user_metadata?.full_name||user?.email?.split("@")[0]||"").trim().toLowerCase();
   const allTasks = useMemo(() => projects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))).filter(({project, task}) => canViewProjectTask(project, task, role, user?.id, employeeName)), [projects,role,user?.id,employeeName]);
+  const canAssign = role === "admin" || role === "project_manager";
+  function assignTask(projectId: string, task: ProjectWorkItem, assigneeId: string) {
+    if (!canAssign) return;
+    const member = assignableUsers.find(person => person.id === assigneeId);
+    if (assigneeId && !member) return;
+    updateTask(projectId, task.id, {assigneeId: member?.id, assignee: member?.name || ""});
+    showToast({message: member ? `Task assigned to ${member.name}.` : "Task unassigned."});
+  }
+  function assignmentControl(projectId: string, task: ProjectWorkItem) {
+    return <select className="task-assignment-select" aria-label={`Assign ${task.title}`} value={task.assigneeId || assignableUsers.find(person => person.name === task.assignee)?.id || ""} onChange={event => assignTask(projectId, task, event.target.value)} onClick={event => event.stopPropagation()}>
+      <option value="">Unassigned</option>
+      {task.assigneeId && !assignableUsers.some(person => person.id === task.assigneeId) && <option value={task.assigneeId}>{task.assignee || "Current assignee"}</option>}
+      {assignableUsers.filter(person => person.id).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
+    </select>;
+  }
   const assignees = [...new Set([
     ...assignableUsers.map((member) => member.name),
     ...allTasks.map(({ task }) => task.assignee),
@@ -248,9 +265,7 @@ export default function MyWorkPage() {
             <ChevronDown size={13} className="select-chevron" />
           </div>
         </div>
-        <Link className="button button-primary" href="/projects">
-          <Plus size={15} />Add from project
-        </Link>
+        <button className="button button-primary" type="button" onClick={() => setShowAssignTask(true)}><Plus size={15} />Assign task</button>
         </>}
       </div>
     </section>
@@ -436,7 +451,7 @@ export default function MyWorkPage() {
                           </Link>
                         </td>
                         <td className="task-assignee-cell">
-                          {task.assignee ? (
+                          {canAssign ? assignmentControl(project.id, task) : task.assignee ? (
                             <span className="task-assignee-badge">
                               <Users size={12} />
                               <span>{task.assignee}</span>
@@ -577,7 +592,7 @@ export default function MyWorkPage() {
                           <div className="task-kanban-card-footer">
                             <div className="task-kanban-assignee">
                               <Users size={12} />
-                              <span>{task.assignee || "Unassigned"}</span>
+                              {canAssign ? assignmentControl(project.id, task) : <span>{task.assignee || "Unassigned"}</span>}
                             </div>
 
                             <div className="task-kanban-actions">
@@ -641,6 +656,7 @@ export default function MyWorkPage() {
         <span>Task changes sync automatically</span>
       </footer>
     </section>}
-    <p className="storage-note">Task assignments and project details are managed in each project workspace.</p>
+    {canAssign && showAssignTask && <AssignTaskDialog projects={projects} onClose={() => setShowAssignTask(false)} />}
+    <p className="storage-note">Assign tasks here or open a project workspace to add new work.</p>
   </div>;
 }
