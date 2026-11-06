@@ -23,6 +23,7 @@ function readError(error: unknown, fallback: string) {
 
 function roleLabel(role: WorkspaceRole) {
   if (role === "admin") return "Admin";
+  if (role === "project_manager") return "Project Manager";
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
@@ -285,6 +286,7 @@ export default function UsersPage() {
                 >
                   <option value="admin">Admin</option>
                   <option value="employee">Employee</option>
+                  <option value="project_manager">Project Manager</option>
                   <option value="client">Client</option>
                 </select>
               </label>
@@ -365,6 +367,7 @@ export default function UsersPage() {
                 >
                   <option value="admin">Admin — Full workspace access & settings</option>
                   <option value="employee">Employee — Assigned projects and tasks</option>
+                  <option value="project_manager">Project Manager — Assigned projects and tasks</option>
                   <option value="client">Client — Client portal access only</option>
                 </select>
               </label>

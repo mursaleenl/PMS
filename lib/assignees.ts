@@ -60,7 +60,7 @@ export function useAssignableUsers(): { users: AssignableUser[]; loading: boolea
         id: m.user_id || undefined,
         name,
         email: m.email,
-        role: m.role ? m.role.charAt(0).toUpperCase() + m.role.slice(1) : "Employee",
+        role: m.role,
       });
     }
   });
@@ -73,7 +73,7 @@ export function useAssignableUsers(): { users: AssignableUser[]; loading: boolea
         ...existing,
         ...u,
         name: u.name,
-        role: u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : existing?.role || "Employee",
+        role: u.role || existing?.role,
       });
     }
   });
@@ -89,7 +89,7 @@ export function useAssignableUsers(): { users: AssignableUser[]; loading: boolea
           id: user.id,
           name,
           email: user.email,
-          role: userRole ? userRole.charAt(0).toUpperCase() + userRole.slice(1) : "Admin",
+          role: userRole,
         });
       }
     }

@@ -1,13 +1,14 @@
-export type WorkspaceRole = "admin" | "employee" | "client";
+export type WorkspaceRole = "admin" | "employee" | "project_manager" | "client";
 
 export const roleLabels: Record<WorkspaceRole, string> = {
   admin: "Admin",
   employee: "Employee",
+  project_manager: "Project Manager",
   client: "Client",
 };
 
 export function normalizeRole(value: unknown): WorkspaceRole | undefined {
-  if (value === "admin" || value === "employee" || value === "client") return value;
+  if (value === "admin" || value === "employee" || value === "project_manager" || value === "client") return value;
   return undefined;
 }
 
@@ -30,6 +31,6 @@ export function canAccessPath(role: WorkspaceRole, pathname: string) {
   if (role === "client") {
     return pathname === "/client" || ["/client/proposals", "/client/invoices"].includes(pathname) || pathname.startsWith("/client/invoices/") || pathname === "/client/projects" || pathname.startsWith("/client/projects/") || pathname === "/settings";
   }
-  if (pathname.startsWith("/admin") || pathname.startsWith("/client") || pathname === "/clients" || pathname.startsWith("/clients/") || pathname === "/users" || pathname.startsWith("/users/") || pathname === "/post-sale" || pathname.startsWith("/post-sale/") || pathname === "/proposals" || pathname.startsWith("/proposals/") || pathname === "/proposal" || pathname.startsWith("/proposal/") || pathname === "/invoices" || pathname.startsWith("/invoices/") || pathname === "/requests" || pathname.startsWith("/requests/") || pathname === "/projects/assignments" || pathname.startsWith("/projects/assignments/")) return false;
+  if (pathname === "/career" || pathname.startsWith("/career/") || pathname.startsWith("/admin") || pathname.startsWith("/client") || pathname === "/clients" || pathname.startsWith("/clients/") || pathname === "/users" || pathname.startsWith("/users/") || pathname === "/post-sale" || pathname.startsWith("/post-sale/") || pathname === "/proposals" || pathname.startsWith("/proposals/") || pathname === "/proposal" || pathname.startsWith("/proposal/") || pathname === "/invoices" || pathname.startsWith("/invoices/") || pathname === "/requests" || pathname.startsWith("/requests/") || pathname === "/projects/assignments" || pathname.startsWith("/projects/assignments/")) return false;
   return true;
 }

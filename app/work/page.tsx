@@ -6,15 +6,16 @@ import { ArrowDownUp, ArrowRight, Check, ChevronDown, CircleAlert, FileCheck2, F
 import { EmptyState } from "@/app/_components/empty-state";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { showToast } from "@/app/_components/toast-hub";
-import { readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
+import { canViewProjectTask, readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
 import { useAssignableUsers } from "@/lib/assignees";
 
 type TaskFilter = "ALL" | ProjectWorkItem["status"];
 const filters: { value: TaskFilter; label: string }[] = [
-  { value: "ALL", label: "All tasks" }, { value: "TO_DO", label: "To do" }, { value: "IN_PROGRESS", label: "In progress" },
+  { value: "TO_DO", label: "To do" }, { value: "IN_PROGRESS", label: "In progress" },
   { value: "UNDER_REVIEW", label: "Review" }, { value: "BLOCKED", label: "Blocked" }, { value: "DONE", label: "Completed" },
+  { value: "ALL", label: "All tasks" },
 ];
 const taskStatusLabels: Record<ProjectWorkItem["status"], string> = { TO_DO: "To do", IN_PROGRESS: "In progress", BLOCKED: "Blocked", UNDER_REVIEW: "In review", DONE: "Completed" };
 const priorityLabels: Record<ProjectWorkItem["priority"], string> = { P1: "Critical", P2: "High", P3: "Normal", P4: "Low" };
@@ -40,7 +41,7 @@ export default function MyWorkPage() {
   const { users: assignableUsers } = useAssignableUsers();
   const [projects, setProjects] = useState<Project[]>([]);
   const [assignee, setAssignee] = useState("");
-  const [filter, setFilter] = useState<TaskFilter>("ALL");
+  const [filter, setFilter] = useState<TaskFilter>("TO_DO");
   const [search, setSearch] = useState("");
   const [sortOldestFirst, setSortOldestFirst] = useState(false);
   const [viewMode, setViewMode] = useState<"LIST" | "BOARD">("LIST");
@@ -72,7 +73,7 @@ export default function MyWorkPage() {
   }, []);
 
   const employeeName=(members.find((member)=>member.user_id===user?.id)?.display_name||user?.user_metadata?.full_name||user?.email?.split("@")[0]||"").trim().toLowerCase();
-  const allTasks = useMemo(() => projects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))).filter(({task})=>role!=="employee"||(task.assigneeId?task.assigneeId===user?.id:task.assignee.trim().toLowerCase()===employeeName)), [projects,role,user?.id,employeeName]);
+  const allTasks = useMemo(() => projects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))).filter(({project, task}) => canViewProjectTask(project, task, role, user?.id, employeeName)), [projects,role,user?.id,employeeName]);
   const assignees = [...new Set([
     ...assignableUsers.map((member) => member.name),
     ...allTasks.map(({ task }) => task.assignee),
@@ -235,7 +236,7 @@ export default function MyWorkPage() {
         <p className="welcome-subtitle">Manage and track assigned work across projects.</p>
       </div>
       <div className="task-page-actions">
-        {role !== "employee" && <>
+        {(role !== "employee" && role !== "project_manager") && <>
         <div className="work-assignee-filter">
           <span className="filter-label">Assignee</span>
           <div className="filter-select-wrap">
@@ -285,7 +286,7 @@ export default function MyWorkPage() {
       </button>
     </section>
 
-    {allTasks.length === 0 ? <EmptyState icon={<FileCheck2 size={22} />} title={role === "employee" ? "No tasks assigned" : "No dispatched tasks yet"} description={role === "employee" ? "Tasks assigned to you will appear here." : "Dispatch a task from any project workspace to see it on the Tasks board."} action={<Link className="button button-primary" href="/projects"><Plus size={14} />Open projects</Link>} /> : <section className="panel task-table-panel">
+    {allTasks.length === 0 ? <EmptyState icon={<FileCheck2 size={22} />} title={(role === "employee" || role === "project_manager") ? "No tasks assigned" : "No dispatched tasks yet"} description={(role === "employee" || role === "project_manager") ? "Tasks assigned to you will appear here." : "Dispatch a task from any project workspace to see it on the Tasks board."} action={<Link className="button button-primary" href="/projects"><Plus size={14} />Open projects</Link>} /> : <section className="panel task-table-panel">
       <div className="task-table-heading">
         <div>
           <h2>All tasks</h2>
@@ -376,7 +377,7 @@ export default function MyWorkPage() {
                 <thead>
                   <tr>
                     <th className="task-check-col">
-                      {role !== "employee" && <>
+                      {(role !== "employee" && role !== "project_manager") && <>
                       <button
                         type="button"
                         className={`task-row-check ${allVisibleDone ? "checked" : ""}`}

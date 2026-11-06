@@ -665,6 +665,12 @@ body, button, input, select, textarea { font-family: var(--font-body); }
 
 /* Role badges pair a visible symbol and matching text inside a tinted rectangle. */
 @media screen {
+  html body :is(#workspace-content,.workspace-topbar,.user-modal-backdrop) :is(.user-role-project_manager,.role-project_manager,.role-avatar-project_manager) {
+    --role-ink: #0f172a; --role-surface: #f4f4f5; --role-border: #e4e4e7;
+  }
+}
+
+@media screen {
   html body :is(#workspace-content,.workspace-topbar,.user-modal-backdrop) :is(.user-role-admin,.role-admin,.role-avatar-admin) {
     --role-ink: #b91c1c; --role-surface: #fef2f2; --role-border: #fecaca;
   }
@@ -1301,3 +1307,134 @@ html body .app-shell #workspace-content .invoice-table tbody td { vertical-align
 html body .app-shell #workspace-content .invoice-status-controls { display: flex; align-items: center; gap: 12px; }
 html body .app-shell #workspace-content .invoice-status-controls .status-badge { display: inline-flex; align-items: center; flex-shrink: 0; margin: 0 !important; white-space: nowrap; }
 html body .app-shell #workspace-content .invoice-status-controls .invoice-status-select { margin: 0 !important; width: 160px; min-width: 140px; height: 36px !important; border-radius: 0 !important; padding: 0 8px !important; line-height: normal; }
+
+/* Search stays compact until a query reveals results. */
+@media screen {
+  html body .app-shell .command-backdrop {
+    align-items: center !important;
+    padding: 24px 18px !important;
+    background: rgb(0 0 0 / 28%) !important;
+    backdrop-filter: blur(5px);
+    animation: workspaceSearchFade 180ms ease-out both !important;
+  }
+  html body .app-shell .command-dialog {
+    width: min(650px, 100%); min-height: 0 !important;
+    background: #ffffff !important; border: 1px solid #e4e4e7 !important;
+    border-radius: 16px !important; box-shadow: 0 24px 80px rgb(0 0 0 / 18%) !important;
+    animation: workspaceSearchEnter 240ms cubic-bezier(.2,.8,.2,1) both !important;
+  }
+  html body .app-shell .command-search-row { border-bottom: 0; color: #71717a !important; }
+  html body .app-shell .command-search-row input {
+    color: #0f172a !important; background: transparent !important;
+    border: 0 !important; box-shadow: none !important; outline: none !important;
+  }
+  html body .app-shell .command-search-row:focus-within { box-shadow: inset 0 -1px #0f172a; }
+  html body .app-shell .command-results {
+    border-top: 1px solid #e4e4e7;
+    animation: workspaceSearchResults 180ms ease-out both;
+  }
+  html body .app-shell .command-result:is(:hover,:focus-visible) { background: #f4f4f5 !important; border-color: #e4e4e7 !important; outline-color: #0f172a !important; }
+  html body .app-shell .command-backdrop.is-closing { animation: workspaceSearchFade 160ms ease-in reverse both !important; pointer-events: none; }
+  html body .app-shell .command-backdrop.is-closing .command-dialog { animation: workspaceSearchExit 160ms ease-in both !important; }
+}
+@keyframes workspaceSearchFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes workspaceSearchEnter { from { opacity: 0; transform: translateY(-12px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes workspaceSearchExit { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-6px) scale(.99); } }
+@keyframes workspaceSearchResults { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  html body .app-shell :is(.command-backdrop,.command-dialog,.command-results) { animation: none !important; }
+  html body .app-shell .command-backdrop.is-closing { opacity: 0; }
+}
+
+/* Rounded search is an intentional exception to the workspace geometry. */
+html body .app-shell .command-dialog .command-search-row input { border-radius: 8px !important; }
+html body .app-shell .command-dialog .command-search-row .icon-button { border-radius: 8px !important; }
+
+/* Choose the project source in a centered popup. */
+.new-project-dialog { width: min(460px, calc(100vw - 32px)); margin: auto; padding: 24px; border: 1px solid #e4e4e7; border-radius: 0 !important; background: #ffffff; color: #0f172a; box-shadow: 0 24px 70px rgb(0 0 0 / 18%); }
+.new-project-dialog[open] { animation: workspaceSearchEnter 200ms ease-out both; }
+.new-project-dialog::backdrop { background: rgb(0 0 0 / 32%); backdrop-filter: blur(3px); }
+.new-project-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.new-project-dialog h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.new-project-dialog > p { margin: 8px 0 24px; color: #71717a; font-size: 13px; }
+.new-project-choices { display: grid; gap: 12px; }
+html body .new-project-choices :is(button,a) { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; width: 100%; height: auto; padding: 18px; border: 1px solid #e4e4e7; border-radius: 0 !important; background: #ffffff; color: #0f172a; text-align: left; text-decoration: none !important; text-transform: none !important; cursor: pointer; }
+html body .new-project-choices :is(button,a):hover { background: #f4f4f5; border-color: #cbd5e1; }
+html body .new-project-choices :is(button,a):focus-visible { outline: 2px solid #0f172a; outline-offset: 2px; }
+.new-project-choices strong { font-size: 14px; font-weight: 600; }
+.new-project-choices span { grid-column: 1; font-size: 12px; color: #71717a; }
+.new-project-choices svg { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+@media (prefers-reduced-motion: reduce) { .new-project-dialog[open] { animation: none; } }
+
+.internal-project-drawer fieldset > .field { margin-bottom: 18px; }
+.internal-project-team { margin: 6px 0 22px; }
+.internal-project-team h3 { margin: 0 0 6px; font-size: 14px; }
+.internal-project-team p { color: #71717a; font-size: 12px; }
+.internal-project-team label { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
+.internal-project-team input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; }
+html body .internal-project-drawer :is(input,textarea,select,button) { border-radius: 0 !important; }
+html body .internal-project-drawer .button-primary { background: #0f172a !important; color: #ffffff !important; border-color: #0f172a !important; text-transform: none !important; }
+
+/* Date fields use the wrapper as their single border, including drawer forms. */
+html body :is(#workspace-content,.task-drawer-backdrop,.user-modal-backdrop,.new-project-dialog) .calendar-picker-root {
+  border: 0 !important; padding: 0 !important; background: transparent !important; box-shadow: none !important;
+}
+html body :is(#workspace-content,.task-drawer-backdrop,.user-modal-backdrop,.new-project-dialog) .calendar-picker-root .calendar-input-wrapper {
+  border: 1px solid #e4e4e7 !important; border-radius: 0 !important;
+  background: #ffffff !important; box-shadow: none !important; outline: none !important;
+}
+html body :is(#workspace-content,.task-drawer-backdrop,.user-modal-backdrop,.new-project-dialog) .calendar-picker-root .calendar-input-wrapper:focus-within { border-color: #0f172a !important; }
+html body :is(#workspace-content,.task-drawer-backdrop,.user-modal-backdrop,.new-project-dialog) .calendar-picker-root .calendar-input-wrapper > input.calendar-text-input,
+html body :is(#workspace-content,.task-drawer-backdrop,.user-modal-backdrop,.new-project-dialog) .calendar-picker-root .calendar-input-wrapper > input.calendar-text-input:is(:focus,:focus-visible) {
+  border: 0 !important; outline: none !important; box-shadow: none !important;
+  background: transparent !important; border-radius: 0 !important; padding: 0 !important;
+}
+
+/* Hiring workspace placeholder until the career portal is connected. */
+.career-progress { color: #71717a; font-size: 12px; font-weight: 600; }
+.career-connection { display: flex; align-items: flex-start; gap: 18px; padding: 24px; margin-bottom: 24px; background: #f8fafc; border: 1px solid #e2e8f0; }
+.career-connection > svg { flex-shrink: 0; color: #52525b; }
+.career-connection h2 { margin: 0 0 8px; font-size: 16px; }
+.career-connection p { margin: 0 0 14px; max-width: 620px; color: #71717a; line-height: 1.6; }
+.career-connection span { font-size: 12px; color: #52525b; }
+.career-applications .panel-heading { padding: 22px 24px; border-bottom: 1px solid #e4e4e7; }
+.career-empty { display: flex; flex-direction: column; align-items: center; padding: 60px 24px; text-align: center; }
+.career-empty > svg { color: #71717a; margin-bottom: 18px; }
+.career-empty h3 { margin: 0 0 10px; font-size: 16px; }
+.career-empty p { margin: 0; max-width: 410px; color: #71717a; line-height: 1.7; }
+.career-flow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; margin-top: 24px; color: #71717a; font-size: 12px; }
+
+/* Subtle keyboard selection within workspace search. */
+html body .app-shell .command-dialog .command-result.is-active { background: #f4f4f5 !important; box-shadow: inset 2px 0 #0f172a; }
+html body .app-shell .command-dialog .command-result-icon { background: transparent !important; border: 0 !important; color: #52525b !important; }
+html body .app-shell .command-dialog .command-result-copy strong { font-size: 13px; color: #0f172a !important; }
+html body .app-shell .command-dialog .command-result-copy small { font-size: 11px; color: #71717a !important; }
+html body .app-shell .command-dialog .command-result-kind { background: transparent !important; border: 0 !important; padding: 0; color: #71717a !important; }
+.command-navigation-hint { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 12px 18px; border-top: 1px solid #e4e4e7; color: #71717a; font-size: 11px; }
+
+/* Project sections mirror the task status controls. */
+.project-section-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 0 0 12px; margin: 0 0 18px; border-bottom: 1px solid #e4e4e7; }
+html body .app-shell .project-section-tabs button {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 14px;
+  flex: 0 0 auto; min-width: 0; height: 36px; padding: 0 12px;
+  background: #ffffff; color: #0f172a; border: 1px solid #e4e4e7;
+  border-radius: 0 !important; font-size: 13px; font-weight: 600; cursor: pointer;
+  text-transform: none !important; text-decoration: none !important;
+}
+html body .app-shell .project-section-tabs button.active { border-color: #0f172a; box-shadow: inset 0 -2px #0f172a; }
+html body .app-shell .project-section-tabs button:hover { border-color: #cbd5e1; }
+html body .app-shell .project-section-tabs button:focus-visible { outline: 2px solid #0f172a; outline-offset: -2px; }
+.project-section-count { font-variant-numeric: tabular-nums; }
+
+.project-internal-wordmark { color: #0f172a; font-weight: 700; background: transparent; border: 0; padding: 0; box-shadow: none; }
+
+/* Four task rows remain visible; additional tasks scroll within the panel. */
+html body .app-shell .main-area .project-detail-main .project-task-summary-list {
+  display: grid; grid-auto-rows: 72px; gap: 8px !important;
+  max-height: 312px; overflow-y: auto; overscroll-behavior: contain;
+  margin: 0 20px 20px !important; padding: 0 !important;
+}
+html body .app-shell .main-area .project-detail-main .project-task-summary-list .project-task-summary-item { min-height: 0; height: 72px; }
+html body .app-shell .main-area .project-task-summary-item > div { min-width: 0; }
+html body .app-shell .main-area .project-task-summary-item strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html body .app-shell .main-area .project-task-summary-list:focus-visible { outline: 1px solid #0f172a; outline-offset: 3px; }

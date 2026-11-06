@@ -70,7 +70,7 @@ export default function InvoicesPage() {
 
   const refreshAll = () => {
     setInvoices(readInvoices());
-    setProjects(readProjects());
+    setProjects(readProjects().filter(project => project.projectType !== "internal"));
   };
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export default function InvoicesPage() {
         setShowGenerateModal(true);
       }
     } else if (queryLead) {
-      const allProjects = readProjects();
+      const allProjects = readProjects().filter(project => project.projectType !== "internal");
       const projectMatch = allProjects.find((p) => p.leadId === queryLead);
       if (projectMatch) {
         setSelectedProjectId(projectMatch.id);

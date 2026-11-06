@@ -36,12 +36,15 @@ create table if not exists public.workspace_members (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade,
   email text not null unique,
-  role text not null check (role in ('admin', 'employee', 'client')),
+  role text not null check (role in ('admin', 'employee', 'project_manager', 'client')),
   display_name text,
   must_change_password boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.workspace_members drop constraint if exists workspace_members_role_check;
+alter table public.workspace_members add constraint workspace_members_role_check check (role in ('admin', 'employee', 'project_manager', 'client'));
 
 alter table public.workspace_members add column if not exists must_change_password boolean not null default false;
 
@@ -67,7 +70,7 @@ language sql
 stable
 security definer
 set search_path = public
-as $$ select coalesce(public.current_workspace_role() in ('admin', 'employee'),false); $$;
+as $$ select coalesce(public.current_workspace_role() in ('admin', 'employee', 'project_manager'),false); $$;
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -108,7 +111,7 @@ declare new_id uuid;
 declare target_user_id uuid;
 begin
   if not coalesce(public.is_workspace_admin(),false) then raise exception 'Only administrators can manage workspace roles'; end if;
-  if member_role not in ('admin', 'employee', 'client') then raise exception 'Invalid workspace role'; end if;
+  if member_role not in ('admin', 'employee', 'project_manager', 'client') then raise exception 'Invalid workspace role'; end if;
   select id into target_user_id from auth.users where lower(email) = lower(member_email) limit 1;
   insert into public.workspace_members (user_id, email, role, display_name)
   values (target_user_id, lower(member_email), member_role, member_display_name)
@@ -315,6 +318,17 @@ create table if not exists public.projects (
   updated_at timestamptz not null default now()
 );
 
+alter table public.projects add column if not exists objectives text;
+alter table public.projects add column if not exists deliverables text;
+alter table public.projects add column if not exists target_date date;
+alter table public.projects add column if not exists priority text not null default 'Normal' check (priority in ('Low','Normal','High','Urgent'));
+alter table public.projects drop constraint if exists projects_target_date_check;
+alter table public.projects add constraint projects_target_date_check check (target_date is null or start_date is null or target_date >= start_date);
+
+alter table public.projects add column if not exists project_type text not null default 'client'
+  check (project_type in ('client', 'internal'));
+
+
 create table if not exists public.project_team_members (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references public.projects(id) on delete cascade,
@@ -347,6 +361,13 @@ create table if not exists public.project_work_items (
 
 alter table public.projects add column if not exists signed_contract_name text;
 alter table public.projects add column if not exists signed_contract_data_url text;
+alter table public.projects drop constraint if exists internal_projects_no_sales;
+alter table public.projects add constraint internal_projects_no_sales check (
+  project_type <> 'internal' or (lead_id is null and client_id is null and proposal_id is null
+    and client_company is null and client_name is null and client_email is null
+    and contracted_value=0 and deposit_amount is null and deposit_status is null
+    and signed_contract_name is null and signed_contract_data_url is null and status <> 'AMC')
+);
 alter table public.project_work_items add column if not exists external_id text;
 create unique index if not exists project_work_items_external_id_idx
   on public.project_work_items(project_id, external_id)
@@ -526,7 +547,7 @@ returns boolean language sql stable security definer set search_path=public
 as $$ select coalesce(public.current_workspace_role()='admin',false); $$;
 create or replace function public.is_internal_workspace_user()
 returns boolean language sql stable security definer set search_path=public
-as $$ select coalesce(public.current_workspace_role() in ('admin','employee'),false); $$;
+as $$ select coalesce(public.current_workspace_role() in ('admin','employee','project_manager'),false); $$;
 revoke all on function public.set_workspace_member_role(text,text,text) from public,anon;
 grant execute on function public.set_workspace_member_role(text,text,text) to authenticated;
 
@@ -670,7 +691,7 @@ begin
   for field_name in select jsonb_object_keys(p_data->'row') loop
     if field_name='created_at' then
       if (p_data->'row'->>field_name)::timestamptz is distinct from (existing_row->>field_name)::timestamptz then return false; end if;
-    elsif field_name in ('client_company','client_name','client_email','operating_company','start_date','scope_included','scope_excluded','assumptions','signed_contract_name','signed_contract_data_url') then
+    elsif field_name in ('objectives','deliverables','target_date','client_company','client_name','client_email','operating_company','start_date','scope_included','scope_excluded','assumptions','signed_contract_name','signed_contract_data_url') then
       if nullif(p_data->'row'->>field_name,'') is distinct from nullif(existing_row->>field_name,'') then return false; end if;
     elsif (p_data->'row'->field_name) is distinct from (existing_row->field_name) then return false; end if;
   end loop;
@@ -766,10 +787,15 @@ begin
       payload=payload||jsonb_build_object('client_id',client_id_value,'created_by',auth.uid());
     elsif collection_name='projects' then
       if public.is_workspace_admin() then
+        if payload->>'project_type' = 'internal' then
+          if nullif(data->>'leadId','') is not null then raise exception 'Internal projects cannot be linked to leads'; end if;
+          lead_id_value=null; proposal_id_value=null; client_id_value=null;
+        else
         select id into lead_id_value from public.leads where external_id=data->>'leadId';
         if nullif(data->>'leadId','') is not null and lead_id_value is null then raise exception 'Linked lead does not exist'; end if;
         select id into proposal_id_value from public.proposals where lead_id=lead_id_value and version=(data->>'proposalVersion')::integer;
         client_id_value=public.workspace_client(coalesce(payload->>'client_company',payload->>'client_name'),payload->>'client_name',payload->>'client_email');
+        end if;
       else
         select lead_id,proposal_id,client_id into lead_id_value,proposal_id_value,client_id_value from public.projects where id=root_id;
       end if;
@@ -942,7 +968,7 @@ grant execute on function public.employee_can_access_project(uuid) to authentica
 create or replace function public.employee_can_access_client(p_client_id uuid)
 returns boolean language sql stable security definer set search_path = public
 as $$
-  select public.current_workspace_role() = 'employee' and exists(
+  select public.current_workspace_role() in ('employee','project_manager') and exists(
     select 1 from public.projects p
     where p.client_id = p_client_id and public.employee_can_access_project(p.id)
   );
@@ -993,28 +1019,28 @@ create policy "workspace administrators manage records" on public.projects for a
   using (public.is_workspace_admin()) with check (public.is_workspace_admin());
 drop policy if exists "employees read assigned projects" on public.projects;
 create policy "employees read assigned projects" on public.projects for select to authenticated
-  using (public.current_workspace_role()='employee' and public.employee_can_access_project(id));
+  using (public.current_workspace_role() in ('employee','project_manager') and public.employee_can_access_project(id));
 
 drop policy if exists "workspace administrators manage records" on public.project_team_members;
 create policy "workspace administrators manage records" on public.project_team_members for all to authenticated
   using (public.is_workspace_admin()) with check (public.is_workspace_admin());
 drop policy if exists "employees read assigned project team" on public.project_team_members;
 create policy "employees read assigned project team" on public.project_team_members for select to authenticated
-  using (public.current_workspace_role()='employee' and public.employee_can_access_project(project_id));
+  using (public.current_workspace_role() in ('employee','project_manager') and public.employee_can_access_project(project_id));
 
 drop policy if exists "workspace administrators manage records" on public.project_work_items;
 create policy "workspace administrators manage records" on public.project_work_items for all to authenticated
   using (public.is_workspace_admin()) with check (public.is_workspace_admin());
 drop policy if exists "employees read assigned project tasks" on public.project_work_items;
 create policy "employees read assigned project tasks" on public.project_work_items for select to authenticated
-  using (public.current_workspace_role()='employee' and public.employee_can_access_project(project_id));
+  using (public.current_workspace_role() in ('employee','project_manager') and public.employee_can_access_project(project_id));
 
 drop policy if exists "workspace administrators manage records" on public.project_links;
 create policy "workspace administrators manage records" on public.project_links for all to authenticated
   using (public.is_workspace_admin()) with check (public.is_workspace_admin());
 drop policy if exists "employees read assigned project links" on public.project_links;
 create policy "employees read assigned project links" on public.project_links for select to authenticated
-  using (public.current_workspace_role()='employee' and public.employee_can_access_project(project_id));
+  using (public.current_workspace_role() in ('employee','project_manager') and public.employee_can_access_project(project_id));
 
 -- Message access follows the same project visibility as the delivery workspace.
 drop policy if exists "project participants read messages" on public.project_messages;
@@ -1037,7 +1063,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select public.current_workspace_role() = 'employee' and exists (
+  select public.current_workspace_role() in ('employee','project_manager') and exists (
     select 1
     from public.projects p
     where p.client_id = p_client_id
@@ -1115,7 +1141,7 @@ create trigger set_workspace_review_reporter before insert on public.workspace_r
 alter table public.workspace_reviews enable row level security;
 drop policy if exists "workspace reviews read own or admin" on public.workspace_reviews;
 create policy "workspace reviews read own or admin" on public.workspace_reviews for select to authenticated
-  using (public.is_workspace_admin() or (public.current_workspace_role()='employee' and reporter_user_id=auth.uid()));
+  using (public.is_workspace_admin() or (public.current_workspace_role() in ('employee','project_manager') and reporter_user_id=auth.uid()));
 drop policy if exists "workspace members submit reviews" on public.workspace_reviews;
 create policy "workspace members submit reviews" on public.workspace_reviews for insert to authenticated
   with check (public.is_internal_workspace_user() and reporter_user_id=auth.uid());
@@ -1553,5 +1579,84 @@ begin
 end $$;
 revoke all on function public.submit_invoice_payment_reference(uuid,text) from public,anon;
 grant execute on function public.submit_invoice_payment_reference(uuid,text) to authenticated;
+
+-- ===== Section: project-manager-role =====
+-- Enforce role eligibility for all new or changed manager assignments.
+create or replace function public.validate_project_manager_assignment()
+returns trigger language plpgsql security definer set search_path = public
+as $$
+begin
+  if new.role = 'Project Manager' and not exists (
+    select 1 from public.workspace_members m
+    where m.user_id = new.user_id and m.role = 'project_manager'
+  ) then
+    raise exception 'Only users with the Project Manager role can be assigned as project manager';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists validate_project_manager_assignment on public.project_team_members;
+create trigger validate_project_manager_assignment
+before insert or update on public.project_team_members
+for each row execute function public.validate_project_manager_assignment();
+
+-- A role change must not leave an ineligible user assigned as project manager.
+create or replace function public.clear_ineligible_project_manager()
+returns trigger language plpgsql security definer set search_path = public
+as $$
+begin
+  if TG_OP = 'DELETE' then
+    delete from public.project_team_members where user_id = old.user_id and role = 'Project Manager';
+    return old;
+  end if;
+  if old.role = 'project_manager' and (new.role <> 'project_manager' or new.user_id is distinct from old.user_id) then
+    delete from public.project_team_members where user_id = old.user_id and role = 'Project Manager';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists clear_ineligible_project_manager on public.workspace_members;
+create trigger clear_ineligible_project_manager after update of role, user_id on public.workspace_members
+for each row execute function public.clear_ineligible_project_manager();
+drop trigger if exists clear_deleted_project_manager on public.workspace_members;
+create trigger clear_deleted_project_manager after delete on public.workspace_members
+for each row execute function public.clear_ineligible_project_manager();
+
+-- Retain users' access tiers; clear legacy assignments that no longer qualify.
+delete from public.project_team_members t where t.role = 'Project Manager'
+  and not exists (select 1 from public.workspace_members m where m.user_id=t.user_id and m.role='project_manager');
+
+-- ===== Section: internal-project-commercial-guards =====
+create or replace function public.reject_internal_project_commercial_link()
+returns trigger language plpgsql security definer set search_path = public
+as $$
+declare target_id uuid;
+begin
+  if TG_TABLE_NAME = 'invoices' then target_id=new.project_id;
+  else target_id=new.source_project_id; end if;
+  if exists(select 1 from public.projects where id=target_id and project_type='internal') then
+    raise exception 'Internal projects cannot have invoices or retainer plans';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists reject_internal_project_invoice on public.invoices;
+create trigger reject_internal_project_invoice before insert or update on public.invoices
+for each row execute function public.reject_internal_project_commercial_link();
+drop trigger if exists reject_internal_project_retainer on public.managed_projects;
+create trigger reject_internal_project_retainer before insert or update on public.managed_projects
+for each row execute function public.reject_internal_project_commercial_link();
+
+create or replace function public.prevent_project_type_change()
+returns trigger language plpgsql set search_path = public
+as $$ begin
+  if new.project_type is distinct from old.project_type then
+    raise exception 'Project type cannot be changed after creation';
+  end if;
+  return new;
+end; $$;
+drop trigger if exists prevent_project_type_change on public.projects;
+create trigger prevent_project_type_change before update of project_type on public.projects
+for each row execute function public.prevent_project_type_change();
 
 commit;

@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   const { data, error } = await client
     .from("workspace_members")
     .select("id,user_id,email,role,display_name")
-    .in("role", ["admin", "employee"])
+    .in("role", ["admin", "employee", "project_manager"])
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
       id: member.user_id,
       name,
       email: member.email,
-      role: member.role as "admin" | "employee",
+      role: member.role as "admin" | "employee" | "project_manager",
     };
   });
 

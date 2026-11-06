@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ListTodo, ChevronDown, ChevronRight, Command, Files, FolderOpenDot, Repeat2, ContactRound, PanelsTopLeft, LogOut, Menu, X, ScanLine, ReceiptText, Search, SlidersHorizontal, User, UserRoundCog, Building2, ClipboardCheck } from "lucide-react";
+import { ListTodo, ChevronDown, ChevronRight, Command, Files, FolderOpenDot, Repeat2, ContactRound, PanelsTopLeft, LogOut, Menu, X, ScanLine, ReceiptText, Search, SlidersHorizontal, User, UserRoundCog, Building2, ClipboardCheck, BriefcaseBusiness } from "lucide-react";
 import { WorkspaceSyncFeedback } from "@/app/_components/providers";
 import { CommandPalette } from "@/app/_components/command-palette";
 import { ToastHub } from "@/app/_components/toast-hub";
@@ -27,7 +27,7 @@ const workspaceGroups = [
     { label: "Retainers", href: "/post-sale", icon: Repeat2 },
   ]},
 ];
-const adminGroups = [...workspaceGroups, {title:"Administration",items:[{label:"Users",href:"/users",icon:UserRoundCog}]}];
+const adminGroups = [...workspaceGroups, {title:"Administration",items:[{label:"Career",href:"/career",icon:BriefcaseBusiness},{label:"Users",href:"/users",icon:UserRoundCog}]}];
 const employeeGroups = [
   { title: "Workspace", items: [
     { label: "Dashboard", href: "/", icon: PanelsTopLeft },
@@ -112,7 +112,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (loading || !user || !databaseRole || pathname.startsWith("/sign-in")) return;
-    if (pathname.startsWith("/proposal/") && databaseRole !== "employee") return;
+    if (pathname.startsWith("/proposal/") && (databaseRole !== "employee" && databaseRole !== "project_manager")) return;
     if (!canAccessPath(databaseRole, pathname)) {
       router.replace(databaseRole === "client" ? "/client" : "/");
     }
@@ -147,7 +147,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   if (pathname.startsWith("/sign-in")) return <>{children}</>;
   if (pathname.startsWith("/proposal/")) {
     if (loading) return <div className="access-denied" role="status"><p>Loading workspace...</p></div>;
-    if (!user || role !== "employee") return <>{children}</>;
+    if (!user || (role !== "employee" && role !== "project_manager")) return <>{children}</>;
   }
 
   if (!configured) return <div className="access-denied"><div className="panel"><span className="section-kicker">SETUP REQUIRED</span><h1>Connect Supabase to continue.</h1><p>Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment, then restart the app.</p></div></div>;

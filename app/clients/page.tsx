@@ -62,7 +62,7 @@ export default function ClientsPage() {
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
 
   useEffect(() => {
-    const refreshProjects = () => setProjects(readProjects());
+    const refreshProjects = () => setProjects(readProjects().filter(project => project.projectType !== "internal"));
     const refreshPlans = () => setPlans(readManagedProjects());
     const refreshLeads = () => setLeads(readLeads());
     const refreshInvoices = () => setInvoices(readInvoices());

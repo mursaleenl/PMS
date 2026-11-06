@@ -39,6 +39,11 @@ export type ProjectLinks = { staging?: string; repository?: string; design?: str
 export type Project = {
   id: string;
   leadId: string;
+  projectType?: "client" | "internal";
+  objectives?: string;
+  deliverables?: string;
+  targetDate?: string;
+  priority?: "Low" | "Normal" | "High" | "Urgent";
   createdAt: string;
   title: string;
   clientCompany: string;
@@ -80,6 +85,15 @@ export function isTaskAssignedToUser(task: ProjectWorkItem, userId?: string | nu
   if (task.assigneeId) return Boolean(userId && task.assigneeId === userId);
   const normalizedName = userName?.trim().toLocaleLowerCase();
   return Boolean(normalizedName && task.assignee.trim().toLocaleLowerCase() === normalizedName);
+}
+
+/** Managers oversee every task in projects they manage; other members see their own work. */
+export function canViewProjectTask(project: Project, task: ProjectWorkItem, role: string, userId?: string | null, userName?: string) {
+  if (role === "admin") return true;
+  if (role === "project_manager" && project.team.some(member => member.role === "Project Manager" && (member.userId
+    ? Boolean(userId && member.userId === userId)
+    : Boolean(userName?.trim() && member.name.trim().toLowerCase() === userName.trim().toLowerCase())))) return true;
+  return role !== "client" && isTaskAssignedToUser(task, userId, userName);
 }
 
 export function readProjects(): Project[] {
@@ -213,6 +227,22 @@ export async function projectFromLead(input: {
     team: input.team,
     workItems: [],
     status: "ACTIVE",
+  };
+}
+
+export async function createInternalProject(input: { title: string; description: string; startDate: string; team: ProjectTeamMember[]; objectives?: string; deliverables?: string; targetDate?: string; priority?: Project["priority"]; links?: ProjectLinks }): Promise<Project> {
+  const title = input.title.trim();
+  if (!title) throw new Error("Enter a project name.");
+  if (input.startDate && input.targetDate && input.targetDate < input.startDate) throw new Error("Target date must be on or after the start date.");
+  for (const url of Object.values(input.links ?? {})) if (url && !/^https?:\/\//i.test(url)) throw new Error("Project links must start with http:// or https://.");
+  return {
+    id: await nextProjectId(), projectType: "internal", leadId: "", createdAt: new Date().toISOString(),
+    objectives: input.objectives?.trim(), deliverables: input.deliverables?.trim(), targetDate: input.targetDate || undefined, priority: input.priority || "Normal", links: input.links,
+    title, clientCompany: "", clientName: "", clientEmail: "", services: [],
+    classification: "New Client", startDate: input.startDate, billingStructure: "Fixed",
+    contractedValue: 0, currency: "USD", proposalVersion: 0,
+    scopeIncluded: input.description.trim(), scopeExcluded: "", assumptions: "", revisionRounds: 0,
+    team: input.team, workItems: [], status: "ACTIVE",
   };
 }
 

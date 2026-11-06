@@ -40,7 +40,7 @@ export default function PostSalePage() {
 
   useEffect(() => {
     const refreshPlans = () => setItems(readManagedProjects());
-    const refreshProjects = () => setProjects(readProjects());
+    const refreshProjects = () => setProjects(readProjects().filter(project => project.projectType !== "internal"));
     const refreshStorage = () => { refreshPlans(); refreshProjects(); };
     refreshPlans();
     refreshProjects();
@@ -65,7 +65,7 @@ export default function PostSalePage() {
     if (!window.confirm(`Move "${item.projectTitle}" from Retainers to active Projects?`)) return;
 
     try {
-    const currentProjects = readProjects();
+    const currentProjects = readProjects().filter(project => project.projectType !== "internal");
     const linked = item.sourceProjectId ? currentProjects.find((p) => p.id === item.sourceProjectId) : undefined;
 
     let targetProjectId = "";

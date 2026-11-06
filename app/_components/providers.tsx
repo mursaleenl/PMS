@@ -29,7 +29,7 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
   const [retry,setRetry] = useState<(() => Promise<void>) | null>(null);
   const publicPage = pathname.startsWith("/proposal/") || pathname.startsWith("/sign-in");
   const userId = user?.id;
-  const internal = databaseRole === "admin" || databaseRole === "employee";
+  const internal = databaseRole === "admin" || (databaseRole === "employee" || databaseRole === "project_manager");
 
   useEffect(() => {
     const client = supabase;

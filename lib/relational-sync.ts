@@ -338,6 +338,8 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     const proposalVersion = proposalRows.find((proposal) => text(proposal.id) === text(proposalId))?.version;
     return {
       id: text(row.external_id, dbId),
+      objectives: text(row.objectives), deliverables: text(row.deliverables), targetDate: text(row.target_date), priority: row.priority || "Normal",
+      projectType: row.project_type === "internal" ? "internal" : "client",
       leadId: leadExternalId || text(row.lead_id),
       createdAt: text(row.created_at),
       title: text(row.title),
@@ -484,6 +486,8 @@ export function serializeRecord(collection: WorkspaceCollection, value: unknown)
     return { row: {
       external_id: project.id,
       title: project.title || "Untitled project",
+      project_type: project.projectType || "client",
+      objectives: nullable(project.objectives), deliverables: nullable(project.deliverables), target_date: nullable(project.targetDate), priority: project.priority || "Normal",
       client_company: nullable(project.clientCompany),
       client_name: nullable(project.clientName),
       client_email: nullable(project.clientEmail),

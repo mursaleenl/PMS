@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { WorkspaceRole } from "@/lib/roles";
 
-const validRoles: WorkspaceRole[] = ["admin", "employee", "client"];
+const validRoles: WorkspaceRole[] = ["admin", "employee", "project_manager", "client"];
 
 async function authorizeAdmin(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
   if (!name) return NextResponse.json({ error: "Enter the user's name." }, { status: 400 });
   if (password.length < 8) return NextResponse.json({ error: "Use a password with at least 8 characters." }, { status: 400 });
-  if (typeof role !== "string" || !validRoles.includes(role as WorkspaceRole)) return NextResponse.json({ error: "Choose Administrator, Employee, or Client access." }, { status: 400 });
+  if (typeof role !== "string" || !validRoles.includes(role as WorkspaceRole)) return NextResponse.json({ error: "Choose Admin, Employee, Project Manager, or Client access." }, { status: 400 });
   if (email === auth.user.email?.toLowerCase()) return NextResponse.json({ error: "That email belongs to the signed-in administrator." }, { status: 400 });
 
   const { data: created, error } = await auth.client.auth.admin.createUser({
