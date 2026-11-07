@@ -248,7 +248,9 @@ export async function createInternalProject(input: { title: string; description:
 }
 
 export function getProjectDisplayTitle(project: { title: string; clientCompany?: string; clientName?: string }): string {
-  return project.clientCompany?.trim() || project.clientName?.trim() || project.title?.trim() || "Untitled Project";
+  return [project.clientCompany, project.clientName, project.title]
+    .map(value => value?.trim())
+    .find(value => value && !/^(none|n\/a|null|undefined|-)$/i.test(value)) || "Untitled Project";
 }
 
 export function getProjectDisplayServices(project: Pick<Project, "title" | "clientCompany" | "clientName" | "services">): string {

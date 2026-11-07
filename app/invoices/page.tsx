@@ -4,12 +4,13 @@ import {usePaymentReferences} from "@/lib/payment-references";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 import {saveInvoicePdf} from "@/app/_components/save-invoice-pdf";
 import {useWorkspaceAuth} from "@/lib/workspace-auth";
 import {InvoiceDocument} from "@/app/_components/invoice-document";
 import { ArrowRight, Building2, Check, CheckCircle2, ExternalLink, FileText, FolderKanban, Plus, Printer, Receipt, Search, Trash2, X } from "lucide-react";
 import type { OperatingCompany } from "@/lib/companies";
-import { readProjects, updateProject, type Project } from "@/lib/projects";
+import { getProjectDisplayTitle, getProjectDisplayServices, readProjects, updateProject, type Project } from "@/lib/projects";
 import { deleteInvoice, nextInvoiceNumber as getNextInvoiceNumber, readInvoices, saveInvoice, updateInvoice, type InvoiceStatus, type StoredInvoice } from "@/lib/invoices";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { showToast } from "@/app/_components/toast-hub";
@@ -915,9 +916,10 @@ export default function InvoicesPage() {
                                 <span className={`radio-dot ${isSelected ? "checked" : ""}`}>
                                   {isSelected && <Check size={11} strokeWidth={2.5} />}
                                 </span>
+                                <ProjectCardLogo src={item.logoDataUrl} projectType={item.projectType} title={getProjectDisplayTitle(item)} />
                                 <div>
                                   <strong className="proposal-client-name">
-                                    {item.title}
+                                    {getProjectDisplayTitle(item)}{getProjectDisplayServices(item) && <span className="project-display-services">{getProjectDisplayServices(item)}</span>}
                                   </strong>
                                   <span className="proposal-client-sub">
                                     {item.clientCompany || item.clientName} · {item.id}
@@ -1188,7 +1190,7 @@ export default function InvoicesPage() {
                       >
                         <option value="">None (standalone / direct)</option>
                         {projects.map((p) => (
-                          <option key={p.id} value={p.id}>{p.title} · {p.id}</option>
+                          <option key={p.id} value={p.id}>{getProjectDisplayTitle(p)} - {getProjectDisplayServices(p) || p.id}</option>
                         ))}
                       </select>
                     </label>

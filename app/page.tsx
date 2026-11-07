@@ -1,4 +1,6 @@
 "use client";
+import { getProjectLogoSrc } from "@/lib/project-logo";
+import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -55,6 +57,10 @@ export default function OverviewPage() {
   const pendingInvoices = useMemo(() => {
     return invoices.filter((inv) => inv.status !== "CONFIRMED_PAID");
   }, [invoices]);
+  const dashboardLeads = [...leads].sort((a, b) =>
+    Number(b.status === "NEW") - Number(a.status === "NEW") ||
+    (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0)
+  ).slice(0, 4);
   const openLeadCount = leads.filter((lead) => ["NEW", "PROPOSAL_SENT", "ACCEPTED"].includes(lead.status)).length;
   return <div className={`page-content overview-dashboard${(role === "employee") ? " employee-dashboard" : ""}`}>
     <section className="welcome-row">
@@ -126,12 +132,12 @@ export default function OverviewPage() {
         const progress = projectTasks.length ? Math.round(complete / projectTasks.length * 100) : 0;
         return <Link href={`/projects/${project.id}`} className="panel overview-project-card" key={project.id}>
           <div className="overview-project-card-top">
-            <span className={`company-pill company-${(project.operatingCompany ?? "Evecture").toLowerCase()}`} data-company={project.operatingCompany ?? "Evecture"}>
+            {project.projectType === "internal" ? <span className="project-internal-wordmark">Internal</span> : <span className={`company-pill company-${(project.operatingCompany ?? "Evecture").toLowerCase()}`} data-company={project.operatingCompany ?? "Evecture"}>
               {project.operatingCompany ?? "Evecture"}
-            </span>
+            </span>}
             <StatusBadge status={project.status} />
           </div>
-          <h3 className="overview-project-title">{getProjectDisplayTitle(project)}</h3>
+          <div className="project-card-identity"><ProjectCardLogo src={project.logoDataUrl} title={getProjectDisplayTitle(project)} projectType={project.projectType} /><h3 className="overview-project-title">{getProjectDisplayTitle(project)}</h3></div>
           <p className="overview-project-services">{getProjectDisplayServices(project) || "Project delivery"}</p>
           <div className="overview-progress-label">
             <span>Task progress</span>
@@ -170,15 +176,15 @@ export default function OverviewPage() {
             {activeTasks.slice(0, 6).map(({ project, task }) => (
               <Link href={`/projects/${project.id}`} className="overview-task-row" key={`${project.id}-${task.id}`}>
                 <span
-                  className="overview-task-indicator"
+                  className={`overview-task-indicator${getProjectLogoSrc(project) ? " overview-task-project-logo" : ""}`}
                   data-status={task.status}
                   title={task.status === "IN_PROGRESS" ? "In progress" : "To do"}
                 >
-                  {task.status === "IN_PROGRESS" ? <Clock3 size={14} /> : <ListTodo size={14} />}
+                  {getProjectLogoSrc(project) ? <ProjectCardLogo src={project.logoDataUrl} projectType={project.projectType} title={getProjectDisplayTitle(project)} /> : task.status === "IN_PROGRESS" ? <Clock3 size={14} /> : <ListTodo size={14} />}
                 </span>
                 <span className="overview-task-copy">
                   <strong>{task.title}</strong>
-                  <small>{project.title} · {task.assignee || "Unassigned"}</small>
+                  <small>{getProjectDisplayTitle(project)}{getProjectDisplayServices(project) ? ` - ${getProjectDisplayServices(project)}` : ""} · {task.assignee || "Unassigned"}</small>
                 </span>
                 <StatusBadge status={task.status === "IN_PROGRESS" ? "IN_PROGRESS" : "TO_DO"}>
                   {task.status === "IN_PROGRESS" ? "In progress" : "To do"}
@@ -189,8 +195,8 @@ export default function OverviewPage() {
           </div>
         )}
       </div>
-      {(role === "admin" || role === "project_manager") && <div className="panel overview-request-panel"><div className="overview-panel-heading"><div><h2>Leads</h2><p>Latest incoming enquiries</p></div><Link className="text-link" href="/requests">Open leads <ArrowRight size={14} /></Link></div>
-        {leads.length === 0 ? <div className="overview-inline-empty"><Inbox size={17} />No requests have been recorded yet.</div> : <div className="overview-request-list">{[...leads].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4).map((lead) => <Link href={`/requests#${lead.id}`} className="overview-request-row" key={lead.id}><span className="overview-task-indicator"><Inbox size={14} /></span><span className="overview-task-copy"><strong>{lead.fullName}</strong><small>{lead.companyName || "Individual enquiry"}</small></span><StatusBadge status={lead.status} /></Link>)}</div>}
+      {(role === "admin" || role === "project_manager") && <div className="panel overview-request-panel"><div className="overview-panel-heading"><div><h2>Leads</h2><p>New leads first, then latest enquiries</p></div><Link className="text-link" href="/requests">Open leads <ArrowRight size={14} /></Link></div>
+        {leads.length === 0 ? <div className="overview-inline-empty"><Inbox size={17} />No requests have been recorded yet.</div> : <div className="overview-request-list">{dashboardLeads.map((lead) => <Link href={`/requests#${lead.id}`} className="overview-request-row" key={lead.id}><span className="overview-task-indicator"><Inbox size={14} /></span><span className="overview-task-copy"><strong>{lead.fullName}</strong><small>{lead.companyName || "Individual enquiry"}</small></span><StatusBadge status={lead.status} /></Link>)}</div>}
       </div>}
     </section>
   </div>;

@@ -1,4 +1,5 @@
 "use client";
+import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -58,17 +59,17 @@ export default function ProjectsPage() {
   }
 
   function moveFromRetainerToProjects(project: Project, managedPlan: ManagedProject) {
-    if (!window.confirm(`Move "${project.title}" out of Retainers and back to active Projects?`)) return;
+    if (!window.confirm(`Move "${getProjectDisplayTitle(project)}" out of Retainers and back to active Projects?`)) return;
     deleteManagedProject(managedPlan.id);
     updateProject(project.id, { status: "ACTIVE" });
     setProjects(readProjects());
     setManagedProjects(readManagedProjects());
-    showToast({ message: `"${project.title}" moved to active projects.` });
+    showToast({ message: `"${getProjectDisplayTitle(project)}" moved to active projects.` });
   }
 
   function removeProject(project: Project) {
     if ((role !== "admin" && role !== "project_manager")) return;
-    if (!window.confirm(`Delete “${project.title}”? This will permanently remove its workspace and tasks.`)) return;
+    if (!window.confirm(`Delete “${getProjectDisplayTitle(project)}”? This will permanently remove its workspace and tasks.`)) return;
     deleteProject(project.id);
     setProjects(readProjects());
   }
@@ -121,7 +122,7 @@ export default function ProjectsPage() {
             <StatusBadge status={project.status} />
           </div>
           <div className="portfolio-project-identity">
-            {project.logoDataUrl && <img className="project-card-logo" src={project.logoDataUrl} alt={`${getProjectDisplayTitle(project)} logo`} />}
+            <ProjectCardLogo src={project.logoDataUrl} title={getProjectDisplayTitle(project)} projectType={project.projectType} />
             <div className="portfolio-project-copy">
               <h2 className="portfolio-card-title">{getProjectDisplayTitle(project)}</h2>
               {services && <p className="portfolio-card-subtitle">{services}</p>}

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 import { AssignTaskDialog } from "@/app/_components/assign-task-dialog";
+import { BlockTaskDialog } from "@/app/_components/block-task-dialog";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDownUp, ArrowRight, Check, ChevronDown, CircleAlert, FileCheck2, Filter, GripVertical, Kanban, List, MoreHorizontal, Plus, Search, ShieldAlert, Users } from "lucide-react";
 import { EmptyState } from "@/app/_components/empty-state";
 import { StatusBadge } from "@/app/_components/status-badge";
-import { showToast } from "@/app/_components/toast-hub";
-import { canViewProjectTask, readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
+import { getProjectDisplayTitle, getProjectDisplayServices, canViewProjectTask, readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
 import { useAssignableUsers } from "@/lib/assignees";
@@ -30,7 +31,7 @@ const kanbanColumns: { status: VisibleTaskStatus; label: string }[] = [
   { status: "DONE", label: "Completed" },
 ];
 
-function updateTask(projectId: string, taskId: string, updates: Partial<ProjectWorkItem>) {
+function saveTaskChanges(projectId: string, taskId: string, updates: Partial<ProjectWorkItem>) {
   const currentProjects = readProjects();
   const target = currentProjects.find((project) => project.id === projectId);
   if (!target) return;
@@ -49,6 +50,16 @@ export default function MyWorkPage() {
   const [viewMode, setViewMode] = useState<"LIST" | "BOARD">("LIST");
   const [draggingItem, setDraggingItem] = useState<{ projectId: string; taskId: string } | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<VisibleTaskStatus | null>(null);
+  const [blockingTask, setBlockingTask] = useState<{ projectId: string; task: ProjectWorkItem } | null>(null);
+
+  function updateTask(projectId: string, taskId: string, updates: Partial<ProjectWorkItem>) {
+    saveTaskChanges(projectId, taskId, updates);
+    setProjects(readProjects());
+    // Keep the changed task visible when moving it out of a filtered list.
+    if (viewMode === "LIST" && updates.status && filter !== "ALL") {
+      setFilter(updates.status);
+    }
+  }
 
   useEffect(() => {
     const refresh = () => setProjects(readProjects());
@@ -76,21 +87,7 @@ export default function MyWorkPage() {
 
   const employeeName=(members.find((member)=>member.user_id===user?.id)?.display_name||user?.user_metadata?.full_name||user?.email?.split("@")[0]||"").trim().toLowerCase();
   const allTasks = useMemo(() => projects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))).filter(({project, task}) => canViewProjectTask(project, task, role, user?.id, employeeName)), [projects,role,user?.id,employeeName]);
-  const canAssign = role === "admin" || role === "project_manager";
-  function assignTask(projectId: string, task: ProjectWorkItem, assigneeId: string) {
-    if (!canAssign) return;
-    const member = assignableUsers.find(person => person.id === assigneeId);
-    if (assigneeId && !member) return;
-    updateTask(projectId, task.id, {assigneeId: member?.id, assignee: member?.name || ""});
-    showToast({message: member ? `Task assigned to ${member.name}.` : "Task unassigned."});
-  }
-  function assignmentControl(projectId: string, task: ProjectWorkItem) {
-    return <select className="task-assignment-select" aria-label={`Assign ${task.title}`} value={task.assigneeId || assignableUsers.find(person => person.name === task.assignee)?.id || ""} onChange={event => assignTask(projectId, task, event.target.value)} onClick={event => event.stopPropagation()}>
-      <option value="">Unassigned</option>
-      {task.assigneeId && !assignableUsers.some(person => person.id === task.assigneeId) && <option value={task.assigneeId}>{task.assignee || "Current assignee"}</option>}
-      {assignableUsers.filter(person => person.id).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
-    </select>;
-  }
+  const canCreateTask = role === "admin" || role === "project_manager";
   const assignees = [...new Set([
     ...assignableUsers.map((member) => member.name),
     ...allTasks.map(({ task }) => task.assignee),
@@ -112,7 +109,7 @@ export default function MyWorkPage() {
     const filtered = allTasks.filter(({ project, task }) => {
       const matchesAssignee = !assignee || (selectedAssigneeId && task.assigneeId ? task.assigneeId === selectedAssigneeId : task.assignee.trim().toLowerCase() === assignee.trim().toLowerCase());
       const matchesSearch = !needle || [task.title, task.assignee, task.kind, project.title, project.clientCompany, project.id].some((value) => value.toLowerCase().includes(needle));
-      return (filter === "ALL" || task.status === filter) && matchesAssignee && matchesSearch;
+      return matchesAssignee && matchesSearch;
     }).sort((left, right) => (new Date(left.task.createdAt).getTime() - new Date(right.task.createdAt).getTime()) * (sortOldestFirst ? 1 : -1));
 
     const map: Record<VisibleTaskStatus, { project: Project; task: ProjectWorkItem }[]> = {
@@ -132,7 +129,7 @@ export default function MyWorkPage() {
     });
 
     return map;
-  }, [allTasks, assignee, selectedAssigneeId, search, sortOldestFirst, filter]);
+  }, [allTasks, assignee, selectedAssigneeId, search, sortOldestFirst]);
 
   const inProgressCount = allTasks.filter(({ task }) => task.status === "IN_PROGRESS").length;
   const completedCount = allTasks.filter(({ task }) => task.status === "DONE").length;
@@ -173,55 +170,42 @@ export default function MyWorkPage() {
     }
     const current = allTasks.find((i) => i.project.id === pId && i.task.id === tId);
     if (current && current.task.status !== targetStatus) {
-      let blockerReason: string | undefined = undefined;
-      if (targetStatus === "BLOCKED") {
-        const reason = window.prompt("Reason for blocking this task:", current.task.blockerReason || "");
-        if (reason === null) {
-          handleDragEnd();
-          return;
-        }
-        blockerReason = reason.trim() || "Blocked";
-      }
-      const prevStatus = current.task.status;
-      const prevBlocker = current.task.blockerReason;
-      updateTask(pId, tId, {
-        status: targetStatus,
-        blockerReason: targetStatus === "BLOCKED" ? blockerReason : undefined,
+      // End the native drag before React moves the card to another parent.
+      // Browsers can otherwise retain the hidden source element during the drop.
+      handleDragEnd();
+      const projectId = pId;
+      requestAnimationFrame(() => {
+        changeTaskStatus(projectId, current.task, targetStatus);
       });
-      showToast({
-        message: `Task moved to ${taskStatusLabels[targetStatus]}`,
-        actionLabel: "Undo",
-        onAction: () => updateTask(pId!, tId!, { status: prevStatus, blockerReason: prevBlocker }),
-      });
+      return;
     }
     handleDragEnd();
   }
 
   function startTask(projectId: string, task: ProjectWorkItem) {
     updateTask(projectId, task.id, { status: "IN_PROGRESS", blockerReason: undefined });
-    showToast({ message: "Task moved to In progress", actionLabel: "Undo", onAction: () => updateTask(projectId, task.id, { status: task.status, blockerReason: task.blockerReason }) });
+  }
+
+  function changeTaskStatus(projectId: string, task: ProjectWorkItem, status: ProjectWorkItem["status"]) {
+    if (status === task.status || !kanbanColumns.some(column => column.status === status)) return;
+    if (status === "BLOCKED") { setBlockingTask({projectId, task}); return; }
+    updateTask(projectId, task.id, {
+      status, blockerReason: undefined,
+      revisionRequested: status === "DONE" || status === "TO_DO" ? false : task.revisionRequested,
+    });
   }
 
   function raiseBlocker(projectId: string, task: ProjectWorkItem) {
-    const reason = window.prompt("What is blocking this task?");
-    if (!reason?.trim()) return;
-    updateTask(projectId, task.id, { status: "BLOCKED", blockerReason: reason.trim() });
-    showToast({ message: "Task moved to Blocked", actionLabel: "Undo", onAction: () => updateTask(projectId, task.id, { status: task.status, blockerReason: task.blockerReason }) });
+    setBlockingTask({projectId, task});
   }
 
   function markDone(projectId: string, task: ProjectWorkItem) {
     updateTask(projectId, task.id, { status: "DONE", revisionRequested: false });
-    showToast({ message: "Task moved to Done", actionLabel: "Undo", onAction: () => updateTask(projectId, task.id, { status: task.status, revisionRequested: task.revisionRequested }) });
   }
 
   function toggleTaskDone(projectId: string, task: ProjectWorkItem) {
     if (task.status === "DONE") {
       updateTask(projectId, task.id, { status: "TO_DO", revisionRequested: false });
-      showToast({
-        message: "Task marked incomplete",
-        actionLabel: "Undo",
-        onAction: () => updateTask(projectId, task.id, { status: "DONE", revisionRequested: task.revisionRequested }),
-      });
     } else {
       markDone(projectId, task);
     }
@@ -235,14 +219,12 @@ export default function MyWorkPage() {
       visibleTasks.forEach(({ project, task }) => {
         updateTask(project.id, task.id, { status: "TO_DO", revisionRequested: false });
       });
-      showToast({ message: "All visible tasks marked incomplete" });
     } else {
       visibleTasks.forEach(({ project, task }) => {
         if (task.status !== "DONE") {
           updateTask(project.id, task.id, { status: "DONE", revisionRequested: false });
         }
       });
-      showToast({ message: "All visible tasks marked complete" });
     }
   }
 
@@ -271,28 +253,28 @@ export default function MyWorkPage() {
     </section>
 
     <section className="task-stats-grid" aria-label="Task summary">
-      <button type="button" className={`task-stat-card ${filter === "ALL" ? "selected" : ""}`} onClick={() => setFilter("ALL")}>
+      <button type="button" className={`task-stat-card ${filter === "ALL" ? "selected" : ""}`} onClick={() => { setFilter("ALL"); setViewMode("LIST"); }}>
         <div className="task-stat-copy">
           <small>Total tasks</small>
           <strong>{allTasks.length}</strong>
         </div>
         <span className="task-stat-note">Across projects</span>
       </button>
-      <button type="button" className={`task-stat-card ${filter === "IN_PROGRESS" ? "selected" : ""}`} onClick={() => setFilter("IN_PROGRESS")}>
+      <button type="button" className={`task-stat-card ${filter === "IN_PROGRESS" ? "selected" : ""}`} onClick={() => { setFilter("IN_PROGRESS"); setViewMode("LIST"); }}>
         <div className="task-stat-copy">
           <small>In progress</small>
           <strong>{inProgressCount}</strong>
         </div>
         <span className="task-stat-note">Currently being worked on</span>
       </button>
-      <button type="button" className={`task-stat-card ${filter === "DONE" ? "selected" : ""}`} onClick={() => setFilter("DONE")}>
+      <button type="button" className={`task-stat-card ${filter === "DONE" ? "selected" : ""}`} onClick={() => { setFilter("DONE"); setViewMode("LIST"); }}>
         <div className="task-stat-copy">
           <small>Completed</small>
           <strong>{completedCount}</strong>
         </div>
         <span className="task-stat-note">Finished work items</span>
       </button>
-      <button type="button" className={`task-stat-card ${filter === "BLOCKED" ? "selected" : ""}`} onClick={() => setFilter("BLOCKED")}>
+      <button type="button" className={`task-stat-card ${filter === "BLOCKED" ? "selected" : ""}`} onClick={() => { setFilter("BLOCKED"); setViewMode("LIST"); }}>
         <div className="task-stat-copy">
           <small>Blocked</small>
           <strong>{blockedCount}</strong>
@@ -442,16 +424,22 @@ export default function MyWorkPage() {
                               <span className="task-kind-pill">{task.kind.replaceAll("_", " ")}</span>
                               {task.revisionRequested && <span className="task-revision-pill">Revision requested</span>}
                             </div>
+                            {task.status === "BLOCKED" && <div className="task-blocker-detail">{task.blockerReason && <span className="task-blocker-reason">{task.blockerReason}</span>}<button className="button button-quiet button-micro" type="button" onClick={() => raiseBlocker(project.id, task)}>{task.blockerReason ? "Edit reason" : "Add reason"}</button></div>}
                           </div>
                         </td>
                         <td className="task-project-cell">
                           <Link className="task-project-link" href={`/projects/${project.id}`}>
-                            <strong>{project.title}</strong>
-                            <small className="mono-meta">{project.id}</small>
+                            <span className="project-card-identity project-task-identity">
+                              <ProjectCardLogo src={project.logoDataUrl} projectType={project.projectType} title={getProjectDisplayTitle(project)} />
+                              <span className="project-task-copy"><strong>{getProjectDisplayTitle(project)}</strong>
+                                {getProjectDisplayServices(project) && <span className="project-display-services">{getProjectDisplayServices(project)}</span>}
+                                <small className="mono-meta">{project.id}</small>
+                              </span>
+                            </span>
                           </Link>
                         </td>
                         <td className="task-assignee-cell">
-                          {canAssign ? assignmentControl(project.id, task) : task.assignee ? (
+                          {task.assignee ? (
                             <span className="task-assignee-badge">
                               <Users size={12} />
                               <span>{task.assignee}</span>
@@ -461,7 +449,9 @@ export default function MyWorkPage() {
                           )}
                         </td>
                         <td><StatusBadge status={task.priority}>{priorityLabels[task.priority]}</StatusBadge></td>
-                        <td><StatusBadge status={task.status}>{taskStatusLabels[task.status]}</StatusBadge></td>
+                        <td><select className="task-status-select" aria-label={`Status for ${task.title}`} value={task.status} onChange={event => changeTaskStatus(project.id, task, event.target.value as ProjectWorkItem["status"])}>
+                          {kanbanColumns.map(({status}) => <option key={status} value={status}>{taskStatusLabels[status]}</option>)}
+                        </select></td>
                         <td className="task-created-cell">{new Date(task.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</td>
                         <td className="task-actions-col">
                           <details className="task-action-menu">
@@ -557,11 +547,16 @@ export default function MyWorkPage() {
                             <Link
                               href={`/projects/${project.id}`}
                               className="task-kanban-project-pill"
-                              title={`${project.title} (${project.id})`}
+                              title={`${getProjectDisplayTitle(project)} (${project.id})`}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <span className="project-pill-id">{project.id}</span>
-                              <span className="project-pill-title">{project.title}</span>
+                              <span className="project-card-identity project-task-identity">
+                                <ProjectCardLogo src={project.logoDataUrl} projectType={project.projectType} title={getProjectDisplayTitle(project)} />
+                                <span className="project-task-copy"><span className="project-pill-title">{getProjectDisplayTitle(project)}</span>
+                                  {getProjectDisplayServices(project) && <span className="project-display-services">{getProjectDisplayServices(project)}</span>}
+                                  <span className="project-pill-id">{project.id}</span>
+                                </span>
+                              </span>
                             </Link>
                             <span className="drag-handle" title="Drag to reorder or update status">
                               <GripVertical size={13} />
@@ -592,10 +587,11 @@ export default function MyWorkPage() {
                           <div className="task-kanban-card-footer">
                             <div className="task-kanban-assignee">
                               <Users size={12} />
-                              {canAssign ? assignmentControl(project.id, task) : <span>{task.assignee || "Unassigned"}</span>}
+                              <span>{task.assignee || "Unassigned"}</span>
                             </div>
 
                             <div className="task-kanban-actions">
+                              {task.status === "BLOCKED" && <button type="button" className="button button-quiet button-micro" onClick={event => { event.stopPropagation(); raiseBlocker(project.id, task); }}>{task.blockerReason ? "Edit reason" : "Add reason"}</button>}
                               <button
                                 type="button"
                                 className={`task-card-quick-done ${task.status === "DONE" ? "checked" : ""}`}
@@ -617,7 +613,6 @@ export default function MyWorkPage() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     updateTask(project.id, task.id, { status: "IN_PROGRESS", blockerReason: undefined });
-                                    showToast({ message: "Blocker resolved: In progress" });
                                   }}
                                 >
                                   Resolve
@@ -653,10 +648,13 @@ export default function MyWorkPage() {
         ) : (
           <span>Showing {Object.values(boardTasksByColumn).flat().length} tasks across {kanbanColumns.length} columns — Drag cards between columns to change status</span>
         )}
-        <span>Task changes sync automatically</span>
       </footer>
     </section>}
-    {canAssign && showAssignTask && <AssignTaskDialog projects={projects} onClose={() => setShowAssignTask(false)} />}
+    {canCreateTask && showAssignTask && <AssignTaskDialog projects={projects} onClose={() => setShowAssignTask(false)} />}
+    {blockingTask && <BlockTaskDialog title={blockingTask.task.title} initialReason={blockingTask.task.blockerReason} onClose={() => setBlockingTask(null)} onConfirm={blockerReason => {
+      updateTask(blockingTask.projectId, blockingTask.task.id, {status: "BLOCKED", blockerReason});
+      setBlockingTask(null);
+    }} />}
     <p className="storage-note">Assign tasks here or open a project workspace to add new work.</p>
   </div>;
 }

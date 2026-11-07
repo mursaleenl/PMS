@@ -6,7 +6,7 @@ import {addManagedProject,updateManagedProject,readManagedProjects,nextManagedPr
 import {calculateRetainerEndDate,retainerEndDate} from "@/lib/retainer-dates";
 import {isValidDateValue} from "@/lib/dates";
 import {flushWorkspaceChanges} from "@/lib/workspace-sync";
-import {updateProject,type Project} from "@/lib/projects";
+import { getProjectDisplayTitle, getProjectDisplayServices,updateProject,type Project} from "@/lib/projects";
 
 const managementModels:ManagementModel[]=["Annual maintenance","Continuous retainer","Direct-sold software","Ad-hoc support"];
 const billingCycles:ManagementBillingCycle[]=["Monthly","Quarterly","Annual"];
@@ -59,7 +59,7 @@ export function ManagedPlanDrawer({projects,onClose,onCreated,initialProjectId,p
     <aside className="task-dispatch-drawer post-sale-drawer" role="dialog" aria-modal="true" aria-labelledby="managed-plan-title">
       <header><h2 id="managed-plan-title">{title}</h2><button className="icon-button" type="button" disabled={busy} onClick={onClose} aria-label="Close form"><X size={18}/></button></header>
       <form onSubmit={submit}>
-        {initialProjectId||plan?<div className="post-sale-source-preview"><strong>{plan?.projectTitle||selectedProject?.title}</strong><span>{plan?.clientCompany||selectedProject?.clientCompany||selectedProject?.clientName}</span></div>:<label className="field">Project<select value={sourceId} onChange={event=>setSourceId(event.target.value)}><option value="">Add a project manually</option>{projects.map(project=><option key={project.id} value={project.id}>{project.title} · {project.clientCompany||project.clientName}</option>)}</select></label>}
+        {initialProjectId||plan?<div className="post-sale-source-preview"><strong>{selectedProject ? getProjectDisplayTitle(selectedProject) : plan?.clientCompany || plan?.projectTitle}</strong><span>{selectedProject ? getProjectDisplayServices(selectedProject) : plan?.projectTitle}</span></div>:<label className="field">Project<select value={sourceId} onChange={event=>setSourceId(event.target.value)}><option value="">Add a project manually</option>{projects.map(project=><option key={project.id} value={project.id}>{getProjectDisplayTitle(project)} - {getProjectDisplayServices(project) || project.id}</option>)}</select></label>}
         {!selectedProject&&!plan&&<div className="post-sale-project-fields"><label className="field required">Project name<input name="projectTitle" required placeholder="Project name"/></label><label className="field required">Client / company<input name="clientCompany" required placeholder="Client or company"/></label></div>}
         <label className="field required">Plan type<select name="model" value={model} onChange={event=>setModel(event.target.value as ManagementModel)}>{managementModels.map(value=><option key={value}>{value}</option>)}</select></label>
         <div className="post-sale-project-fields">

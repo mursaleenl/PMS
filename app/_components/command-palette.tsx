@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { getProjectLogoSrc } from "@/lib/project-logo";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, FolderKanban, Handshake, Inbox, Search, Users, X } from "lucide-react";
 import { formatLeadId, readLeads, type Lead } from "@/lib/leads";
-import { readProjects, type Project, isProjectAssignedToUser } from "@/lib/projects";
+import { getProjectDisplayTitle, getProjectDisplayServices, readProjects, type Project, isProjectAssignedToUser } from "@/lib/projects";
 import { readManagedProjects, type ManagedProject } from "@/lib/post-sale";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
-type SearchItem = { kind: string; title: string; detail: string; href: string; terms: string };
+type SearchItem = { kind: string; title: string; detail: string; href: string; terms: string; logoSrc?: string };
 
 function clientSlug(value: string) {
   return value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "client";
@@ -78,7 +79,7 @@ export function CommandPalette() {
     for (const lead of (role === "employee") ? [] : leads) {
       items.push({ kind: "Request", title: lead.companyName || lead.fullName, detail: `${formatLeadId(lead.id)} · ${lead.status.replaceAll("_", " ")}`, href: `/requests/${lead.id}`, terms: `${lead.fullName} ${lead.companyName} ${lead.email} ${lead.services.join(" ")} ${lead.id}` });
     }
-    for (const project of projects.filter((item) => (role !== "employee") || isProjectAssignedToUser(item, user?.id, employeeName))) items.push({ kind: "Project", title: project.title, detail: `${project.id} · ${project.clientCompany || project.clientName}`, href: `/projects/${project.id}`, terms: `${project.title} ${project.id} ${project.clientCompany} ${project.clientName} ${project.services.join(" ")}` });
+    for (const project of projects.filter((item) => (role !== "employee") || isProjectAssignedToUser(item, user?.id, employeeName))) items.push({ kind: "Project", logoSrc: getProjectLogoSrc(project), title: getProjectDisplayTitle(project), detail: `${project.id}${getProjectDisplayServices(project) ? ` - ${getProjectDisplayServices(project)}` : ""}`, href: `/projects/${project.id}`, terms: `${project.title} ${project.id} ${project.clientCompany} ${project.clientName} ${project.services.join(" ")}` });
     const clients = new Map<string, { name: string; detail: string; terms: string }>();
     for (const project of projects) {
       const clientName = project.clientName?.trim() || project.clientCompany?.trim();
@@ -135,7 +136,7 @@ export function CommandPalette() {
       }} placeholder={(role === "employee") ? "Search assigned projects…" : "Search requests, clients, projects, retainers…"} /><kbd>ESC</kbd><button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="Close search"><X size={17} /></button></div>
       {term.trim() ? <div className="command-results">{results.length ? results.map((item, index) => {
         const Icon = item.kind === "Request" ? Inbox : item.kind === "Project" ? FolderKanban : item.kind === "Client" ? Users : Handshake;
-        return <Link href={item.href} className={`command-result${index === Math.min(activeIndex, results.length - 1) ? " is-active" : ""}`} onMouseEnter={() => setActiveIndex(index)} key={`${item.kind}-${item.href}-${item.title}`} onClick={() => setOpen(false)}><span className="command-result-icon"><Icon size={16} /></span><span className="command-result-copy"><strong>{item.title}</strong><small>{item.detail}</small></span><span className="command-result-kind">{item.kind}</span><ArrowRight size={15} /></Link>;
+        return <Link href={item.href} className={`command-result${index === Math.min(activeIndex, results.length - 1) ? " is-active" : ""}`} onMouseEnter={() => setActiveIndex(index)} key={`${item.kind}-${item.href}-${item.title}`} onClick={() => setOpen(false)}><span className="command-result-icon">{item.logoSrc ? <img className="command-project-logo" src={item.logoSrc} alt={`${item.title} logo`} width={28} height={28} /> : <Icon size={16} />}</span><span className="command-result-copy"><strong>{item.title}</strong><small>{item.detail}</small></span><span className="command-result-kind">{item.kind}</span><ArrowRight size={15} /></Link>;
       }) : <div className="command-empty">{(role === "employee") ? "No matching assigned projects." : "No matching records. Try a client, project, lead, or retainer."}</div>}</div> : null}
       {term.trim() && results.length > 0 && <div className="command-navigation-hint" role="status">{results.length} results <span>↑ ↓ to navigate · Enter to open</span></div>}
     </section>

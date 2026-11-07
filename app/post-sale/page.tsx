@@ -1,4 +1,5 @@
 "use client";
+import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -7,7 +8,7 @@ import { ChevronDown, ExternalLink, FolderKanban, Handshake, Plus, Pencil } from
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
 import { EmptyState } from "@/app/_components/empty-state";
 import { flushWorkspaceChanges } from "@/lib/workspace-sync";
-import { addProject, nextProjectId, readProjects, updateProject, type Project } from "@/lib/projects";
+import { getProjectDisplayTitle, getProjectDisplayServices, addProject, nextProjectId, readProjects, updateProject, type Project } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject, updateManagedProject } from "@/lib/post-sale";
 import { readLeads } from "@/lib/leads";
 import {retainerEndDate} from "@/lib/retainer-dates";
@@ -72,7 +73,7 @@ export default function PostSalePage() {
     if (linked) {
       updateProject(linked.id, { status: "ACTIVE" });
       targetProjectId = linked.id;
-      showToast({ message: `"${linked.title}" reactivated and moved to active projects.` });
+      showToast({ message: `"${getProjectDisplayTitle(linked)}" reactivated and moved to active projects.` });
     } else {
       targetProjectId = await nextProjectId();
       const allLeads = readLeads();
@@ -168,7 +169,7 @@ export default function PostSalePage() {
                 onClick={() => setExpandedPlan(isExpanded ? null : item.id)}
               >
                 <span className="client-card-main">
-                  <strong>{item.projectTitle}</strong>
+                  <span className="project-card-identity"><ProjectCardLogo src={linked?.logoDataUrl} title={item.projectTitle} /><span><strong>{linked ? getProjectDisplayTitle(linked) : item.clientCompany || item.projectTitle}</strong><span className="project-display-services">{linked ? getProjectDisplayServices(linked) : item.projectTitle}</span></span></span>
                   <small>{item.clientCompany || "Client not named"}{item.model ? ` · ${item.model}` : ""}</small>
                 </span>
                 <span className="client-card-stat">
@@ -196,7 +197,7 @@ export default function PostSalePage() {
                     {linked ? (
                       <div className="client-detail-links">
                         <Link href={`/projects/${linked.id}`}>
-                          <span>{linked.title}</span>
+                          <span>{getProjectDisplayTitle(linked)}{getProjectDisplayServices(linked) && <span className="project-display-services">{getProjectDisplayServices(linked)}</span>}</span>
                           <small>{linked.id}<ExternalLink size={13} /></small>
                         </Link>
                       </div>

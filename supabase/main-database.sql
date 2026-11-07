@@ -1332,7 +1332,7 @@ begin
   end if;
   return coalesce((
     select jsonb_agg(jsonb_build_object(
-      'id',p.id,'external_id',p.external_id,'title',p.title,'client_company',coalesce(nullif(trim(p.client_company),''),(select c.company_name from public.clients c where c.id=p.client_id)),'status',p.status,
+      'id',p.id,'external_id',p.external_id,'title',p.title,'logo_data_url',p.logo_data_url,'client_company',coalesce(nullif(trim(p.client_company),''),(select c.company_name from public.clients c where c.id=p.client_id)),'status',p.status,
       'details',jsonb_build_object('services',p.services,'start_date',p.start_date,'scope_included',p.scope_included,'scope_excluded',p.scope_excluded,'assumptions',p.assumptions),
       'total_tasks',(select count(*) from public.project_work_items w where w.project_id=p.id),
       'completed_tasks',(select count(*) from public.project_work_items w where w.project_id=p.id and w.status='DONE')
@@ -1476,7 +1476,7 @@ begin
   end if;
   return coalesce((
     select jsonb_agg(jsonb_build_object(
-      'id',p.id,'external_id',p.external_id,'title',p.title,'client_company',coalesce(nullif(trim(p.client_company),''),(select c.company_name from public.clients c where c.id=p.client_id)),'status',p.status,
+      'id',p.id,'external_id',p.external_id,'title',p.title,'logo_data_url',p.logo_data_url,'client_company',coalesce(nullif(trim(p.client_company),''),(select c.company_name from public.clients c where c.id=p.client_id)),'status',p.status,
       'tasks',coalesce((select jsonb_agg(jsonb_build_object('id',w.id,'title',w.title,'status',w.status) order by w.created_at,w.id) from public.project_work_items w where w.project_id=p.id),'[]'::jsonb),
       'details',jsonb_build_object('services',p.services,'start_date',p.start_date,'scope_included',p.scope_included,'scope_excluded',p.scope_excluded,'assumptions',p.assumptions),
       'total_tasks',(select count(*) from public.project_work_items w where w.project_id=p.id),

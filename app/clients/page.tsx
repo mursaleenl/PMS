@@ -1,4 +1,5 @@
 "use client";
+import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -19,13 +20,15 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { readProjects, type Project } from "@/lib/projects";
+import { getProjectDisplayTitle, getProjectDisplayServices, readProjects, type Project } from "@/lib/projects";
 import { readManagedProjects, type ManagedProject } from "@/lib/post-sale";
 import { readLeads, type Lead } from "@/lib/leads";
 import { readInvoices, type StoredInvoice } from "@/lib/invoices";
 import { EmptyState } from "@/app/_components/empty-state";
 
 type ClientProject = {
+  logoDataUrl?: string;
+  displayServices?: string;
   id: string;
   title: string;
   status?: string;
@@ -266,7 +269,9 @@ export default function ClientsPage() {
       if (!client.projects.some((p) => p.id === project.id)) {
         client.projects.push({
           id: project.id,
-          title: project.title,
+          title: getProjectDisplayTitle(project),
+          displayServices: getProjectDisplayServices(project),
+          logoDataUrl: project.logoDataUrl,
           status: project.status,
           operatingCompany: project.operatingCompany,
           contractedValue: project.contractedValue,
@@ -370,7 +375,9 @@ export default function ClientsPage() {
           if (matchingProject && !client.projects.some((p) => p.id === matchingProject.id)) {
             client.projects.push({
               id: matchingProject.id,
-              title: matchingProject.title,
+              title: getProjectDisplayTitle(matchingProject),
+              displayServices: getProjectDisplayServices(matchingProject),
+              logoDataUrl: matchingProject.logoDataUrl,
               status: matchingProject.status,
               operatingCompany: matchingProject.operatingCompany,
               contractedValue: matchingProject.contractedValue,
@@ -436,7 +443,9 @@ export default function ClientsPage() {
         if ((matchesCompany || matchesName || matchesEmail) && !client.projects.some((p) => p.id === project.id)) {
           client.projects.push({
             id: project.id,
-            title: project.title,
+            title: getProjectDisplayTitle(project),
+            displayServices: getProjectDisplayServices(project),
+            logoDataUrl: project.logoDataUrl,
             status: project.status,
             operatingCompany: project.operatingCompany,
             contractedValue: project.contractedValue,
@@ -614,7 +623,7 @@ export default function ClientsPage() {
                         {/* Section 1: All Client Details */}
                         <section>
                           <h2>Client details</h2>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                          <div className="client-contact-fields">
                             <div>
                               <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--ws-muted, #64748b)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
                                 Client name
@@ -748,8 +757,9 @@ export default function ClientsPage() {
                                   }}
                                 >
                                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-                                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--ws-text, #0f172a)" }}>
-                                      {project.title}
+                                    <span className="project-card-identity" style={{ fontSize: 14, fontWeight: 700, color: "var(--ws-text, #0f172a)" }}>
+                                      <ProjectCardLogo src={project.logoDataUrl} title={project.title} />
+                                      <span><strong>{project.title}</strong>{project.displayServices && <span className="project-display-services">{project.displayServices}</span>}</span>
                                     </span>
                                     {project.operatingCompany && (
                                       <span
@@ -808,7 +818,7 @@ export default function ClientsPage() {
                                 >
                                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
                                     <strong style={{ fontSize: 14, fontWeight: 700, color: "var(--ws-text, #0f172a)" }}>
-                                      {plan.projectTitle || plan.model}
+                                      {plan.clientCompany || plan.projectTitle || plan.model}
                                     </strong>
                                     {plan.status && (
                                       <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ws-text, #475569)" }}>

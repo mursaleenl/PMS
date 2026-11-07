@@ -1,13 +1,15 @@
 "use client";
+import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 import {useState} from "react";
 import {StatusBadge} from "@/app/_components/status-badge";
 import {useRouter} from "next/navigation";
 import {ManagedPlanDrawer} from "@/app/_components/managed-plan-drawer";
 import {readManagedProjects,deleteManagedProject} from "@/lib/post-sale";
 import Link from "next/link";
-import {GripVertical} from "lucide-react";
-import {readProjects,updateProject,getProjectDisplayTitle,getProjectDisplayServices,type Project} from "@/lib/projects";
+import {GripVertical,ListTodo,User} from "lucide-react";
+import {readProjects,updateProject,getProjectDisplayTitle,getProjectDisplayServices,canViewProjectTask,type Project} from "@/lib/projects";
 import {useWorkspaceAuth} from "@/lib/workspace-auth";
+import {DUMMY_ASSIGNABLE_NAMES} from "@/lib/assignees";
 
 const columns:{label:string;status:Project["status"]}[]=[
   {label:"Active",status:"ACTIVE"},
@@ -18,12 +20,16 @@ const columns:{label:string;status:Project["status"]}[]=[
 const transferType="application/x-project-status";
 
 export function ProjectStatusBoard({project}:{project:Project}) {
-  const {role}=useWorkspaceAuth();
+  const {role,user,members}=useWorkspaceAuth();
   const [over,setOver]=useState("");
   const [creatingRetainer,setCreatingRetainer]=useState(false);
   const router=useRouter();
   const canMove=role==="admin";
   const services=getProjectDisplayServices(project);
+  const employeeName=(members.find(member=>member.user_id===user?.id)?.display_name||user?.user_metadata?.full_name||user?.email?.split("@")[0]||"").trim();
+  const openTasks=(project.workItems??[]).filter(task=>canViewProjectTask(project,task,role,user?.id,employeeName)&&task.status!=="DONE").length;
+  const manager=project.team.find(member=>member.role==="Project Manager");
+  const managerName=manager?.name&&!DUMMY_ASSIGNABLE_NAMES.has(manager.name.toLowerCase().trim())?manager.name:"PM unassigned";
   function move(status:Project["status"]) {
     const current=readProjects().find(item=>item.id===project.id);
     if(!canMove || !current || current.status===status || !columns.some(column=>column.status===status))return;
@@ -53,9 +59,16 @@ export function ProjectStatusBoard({project}:{project:Project}) {
         const target=columns[index+(event.key==="ArrowRight"?1:-1)];
         if(target){event.preventDefault();move(target.status);}
       }} onDragStart={event=>{if(!canMove)return;event.dataTransfer.effectAllowed="move";event.dataTransfer.setData(transferType,project.id);}} onDragEnd={()=>setOver("")}>
-        <div className="project-board-card-heading"><h4>{getProjectDisplayTitle(project)}</h4>{canMove&&<GripVertical size={16} aria-hidden="true"/>}</div>
-        {services&&<p className="project-board-services">{services}</p>}
-        <span className="project-status-reference">{project.id}</span>
+        <div className="project-board-card-heading">
+          {project.projectType==="internal"?<span className="project-internal-wordmark">Internal</span>:<span className={`company-pill company-${(project.operatingCompany??"Evecture").toLowerCase()}`} data-company={project.operatingCompany??"Evecture"}>{project.operatingCompany??"Evecture"}</span>}
+          {canMove&&<GripVertical size={16} aria-hidden="true"/>}
+        </div>
+        <div className="project-card-identity project-board-identity">
+          <ProjectCardLogo src={project.logoDataUrl} title={getProjectDisplayTitle(project)} projectType={project.projectType} />
+          <div className="project-board-copy"><h4>{getProjectDisplayTitle(project)}</h4>{services&&<p className="project-board-services">{services}</p>}</div>
+        </div>
+        <div className="project-board-task-count"><ListTodo size={14} aria-hidden="true"/><span>{openTasks} open {openTasks===1?"task":"tasks"}</span></div>
+        <div className="project-board-card-meta"><span className="project-board-manager" title={`Project Manager: ${managerName}`}><User size={12} aria-hidden="true"/><span>{managerName}</span></span><span className="project-status-reference">{project.id}</span></div>
       </article>:<p className="project-board-empty">{canMove?"Drop project here":"No project"}</p>}
     </section>)}</div>
     {canMove && project.status==="AMC" && <div className="project-amc-actions"><Link className="button button-quiet" href="/post-sale">Open Retainers</Link>{!readManagedProjects().some(plan=>plan.sourceProjectId===project.id)&&<button className="button button-quiet" type="button" onClick={()=>setCreatingRetainer(true)}>Add retainer plan</button>}</div>}

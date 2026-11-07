@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Clock3, ExternalLink, Mail, MapPin, Phone, Plus, Search } from "lucide-react";
+import { ArrowRight, ChevronDown, Clock3, ExternalLink, Mail, MapPin, Phone, Plus, Search } from "lucide-react";
 import { formatLeadId, type Lead, readLeads, updateLead } from "@/lib/leads";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
@@ -17,10 +17,23 @@ function ageSince(value: string, now: number) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function LeadSummary({ lead, now }: { lead: Lead; now: number }) {
+  const company = lead.companyName?.trim();
+  const companyLabel = company && !["none", "n/a"].includes(company.toLowerCase()) ? company : "Individual enquiry";
+  return <>
+    <span className="lead-main">
+      <strong>{lead.fullName}{lead.designation && <small>{lead.designation}</small>}</strong>
+      <span className="lead-summary-details"><span>{companyLabel}</span>{lead.services.length > 0 && <><span aria-hidden="true"> &middot; </span><span>{lead.services.join(", ")}</span></>}</span>
+    </span>
+    <StatusBadge status={lead.status} />
+    <span className="lead-received"><Clock3 size={14} aria-hidden="true" /><span>{ageSince(lead.createdAt, now)}<small>Received</small></span></span>
+  </>;
+}
+
 const statusOptions: [string, string][] = [
   ["NEW", "New"],
   ["PROPOSAL_SENT", "Proposal sent"], ["ACCEPTED", "Accepted"],
-  ["CONVERTED", "Converted to project"], ["LOST", "Lost"],
+  ["CONVERTED", "Won"], ["LOST", "Lost"],
   ["All", "All leads"],
 ];
 
@@ -59,7 +72,7 @@ export default function RequestsPage() {
   if ((role === "employee")) return <div className="page-content requests-page">
     <section className="welcome-row requests-welcome"><div><h1>Leads</h1><p className="welcome-subtitle">Browse enquiry details and proposal progress.</p></div></section>
     <div className="pipeline-toolbar"><div className="pipeline-tabs" role="tablist" aria-label="Filter leads by status">{statusOptions.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={status === key} className={status === key ? "selected" : ""} onClick={() => setStatus(key)}>{label}<span>{counts[key]}</span></button>)}</div><label className="pipeline-search"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search leads" /></label></div>
-    {visibleLeads.length === 0 ? <EmptyState icon={<Mail size={22} />} title={leads.length === 0 ? "No leads available" : "No matching leads"} description="Try another search or status filter." /> : <div className="lead-record-list">{visibleLeads.map((lead) => <article className="lead-record panel" key={lead.id}><Link className="lead-record-summary" href={`/requests/${lead.id}`}><span className="lead-main"><strong>{lead.fullName}{lead.designation ? <small> · {lead.designation}</small> : null}</strong><span>{lead.companyName || "Individual enquiry"} · {lead.services.join(", ")}</span></span><StatusBadge status={lead.status} /><span className="lead-received"><Clock3 size={13} />{ageSince(lead.createdAt, now)}<small>received</small></span><ArrowRight size={16} /></Link></article>)}</div>}
+    {visibleLeads.length === 0 ? <EmptyState icon={<Mail size={22} />} title={leads.length === 0 ? "No leads available" : "No matching leads"} description="Try another search or status filter." /> : <div className="lead-record-list">{visibleLeads.map((lead) => <article className="lead-record panel" key={lead.id}><Link className="lead-record-summary" href={`/requests/${lead.id}`}><LeadSummary lead={lead} now={now} /><ArrowRight className="lead-summary-arrow" size={16} aria-hidden="true" /></Link></article>)}</div>}
   </div>;
 
   return <div className="page-content requests-page">
@@ -94,11 +107,9 @@ export default function RequestsPage() {
       {visibleLeads.map((lead) => {
         const companyLocked = Boolean(lead.operatingCompany && (lead.projectId || lead.invoice || (lead.proposals ?? []).some(proposal => ["SENT", "ACCEPTED", "SUPERSEDED"].includes(proposal.status))));
         return <article className={`lead-record panel ${expanded === lead.id ? "lead-expanded" : ""}`} id={lead.id} key={lead.id}>
-          <button className="lead-record-summary" onClick={() => setExpanded(expanded === lead.id ? null : lead.id)} aria-expanded={expanded === lead.id}>
-            <span className="lead-main"><strong>{lead.fullName}<small>{lead.designation ? ` · ${lead.designation}` : ""}</small></strong><span>{lead.companyName || "Individual enquiry"} · {lead.services.join(", ")}</span></span>
-            <StatusBadge status={lead.status} />
-            <span className="lead-received"><Clock3 size={13} />{ageSince(lead.createdAt, now)}<small>received</small></span>
-            <span className="lead-expand-caret">⌄</span>
+          <button type="button" className="lead-record-summary" onClick={() => setExpanded(expanded === lead.id ? null : lead.id)} aria-expanded={expanded === lead.id}>
+            <LeadSummary lead={lead} now={now} />
+            <ChevronDown className="lead-expand-caret" size={16} aria-hidden="true" />
           </button>
           {expanded === lead.id && <div className="lead-detail">
             <div className="lead-detail-columns">

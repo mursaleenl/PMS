@@ -1,6 +1,32 @@
 const { test, expect } = require('@playwright/test');
 const { mockWorkspace, tables } = require('./fixtures.cjs');
 
+test('internal projects use the default logo across views and keep custom uploads', async ({ page }) => {
+  await mockWorkspace(page);
+  await page.route('**/rest/v1/projects?*', route => route.fulfill({ json: [{ ...tables.projects[0], project_type: 'internal', lead_id: null, client_company: null, client_name: null, logo_data_url: null, title: 'Internal design system' }] }));
+  await page.goto('/projects');
+  await expect(page.locator('.portfolio-card .project-card-logo')).toHaveAttribute('src', '/internal-project-logo.png');
+  await page.goto('/');
+  await expect(page.locator('.overview-project-card .project-card-logo')).toHaveAttribute('src', '/internal-project-logo.png');
+  await expect(page.locator('.overview-project-card .project-card-logo')).toBeVisible();
+  await expect(page.locator('.overview-project-card .project-internal-wordmark')).toHaveText('Internal');
+  await expect(page.locator('.overview-project-card .company-pill')).toHaveCount(0);
+  await expect(page.locator('.overview-task-row .project-card-logo')).toHaveCount(2);
+  await expect(page.locator('.overview-task-row .project-card-logo').first()).toHaveAttribute('src', '/internal-project-logo.png');
+  await page.goto('/work');
+  await expect(page.locator('.task-project-cell .project-card-logo')).toHaveAttribute('src', '/internal-project-logo.png');
+  await page.getByRole('button', { name: 'Board', exact: true }).click();
+  await expect(page.locator('.task-kanban-card .project-card-logo')).toHaveCount(3);
+  await expect(page.locator('.task-kanban-card .project-card-logo').first()).toBeVisible();
+  await page.goto('/projects/EVE-2026-001');
+  await expect(page.locator('.project-workspace-logo')).toHaveAttribute('src', '/internal-project-logo.png');
+  await page.getByRole('button', { name: 'Project status', exact: true }).click();
+  await expect(page.locator('.project-board-card .project-card-logo')).toHaveAttribute('src', '/internal-project-logo.png');
+  await page.locator('.project-logo-upload-compact input[type=file]').setInputFiles('public/internal-project-logo.png');
+  await expect(page.locator('.project-workspace-logo')).toHaveAttribute('src', /^data:image\/png;base64,/);
+  await expect(page.locator('.project-board-card .project-card-logo')).toHaveAttribute('src', /^data:image\/png;base64,/);
+});
+
 test('admin creates internal work without commercial fields', async ({ page }) => {
   const { calls } = await mockWorkspace(page);
   await page.goto('/projects');

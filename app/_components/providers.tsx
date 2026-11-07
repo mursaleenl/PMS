@@ -121,6 +121,8 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
         const snapshot = await readRelationalWorkspace(client!);
         // Never replace edits or an acknowledgement made while the request was in flight.
         if (cancelled || running || failed || conflict || acknowledged !== previous || workspaceChanges(acknowledged, workspaceValues(), revisions).length) return;
+        // A delayed read must not roll back a revision we have already saved.
+        if (Object.entries(snapshot.revisions).some(([key, revision]) => revisions[key] !== undefined && revision < revisions[key])) return;
         if (snapshot.requiresMigration || JSON.stringify(snapshot.revisions) === JSON.stringify(revisions)) return;
         for (const collection of collections) applyRemoteCollection(collection, snapshot.values[collection]);
         acknowledged = workspaceValues();

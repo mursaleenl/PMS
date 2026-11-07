@@ -1,5 +1,6 @@
 "use client";
 
+import { getProjectLogoSrc } from "@/lib/project-logo";
 import { ProjectLogoUpload } from "@/app/_components/project-logo";
 import {readLeads,type Lead} from "@/lib/leads";
 import { createUuid } from "@/lib/uuid";
@@ -8,7 +9,7 @@ import {StatusBadge} from "@/app/_components/status-badge";
 import { ProjectStatusBoard } from "@/app/_components/project-status-board";
 import { ProjectConversation } from "@/app/_components/project-conversation";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, Download, ExternalLink, FileText, FolderKanban, Handshake, Link2, Plus, Receipt, Trash2, Users, X } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
 import { deleteProject, readProjects, getProjectTeamMembers, getProjectDisplayTitle, getProjectDisplayServices, type Project, type ProjectWorkItem, updateProject, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
@@ -28,8 +29,18 @@ type AssigneeOption = {
   email?: string;
 };
 
-function TaskDispatchDrawer({ project, onClose, onDispatch }: { project: Project; onClose: () => void; onDispatch: (task: ProjectWorkItem) => void }) {
+function TaskDispatchDialog({ project, onClose, onDispatch }: { project: Project; onClose: () => void; onDispatch: (task: ProjectWorkItem) => void }) {
   const { session, user, role: currentRole, members } = useWorkspaceAuth();
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const node = dialog.current;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    node?.showModal();
+    return () => {
+      node?.close();
+      requestAnimationFrame(() => { if (previousFocus?.isConnected) previousFocus.focus(); });
+    };
+  }, []);
   const [error, setError] = useState("");
   const [kind, setKind] = useState<ProjectWorkItem["kind"]>("FEATURE_DEV");
   const [loadingAssignees, setLoadingAssignees] = useState(false);
@@ -155,14 +166,18 @@ function TaskDispatchDrawer({ project, onClose, onDispatch }: { project: Project
   }
 
   return (
-    <div
-      className="task-drawer-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+    <dialog
+      ref={dialog}
+      className="task-drawer-backdrop task-dispatch-dialog"
+      aria-labelledby="dispatch-title"
+      onCancel={event => { event.preventDefault(); onClose(); }}
+      onClick={event => {
+        if (event.target !== event.currentTarget) return;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onClose();
       }}
     >
-      <aside className="task-dispatch-drawer" role="dialog" aria-modal="true" aria-labelledby="dispatch-title">
+      <div className="task-dispatch-drawer">
         <header>
           <div>
             <h2 id="dispatch-title">Dispatch task</h2>
@@ -170,7 +185,7 @@ function TaskDispatchDrawer({ project, onClose, onDispatch }: { project: Project
               Assign work and dispatch it directly to the Tasks board.
             </p>
           </div>
-          <button className="icon-button" type="button" onClick={onClose} aria-label="Close dispatch drawer">
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Close dispatch form">
             <X size={18} />
           </button>
         </header>
@@ -228,8 +243,8 @@ function TaskDispatchDrawer({ project, onClose, onDispatch }: { project: Project
             </button>
           </footer>
         </form>
-      </aside>
-    </div>
+      </div>
+    </dialog>
   );
 }
 
@@ -281,18 +296,18 @@ export default function ProjectWorkspacePage() {
 
   function moveFromRetainerToProjects() {
     if (!project || (role !== "admin" && role !== "project_manager")) return;
-    if (!window.confirm(`Move "${project.title}" out of Retainers and back to active Projects?`)) return;
+    if (!window.confirm(`Move "${getProjectDisplayTitle(project)}" out of Retainers and back to active Projects?`)) return;
     if (managedPlan) {
       deleteManagedProject(managedPlan.id);
       setManagedPlan(null);
     }
     save({ status: "ACTIVE" });
-    showToast({ message: `"${project.title}" reactivated and moved to active projects.` });
+    showToast({ message: `"${getProjectDisplayTitle(project)}" reactivated and moved to active projects.` });
   }
 
   function removeProject() {
     if (!project || (role !== "admin" && role !== "project_manager")) return;
-    if (!window.confirm(`Delete “${project.title}”? This will permanently remove its workspace and tasks.`)) return;
+    if (!window.confirm(`Delete “${getProjectDisplayTitle(project)}”? This will permanently remove its workspace and tasks.`)) return;
     deleteProject(project.id);
     router.push("/projects");
   }
@@ -335,13 +350,14 @@ export default function ProjectWorkspacePage() {
   const acceptedProposal=[...(linkedLead?.proposals??[])].filter(item=>item.status==="ACCEPTED").sort((a,b)=>b.version-a.version)[0];
   const sowUrl=linkedLead?.acceptanceDocumentDataUrl||project.signedContractDataUrl;
   const sowName=linkedLead?.acceptanceDocumentName||project.signedContractName;
+  const projectLogo = getProjectLogoSrc(project);
   return <div className="page-content project-detail-page">
     <Link className="back-link" href="/projects"><ArrowLeft size={15} />Project portfolio</Link>
-    <header className="record-heading project-room-heading"><div>{project.logoDataUrl && <img className="project-workspace-logo" src={project.logoDataUrl} alt={`${getProjectDisplayTitle(project)} logo`} />}<h1>{getProjectDisplayTitle(project)}</h1><p className="project-room-services">Project type: {project.projectType === "internal" ? "Internal" : "External"}</p>{services && <p className="project-room-services">{services}</p>}</div><div className="project-lifecycle-actions"><div className="project-lifecycle-status"><StatusBadge status={project.status}/>{health && <StatusBadge status={health}/>}</div><div className="project-lifecycle-buttons">{(role === "admin" || role === "project_manager")&&((project.status === "COMPLETED" || project.status === "AMC") ? project.projectType === "internal" ? null : managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-quiet" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>)}{(role === "admin" || role === "project_manager") && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></div></header>
+    <header className="record-heading project-room-heading"><div className="project-room-summary"><div className="project-room-identity">{projectLogo && <img className="project-workspace-logo" src={projectLogo} alt={`${getProjectDisplayTitle(project)} logo`} />}<h1>{getProjectDisplayTitle(project)}</h1></div><div className="project-room-copy"><p className="project-room-services">Project type: {project.projectType === "internal" ? "Internal" : "External"}</p>{services && <p className="project-room-services">{services}</p>}<div className="project-lifecycle-status"><StatusBadge status={project.status}/>{health && <StatusBadge status={health}/>}</div></div></div><div className="project-lifecycle-actions"><div className="project-lifecycle-buttons">{(role === "admin" || role === "project_manager")&&((project.status === "COMPLETED" || project.status === "AMC") ? project.projectType === "internal" ? null : managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-quiet" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>)}{(role === "admin" || role === "project_manager") && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></div></header>
 
     <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{project.status === "COMPLETED" ? "Completed" : "Active"}</strong></div><div><small>OPEN WORK ITEMS</small><strong><Link href="/work" style={{ textDecoration: "none", color: "inherit" }}>{workItems.filter((task) => task.status !== "DONE").length} · In Tasks</Link></strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim() && !DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim())).length}</strong></div></section>
 
-    {(role === "admin" || role === "project_manager") && <div className="project-dispatch-row"><ProjectLogoUpload compact value={project.logoDataUrl} onChange={logoDataUrl => save({logoDataUrl})} /><button type="button" className="button button-primary room-dispatch-button" onClick={() => setShowDispatch(true)}><Plus size={14} />Dispatch task</button></div>}
+    {(role === "admin" || role === "project_manager") && <div className="project-dispatch-row"><button type="button" className="button button-primary room-dispatch-button" onClick={() => setShowDispatch(true)}><Plus size={14} />Dispatch task</button><ProjectLogoUpload compact value={project.logoDataUrl} onChange={logoDataUrl => save({logoDataUrl})} /></div>}
 
     <nav className="project-room-tabs" aria-label="Project room sections">
       {projectTabs.map((tab) => <button key={tab} type="button" className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>)}
@@ -413,7 +429,7 @@ export default function ProjectWorkspacePage() {
     {activeTab === "Messages" && <section className="panel portal-record"><ProjectConversation projectId={project.id}/></section>}
     {activeTab === "Staging & Links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"]] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16} /></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12} /></a> : <strong>Not added</strong>}</div>{((role === "admin" || role === "project_manager") || ((role === "employee") && key === "staging")) && <button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button>}</article>; })}</div><p className="storage-note">Project links are saved to your workspace. Repository and hosting permissions are managed by their providers.</p></section>}
 
-    {(role === "admin" || role === "project_manager") && showDispatch && <TaskDispatchDrawer project={project} onClose={() => setShowDispatch(false)} onDispatch={dispatchTask} />}
+    {(role === "admin" || role === "project_manager") && showDispatch && <TaskDispatchDialog project={project} onClose={() => setShowDispatch(false)} onDispatch={dispatchTask} />}
     {(role === "admin" || role === "project_manager") && showManagedPlan && <ManagedPlanDrawer projects={[project]} initialProjectId={project.id} onClose={() => setShowManagedPlan(false)} onCreated={(item) => setManagedPlan(item)} />}
     <p className="storage-note">Changes are saved to your workspace database.</p>
   </div>;

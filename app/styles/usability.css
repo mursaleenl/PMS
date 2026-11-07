@@ -328,7 +328,7 @@ body, button, input, select, textarea { font-family: var(--font-body); }
     text-transform: none !important; letter-spacing: 0 !important;
   }
   .app-shell #workspace-content .overview-project-card .overview-project-services {
-    display: block !important; min-height: 0 !important; margin: 0 0 16px !important;
+    display: block !important; min-height: 0 !important; margin: 10px 0 16px !important;
     font-size: 13px !important; line-height: 1.5 !important; white-space: normal !important;
     overflow-wrap: anywhere; color: #71717a !important;
   }
@@ -585,27 +585,33 @@ body, button, input, select, textarea { font-family: var(--font-body); }
   }
 }
 
-/* Boards grow with their cards; empty columns reserve one card of space. */
+/* Task columns retain room below their cards for dropping more work. */
 @media screen {
-  .app-shell #workspace-content :is(.task-kanban-board,.project-kanban-board,.project-board-columns) {
+  .app-shell #workspace-content .project-kanban-board {
     align-items: start !important;
     align-content: start;
     height: auto;
     min-height: 0;
   }
-  .app-shell #workspace-content :is(.task-kanban-column,.kanban-column,.project-board-column) {
+  .app-shell #workspace-content .kanban-column {
     min-height: 0 !important;
     height: auto !important;
   }
-  .app-shell #workspace-content :is(.task-kanban-column-body,.kanban-column-body) {
+  .app-shell #workspace-content .kanban-column-body {
     flex: 0 0 auto;
   }
-  .app-shell #workspace-content :is(.task-kanban-empty,.kanban-column-empty,.project-board-empty) {
+  .app-shell #workspace-content .kanban-column-empty {
     flex: 0 0 auto;
     min-height: 240px;
     padding: 16px 12px;
     box-sizing: border-box;
   }
+  html body .app-shell #workspace-content .task-management-page .task-kanban-board { align-items: stretch !important; }
+  html body .app-shell #workspace-content .task-management-page .task-kanban-column { display: flex; flex-direction: column; min-height: 420px !important; height: auto !important; }
+  html body .app-shell #workspace-content .task-management-page .task-kanban-column-body { flex: 1 0 auto; min-height: 340px; padding-bottom: 96px; box-sizing: border-box; }
+  html body .app-shell #workspace-content .task-management-page .task-kanban-card { flex-shrink: 0; }
+  html body .app-shell #workspace-content .task-management-page .task-kanban-empty { flex: 1; min-height: 180px; }
+  html body .app-shell #workspace-content .task-management-page .task-kanban-column.kanban-column-drag-over { background: #f4f4f5 !important; border-color: #0f172a !important; box-shadow: inset 0 0 0 1px #0f172a !important; }
 }
 
 /* Role identity: dark symbols on soft coloured surfaces, including the profile menu. */
@@ -897,13 +903,31 @@ body, button, input, select, textarea { font-family: var(--font-body); }
 }
 
 @media screen {
+  .app-shell #workspace-content .project-status-board .project-board-columns {
+    align-items: stretch; grid-auto-rows: 1fr; gap: 16px;
+  }
+  .app-shell #workspace-content .project-status-board .project-board-column {
+    display: flex; flex-direction: column; min-height: 240px; padding: 16px;
+    box-sizing: border-box;
+  }
+  .app-shell #workspace-content .project-status-board .project-board-column > header {
+    align-items: center; min-height: 24px; margin: 0 0 16px;
+  }
+  .app-shell #workspace-content .project-status-board .project-board-column > header .status-badge {
+    color: #52525b !important;
+  }
+  .app-shell #workspace-content .project-status-board .project-board-empty {
+    display: flex; flex: 1; align-items: center; justify-content: center;
+    min-height: 0; margin: 0; padding: 24px 12px; box-sizing: border-box;
+    font-size: 12px !important; line-height: 1.5; color: #71717a !important;
+  }
   .app-shell #workspace-content .project-status-board .project-board-card {
-    display: block; min-height: 0 !important; padding: 14px !important;
+    display: block; min-height: 0 !important; padding: 16px !important;
     background: #ffffff !important; border: 1px solid #e4e4e7 !important;
     border-radius: 0 !important; box-shadow: none !important;
   }
   .app-shell #workspace-content .project-status-board .project-board-card-heading {
-    align-items: flex-start; gap: 10px; margin: 0 !important;
+    align-items: center; gap: 12px; margin: 0 !important;
   }
   .app-shell #workspace-content .project-status-board .project-board-card h4 {
     margin: 0 !important; font-size: 15px !important; line-height: 1.35 !important;
@@ -911,14 +935,21 @@ body, button, input, select, textarea { font-family: var(--font-body); }
     letter-spacing: 0 !important; color: #0f172a !important; overflow-wrap: anywhere;
   }
   .app-shell #workspace-content .project-status-board .project-board-card .project-board-services {
-    margin: 5px 0 0 !important; font-size: 12px !important;
+    margin: 4px 0 0 !important; font-size: 12px !important;
     line-height: 1.5 !important; color: #71717a !important; overflow-wrap: anywhere;
   }
   .app-shell #workspace-content .project-status-board .project-status-reference {
-    display: block; margin-top: 12px; padding-top: 10px;
-    border-top: 1px solid #e4e4e7; font-size: 12px !important;
+    display: block; margin: 0; padding: 0; white-space: nowrap;
+    border: 0; font-size: 11px !important;
     line-height: 1.4; font-weight: 500; color: #475569 !important;
   }
+  .app-shell #workspace-content .project-status-board .project-board-identity { gap: 10px; margin: 14px 0; }
+  .app-shell #workspace-content .project-status-board .project-board-identity .project-card-logo { width: 36px; height: 36px; flex-basis: 36px; }
+  .app-shell #workspace-content .project-status-board .project-board-copy { min-width: 0; flex: 1; }
+  .app-shell #workspace-content .project-status-board .project-board-task-count { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #475569; }
+  .app-shell #workspace-content .project-status-board .project-board-card-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #e4e4e7; }
+  .app-shell #workspace-content .project-status-board .project-board-manager { display: inline-flex; align-items: center; gap: 5px; min-width: 0; font-size: 11px; color: #71717a; }
+  .app-shell #workspace-content .project-status-board .project-board-manager > span { min-width: 0; overflow-wrap: anywhere; }
   .app-shell #workspace-content .project-status-board .project-board-card:focus-visible {
     outline: 1px solid #0f172a !important; outline-offset: 2px; box-shadow: none !important;
   }
@@ -1102,13 +1133,19 @@ body, button, input, select, textarea { font-family: var(--font-body); }
 /* Project actions and tab navigation occupy separate rows. */
 @media screen {
   html body .app-shell #workspace-content .project-room-heading {
-    display: flex !important; flex-direction: column !important; align-items: stretch !important;
-    gap: 16px !important; margin-bottom: 20px !important;
+    display: flex !important; flex-direction: row !important; align-items: flex-start !important;
+    flex-wrap: wrap; gap: 16px 24px !important; margin-bottom: 16px !important;
   }
-  html body .app-shell #workspace-content .project-room-heading > div:first-child { flex: none !important; }
+  html body .app-shell #workspace-content .project-room-heading > .project-room-summary { flex: 1 1 280px !important; min-width: 0; }
+  html body .app-shell #workspace-content .project-room-summary > .project-room-identity { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; align-items: center; gap: 16px; min-width: 0; margin-bottom: 12px; }
+  html body .app-shell #workspace-content .project-room-identity h1 { min-width: 0; margin: 0 !important; overflow-wrap: anywhere; }
+  html body .app-shell #workspace-content .project-room-identity .project-workspace-logo { width: 56px; height: 56px; flex: 0 0 56px; margin: 0; object-fit: contain; }
+  html body .app-shell #workspace-content .project-room-copy { min-width: 0; }
+  html body .app-shell #workspace-content .project-room-copy h1 { margin-top: 0 !important; overflow-wrap: anywhere; }
+  html body .app-shell #workspace-content .project-room-copy .project-lifecycle-status { margin-top: 10px; }
   html body .app-shell #workspace-content .project-lifecycle-actions {
-    display: flex !important; align-items: center !important; justify-content: space-between !important;
-    flex-wrap: wrap; width: 100%; gap: 12px 20px !important;
+    display: flex !important; align-items: center !important; justify-content: flex-end !important;
+    flex-wrap: wrap; width: auto; margin-left: auto; gap: 12px 20px !important;
   }
   html body .app-shell #workspace-content .project-lifecycle-status {
     display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
@@ -1132,7 +1169,7 @@ body, button, input, select, textarea { font-family: var(--font-body); }
   }
   html body .app-shell #workspace-content .project-lifecycle-buttons > .button svg { width: 14px; height: 14px; flex-shrink: 0; }
   html body .app-shell #workspace-content .project-dispatch-row {
-    display: flex; justify-content: flex-end; margin: 16px 0 12px;
+    display: flex; justify-content: space-between; margin: 16px 0 12px;
   }
   html body .app-shell #workspace-content .project-dispatch-row .room-dispatch-button {
     position: static !important; inset: auto !important; transform: none !important;
@@ -1154,7 +1191,7 @@ body, button, input, select, textarea { font-family: var(--font-body); }
 @media screen and (max-width:700px) {
   html body .app-shell #workspace-content .project-lifecycle-actions { flex-direction: column; align-items: stretch !important; }
   html body .app-shell #workspace-content .project-lifecycle-buttons { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); grid-auto-rows: 1fr; width: 100%; }
-  html body .app-shell #workspace-content .project-dispatch-row .room-dispatch-button { width: 100% !important; }
+  html body .app-shell #workspace-content .project-dispatch-row .room-dispatch-button { width: auto !important; }
 }
 
 /* Attendance filters use the panel width without a nested frame. */
@@ -1449,20 +1486,20 @@ html body .new-project-dialog .new-project-choices :is(button,a) span { font-siz
 .project-logo-preview img { width: 56px; height: 56px; object-fit: contain; }
 
 /* Align project logos with the title rather than stacking above it. */
-html body .app-shell #workspace-content .projects-page .portfolio-project-identity { display: flex; align-items: center; gap: 14px; margin: 20px 0 18px; min-height: 48px; }
+html body .app-shell #workspace-content .projects-page .portfolio-project-identity { display: flex; align-items: flex-start; gap: 12px; margin: 16px 0; min-height: 44px; }
 html body .app-shell #workspace-content .projects-page .portfolio-project-identity .project-card-logo { width: 44px; height: 44px; flex: 0 0 44px; object-fit: contain; margin: 0; }
 .portfolio-project-copy { flex: 1; min-width: 0; }
 html body .app-shell #workspace-content .projects-page .portfolio-project-copy .portfolio-card-title { margin: 0 !important; line-height: 1.35; overflow-wrap: anywhere; }
 html body .app-shell #workspace-content .projects-page .portfolio-project-copy .portfolio-card-subtitle { margin: 5px 0 0 !important; line-height: 1.5; }
-html body .app-shell #workspace-content .projects-page .portfolio-card-top { align-items: center; gap: 12px; }
+html body .app-shell #workspace-content .projects-page .portfolio-card-top { align-items: center; gap: 12px; min-height: 20px; margin: 0 !important; }
 html body .app-shell #workspace-content .projects-page .portfolio-card-meta { align-items: center; gap: 12px; }
 html body .app-shell #workspace-content .projects-page .portfolio-pm-chip { min-width: 0; }
 html body .app-shell #workspace-content .projects-page .portfolio-pm-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 html body .app-shell #workspace-content .projects-page .portfolio-id-badge { flex-shrink: 0; }
 
-/* Logo actions sit immediately before task dispatch and wrap on small screens. */
-html body .app-shell .project-dispatch-row { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 10px; }
-html body .app-shell .project-dispatch-row .project-logo-upload-compact { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; width: auto; min-width: 0; }
+/* Task dispatch leads the row; logo editing stays on the right. */
+html body .app-shell .project-dispatch-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+html body .app-shell .project-dispatch-row .project-logo-upload-compact { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; width: auto; min-width: 0; margin-left: auto; }
 .project-logo-upload-compact .form-error { flex-basis: 100%; max-width: 320px; margin: 0; }
 @media (max-width: 480px) {
   html body .app-shell .project-dispatch-row { justify-content: flex-start; }
@@ -1471,6 +1508,8 @@ html body .app-shell .project-dispatch-row .project-logo-upload-compact { displa
 
 html body .app-shell .task-assignment-select { width: 100%; max-width: 190px; min-width: 110px; height: 36px; padding: 0 8px; border: 1px solid #e4e4e7; border-radius: 0 !important; background: #ffffff; color: #0f172a; font-size: 12px; }
 html body .app-shell .task-assignment-select:focus-visible { outline: 1px solid #0f172a; outline-offset: 1px; }
+html body .app-shell #workspace-content .task-status-select { width: 140px; max-width: 100%; height: 36px; padding: 0 8px; border: 1px solid #e4e4e7; border-radius: 0 !important; background: #ffffff; color: #0f172a; font-size: 12px !important; text-transform: none !important; cursor: pointer; }
+html body .app-shell #workspace-content .task-status-select:focus-visible { outline: 1px solid #0f172a; outline-offset: 1px; }
 
 .assign-task-dialog { width: min(540px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); overflow-y: auto; margin: auto; padding: 24px; border: 1px solid #e4e4e7; border-radius: 0; background: #ffffff; color: #0f172a; }
 .assign-task-dialog::backdrop { background: rgb(0 0 0 / 32%); backdrop-filter: blur(3px); }
@@ -1484,3 +1523,189 @@ html body .assign-task-dialog :is(input,textarea,select) { width: 100%; box-sizi
 html body .assign-task-dialog :is(input,textarea,select):focus-visible { outline: 1px solid #0f172a; }
 html body .assign-task-dialog .button-primary { background: #0f172a !important; color: #ffffff !important; border-color: #0f172a !important; }
 @media (max-width: 480px) { .assign-task-columns { grid-template-columns: 1fr; gap: 0; } .assign-task-dialog { padding: 18px; } }
+
+/* Shared project identity across dashboard, board, client and retainer cards. */
+.project-card-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.project-card-identity .project-card-logo { width: 44px; height: 44px; flex: 0 0 44px; object-fit: contain; margin: 0; }
+.project-card-identity > :is(h2, h3, h4, strong) { min-width: 0; overflow-wrap: anywhere; }
+
+@media screen and (min-width: 1001px) {
+  .app-shell #workspace-content .overview-dashboard .overview-project-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* Lead summaries use the same alignment for employee links and expandable cards. */
+html body .app-shell #workspace-content .requests-page .lead-record {
+  border: 1px solid #e2e8f0 !important; border-radius: 0 !important; box-shadow: none !important; background: #fff !important;
+}
+html body .app-shell #workspace-content .requests-page .lead-record:hover { border-color: #cbd5e1 !important; }
+html body .app-shell #workspace-content .requests-page .lead-record-summary {
+  display: grid !important; grid-template-columns: minmax(0, 1fr) 140px 130px 20px;
+  align-items: center; gap: 20px; width: 100%; height: auto !important; min-height: 88px !important;
+  padding: 18px 20px !important; border: 0 !important; background: #fff !important;
+  text-align: left; text-decoration: none !important; text-transform: none !important; letter-spacing: normal !important;
+}
+html body .app-shell #workspace-content .requests-page .lead-record-summary:focus-visible { outline: 2px solid #0f172a !important; outline-offset: -2px; }
+html body .app-shell #workspace-content .requests-page .lead-main { min-width: 0; gap: 6px; }
+html body .app-shell #workspace-content .requests-page .lead-main > strong {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 15px !important; font-weight: 600; line-height: 1.4; color: #0f172a !important; overflow-wrap: anywhere;
+}
+html body .app-shell #workspace-content .requests-page .lead-main > strong small { font-size: 12px !important; font-weight: 400; color: #71717a !important; }
+html body .app-shell #workspace-content .requests-page .lead-main > .lead-summary-details { font-size: 13px !important; line-height: 1.5; font-weight: 400; color: #64748b !important; overflow-wrap: anywhere; }
+html body .app-shell #workspace-content .requests-page .lead-record-summary > .status-badge { justify-self: start; color: #52525b !important; white-space: nowrap; }
+html body .app-shell #workspace-content .requests-page .lead-received { display: flex; align-items: flex-start; gap: 7px; min-width: 0; font-size: 12px !important; font-weight: 400; line-height: 1.5; color: #64748b !important; }
+html body .app-shell #workspace-content .requests-page .lead-received > svg { flex-shrink: 0; margin-top: 2px; }
+html body .app-shell #workspace-content .requests-page .lead-received small { display: block; margin-top: 2px; font-size: 11px !important; color: #71717a !important; }
+html body .app-shell #workspace-content .requests-page :is(.lead-expand-caret, .lead-summary-arrow) { width: 16px; height: 16px; justify-self: end; color: #64748b !important; }
+@media (max-width: 700px) {
+  html body .app-shell #workspace-content .requests-page .lead-record-summary { grid-template-columns: minmax(0, 1fr) auto 16px; gap: 12px; padding: 16px !important; }
+  html body .app-shell #workspace-content .requests-page .lead-main { grid-column: 1 / 3; grid-row: 1; }
+  html body .app-shell #workspace-content .requests-page :is(.lead-expand-caret, .lead-summary-arrow) { grid-column: 3; grid-row: 1; }
+  html body .app-shell #workspace-content .requests-page .lead-record-summary > .status-badge { grid-column: 1; grid-row: 2; }
+  html body .app-shell #workspace-content .requests-page .lead-received { grid-column: 2 / 4; grid-row: 2; justify-self: end; }
+  html body .app-shell #workspace-content .requests-page .lead-received small { display: none; }
+}
+
+/* Company headings and service descriptions share a consistent hierarchy. */
+html body .app-shell #workspace-content .project-display-services {
+  display: block; margin-top: 4px; font-size: 12px !important; font-weight: 400 !important;
+  line-height: 1.5; color: #71717a !important; white-space: normal; overflow-wrap: anywhere;
+}
+html body .app-shell #workspace-content .task-management-page .task-kanban-project-pill {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  min-width: 0; padding: 0; border: 0; background: transparent; white-space: normal;
+}
+html body .app-shell #workspace-content .task-management-page .project-pill-title { font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
+html body .app-shell #workspace-content .task-management-page .task-kanban-project-pill .project-display-services { margin: 0; }
+
+/* Record lists share one outer frame and one divider between adjacent rows. */
+html body .app-shell #workspace-content .page-content :is(.lead-record-list, .clients-list, .reviews-list, .portal-records) {
+  display: block; gap: 0 !important; padding: 0 !important; border: 1px solid #e2e8f0 !important;
+  border-radius: 0 !important; background: #fff; box-shadow: none !important;
+}
+html body .app-shell #workspace-content .page-content :is(.lead-record-list, .clients-list, .reviews-list, .portal-records) > :is(.lead-record, .client-card, .review-card, .portal-record),
+html body .app-shell #workspace-content .page-content :is(.lead-record-list, .clients-list, .reviews-list, .portal-records) > :is(.lead-record, .client-card, .review-card, .portal-record):hover {
+  margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; transform: none !important;
+}
+html body .app-shell #workspace-content .page-content :is(.lead-record-list, .clients-list, .reviews-list, .portal-records) > :is(.lead-record, .client-card, .review-card, .portal-record) ~ :is(.lead-record, .client-card, .review-card, .portal-record),
+html body .app-shell #workspace-content .page-content :is(.lead-record-list, .clients-list, .reviews-list, .portal-records) > :is(.lead-record, .client-card, .review-card, .portal-record) ~ :is(.lead-record, .client-card, .review-card, .portal-record):hover {
+  border-top: 1px solid #e2e8f0 !important;
+}
+html body .app-shell #workspace-content .page-content .clients-list > .client-card { padding: 0 !important; }
+html body .app-shell #workspace-content .page-content .client-card-summary {
+  min-height: 88px !important; height: auto !important; padding: 18px 20px !important;
+  gap: 20px; background: #fff !important; text-align: left; text-transform: none !important; letter-spacing: normal !important;
+}
+html body .app-shell #workspace-content .page-content .client-card-summary :is(strong, small, span) { text-transform: none !important; letter-spacing: normal !important; }
+html body .app-shell #workspace-content .page-content .client-card-main > strong { font-size: 15px !important; line-height: 1.4; font-weight: 600; }
+html body .app-shell #workspace-content .page-content .client-card-main > small { font-size: 13px !important; line-height: 1.5; font-weight: 400; color: #64748b !important; }
+html body .app-shell #workspace-content .page-content .client-card-stat > strong { font-size: 18px !important; line-height: 1.4; font-weight: 600; }
+html body .app-shell #workspace-content .page-content .client-card-stat > small { font-size: 11px !important; line-height: 1.5; color: #71717a !important; }
+html body .app-shell #workspace-content .page-content .proposal-index-list { gap: 0 !important; }
+html body .app-shell #workspace-content .page-content .proposal-index-row { margin: 0 !important; border: 0 !important; padding: 18px 20px !important; }
+html body .app-shell #workspace-content .page-content .proposal-index-row + .proposal-index-row { border-top: 1px solid #e2e8f0 !important; }
+@media (max-width: 700px) {
+  html body .app-shell #workspace-content .page-content .client-card-summary { padding: 16px !important; gap: 12px; }
+}
+
+/* Expanded record rows share the same typography, inset and section rhythm. */
+html body .app-shell #workspace-content .page-content :is(.client-card-details, .lead-detail) {
+  padding: 20px !important; border-top: 1px solid #e2e8f0 !important;
+  background: #fff !important; font-size: 13px !important; line-height: 1.6; color: #334155;
+}
+html body .app-shell #workspace-content .page-content .client-card-details {
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.35fr) minmax(0, 1fr); gap: 24px;
+}
+html body .app-shell #workspace-content .page-content .lead-detail-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+html body .app-shell #workspace-content .page-content :is(.client-card-details, .lead-detail-columns) > section { min-width: 0; }
+html body .app-shell #workspace-content .page-content :is(.client-card-details, .lead-detail) :is(h2, h3, h4) {
+  margin: 0 0 12px !important; font-size: 14px !important; font-weight: 600 !important;
+  line-height: 1.4 !important; letter-spacing: normal !important; text-transform: none !important; color: #0f172a !important;
+}
+html body .app-shell #workspace-content .page-content .client-contact-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
+html body .app-shell #workspace-content .page-content .client-contact-fields > div { min-width: 0; }
+html body .app-shell #workspace-content .page-content .client-contact-fields > div > span:first-child,
+html body .app-shell #workspace-content .page-content .retainer-plan-facts dt,
+html body .app-shell #workspace-content .page-content .lead-detail :is(.detail-line b, .lead-budget-meta b) {
+  display: block; margin: 0 0 4px !important; font-size: 11px !important; font-weight: 500 !important;
+  line-height: 1.5; text-transform: none !important; letter-spacing: normal !important; color: #71717a !important;
+}
+html body .app-shell #workspace-content .page-content .client-contact-fields > div > :is(strong, div, a),
+html body .app-shell #workspace-content .page-content .retainer-plan-facts dd {
+  margin: 0; font-size: 13px !important; line-height: 1.6; font-weight: 400 !important; color: #334155 !important; overflow-wrap: anywhere;
+}
+html body .app-shell #workspace-content .page-content .client-contact-fields :is(a, div) > span { min-width: 0; overflow-wrap: anywhere; }
+html body .app-shell #workspace-content .page-content .retainer-plan-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; margin: 0; }
+html body .app-shell #workspace-content .page-content .retainer-plan-facts > div { display: block; min-width: 0; padding: 0; border: 0; }
+html body .app-shell #workspace-content .page-content .lead-detail :is(.detail-line, .lead-description, .lead-budget-meta > span) { font-size: 13px !important; line-height: 1.6; }
+html body .app-shell #workspace-content .page-content .lead-detail .detail-line { padding: 3px 0; align-items: baseline; gap: 8px; }
+html body .app-shell #workspace-content .page-content .lead-detail .detail-line b { margin: 0 !important; min-width: 80px; }
+html body .app-shell #workspace-content .page-content .lead-detail .lead-budget-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0; }
+html body .app-shell #workspace-content .page-content .lead-detail .lead-budget-meta > span { display: block; }
+html body .app-shell #workspace-content .page-content .lead-detail .lead-actions-row { margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0; gap: 20px; }
+html body .app-shell #workspace-content .page-content .lead-detail .lead-company-section { margin-top: 20px; }
+html body .app-shell #workspace-content .page-content .client-card-details :is(.client-detail-links, .client-plan-list) { display: flex; flex-direction: column; gap: 0 !important; border: 1px solid #e2e8f0; }
+html body .app-shell #workspace-content .page-content .client-card-details :is(.client-detail-links > a, .client-plan-list > div),
+html body .app-shell #workspace-content .page-content .client-card-details :is(.client-detail-links > a, .client-plan-list > div):hover { margin: 0; padding: 12px !important; border: 0 !important; box-shadow: none !important; background: #fff !important; }
+html body .app-shell #workspace-content .page-content .client-card-details :is(.client-detail-links > a + a, .client-plan-list > div + div),
+html body .app-shell #workspace-content .page-content .client-card-details :is(.client-detail-links > a + a, .client-plan-list > div + div):hover { border-top: 1px solid #e2e8f0 !important; }
+html body .app-shell #workspace-content .page-content .client-card-details .post-sale-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+@media (max-width: 1100px) {
+  html body .app-shell #workspace-content .page-content .client-card-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html body .app-shell #workspace-content .page-content .client-card-details > section:first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) {
+  html body .app-shell #workspace-content .page-content :is(.client-card-details, .lead-detail) { padding: 16px !important; }
+  html body .app-shell #workspace-content .page-content :is(.client-card-details, .lead-detail-columns) { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  html body .app-shell #workspace-content .page-content .lead-detail .lead-budget-meta { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 380px) {
+  html body .app-shell #workspace-content .page-content :is(.client-contact-fields, .retainer-plan-facts) { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Dispatch opens in the modal top layer, centered over the project. */
+html body .app-shell #workspace-content dialog.task-dispatch-dialog {
+  position: fixed !important; inset: 0 !important; width: min(560px, calc(100vw - 32px)) !important;
+  height: fit-content !important; max-height: calc(100dvh - 32px) !important; margin: auto !important;
+  padding: 0 !important; border: 1px solid #e4e4e7 !important; border-radius: 0 !important;
+  background: #fff !important; overflow: auto; box-shadow: 0 20px 60px rgb(0 0 0 / 16%) !important;
+  transform: none !important; animation: none !important;
+}
+html body .app-shell #workspace-content dialog.task-dispatch-dialog:not([open]) { display: none !important; }
+html body .app-shell #workspace-content dialog.task-dispatch-dialog[open] { display: block !important; }
+html body .app-shell #workspace-content dialog.task-dispatch-dialog::backdrop { background: rgb(0 0 0 / 35%); backdrop-filter: blur(3px); }
+html body .app-shell #workspace-content .task-dispatch-dialog > .task-dispatch-drawer {
+  position: static !important; inset: auto !important; width: 100% !important; height: auto !important;
+  min-height: 0 !important; max-height: none !important; padding: 24px !important; border: 0 !important;
+  box-sizing: border-box; box-shadow: none !important; transform: none !important; animation: none !important;
+}
+html body .app-shell #workspace-content .task-dispatch-dialog .button-primary { background: #0f172a !important; color: #fff !important; border-color: #0f172a !important; }
+html body .app-shell #workspace-content .task-dispatch-dialog :is(button, input, select) { border-radius: 0 !important; text-transform: none !important; }
+html body .app-shell #workspace-content .task-dispatch-dialog :is(input, select) { border-color: #e4e4e7 !important; }
+html body .app-shell #workspace-content .task-dispatch-dialog :is(button, input, select):focus-visible { outline: 1px solid #0f172a !important; border-color: #0f172a !important; box-shadow: none !important; }
+
+/* Compact project logos accompany task and search references too. */
+html body .app-shell #workspace-content .project-task-identity { align-items: flex-start; gap: 10px; }
+html body .app-shell #workspace-content .project-task-identity .project-card-logo { width: 32px; height: 32px; flex: 0 0 32px; margin: 0; }
+html body .app-shell #workspace-content .project-task-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+html body .app-shell #workspace-content .overview-task-project-logo { width: 32px !important; height: 32px !important; flex: 0 0 32px; padding: 0; background: transparent !important; }
+html body .app-shell #workspace-content .overview-task-project-logo .project-card-logo { width: 32px; height: 32px; margin: 0; }
+html body .app-shell .command-project-logo { display: block; width: 28px; height: 28px; object-fit: contain; }
+
+html body .app-shell #workspace-content .task-blocker-detail { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 8px; }
+html body .app-shell #workspace-content .task-blocker-reason { font-size: 12px !important; line-height: 1.5; color: #64748b; white-space: pre-wrap; overflow-wrap: anywhere; }
+html body .app-shell #workspace-content .task-kanban-blocker-note { background: #f8fafc !important; border-color: #e4e4e7 !important; color: #475569 !important; white-space: pre-wrap; overflow-wrap: anywhere; }
+html body .app-shell #workspace-content .task-kanban-card-footer { flex-wrap: wrap; gap: 10px; }
+html body .app-shell #workspace-content .task-kanban-actions { flex-wrap: wrap; gap: 6px; }
+html body .task-blocker-dialog :is(button, textarea) { border-radius: 0 !important; text-transform: none !important; }
+html body .task-blocker-dialog textarea:focus-visible { outline: 1px solid #0f172a !important; border-color: #0f172a !important; box-shadow: none !important; }
+
+/* Enquiry fields use a single light border, including while focused. */
+html body .app-shell #workspace-content .enquiry-form .field > :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  border: 1px solid #e4e4e7 !important; box-shadow: none !important;
+}
+html body .app-shell #workspace-content .enquiry-form .field > :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):hover {
+  border-color: #cbd5e1 !important;
+}
+html body .app-shell #workspace-content .enquiry-form .field > :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):is(:focus, :focus-visible) {
+  border: 1px solid #94a3b8 !important; outline: none !important; box-shadow: none !important;
+}

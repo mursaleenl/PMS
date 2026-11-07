@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { X } from "lucide-react";
 import { useAssignableUsers } from "@/lib/assignees";
 import { createUuid } from "@/lib/uuid";
-import { readProjects, updateProject, getProjectDisplayTitle, type Project, type ProjectWorkItem } from "@/lib/projects";
+import { readProjects, updateProject, getProjectDisplayTitle, getProjectDisplayServices, type Project, type ProjectWorkItem } from "@/lib/projects";
 import { flushWorkspaceChanges } from "@/lib/workspace-sync";
 
 export function AssignTaskDialog({ projects, onClose }: { projects: Project[]; onClose: () => void }) {
@@ -47,7 +47,7 @@ export function AssignTaskDialog({ projects, onClose }: { projects: Project[]; o
     <p>Choose a project and assign work to your team.</p>
     <form onSubmit={submit}>
       <fieldset disabled={busy || pending.current}>
-        <label className="field required">Project<select name="project" required defaultValue=""><option value="" disabled>Select a project</option>{projects.map(project => <option key={project.id} value={project.id}>{getProjectDisplayTitle(project)} · {project.id}</option>)}</select></label>
+        <label className="field required">Project<select name="project" required defaultValue=""><option value="" disabled>Select a project</option>{projects.map(project => <option key={project.id} value={project.id}>{getProjectDisplayTitle(project)} - {getProjectDisplayServices(project) || project.id}</option>)}</select></label>
         <label className="field required">Task title<textarea name="title" required rows={3} maxLength={1000} placeholder="Describe the work to be done" /></label>
         <label className="field required">Assignee<select name="assignee" required defaultValue="" disabled={loading}><option value="" disabled>{loading ? "Loading team…" : "Select a team member"}</option>{users.filter(user => user.id).map(user => <option key={user.id} value={user.id}>{user.name}</option>)}</select></label>
         <label className="field">Task type<select name="kind" defaultValue="FEATURE_DEV"><option value="FEATURE_DEV">Feature / development</option><option value="CLIENT_FEEDBACK_TODO">Client feedback</option><option value="QA_BUG">QA / bug</option></select></label>
