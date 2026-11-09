@@ -1,3 +1,4 @@
+import { getProjectServices } from "@/lib/project-services";
 import type { Lead, LeadInvoice, ProposalVersion } from "@/lib/leads";
 import { reserveWorkspaceNumber } from "@/lib/numbering";
 import type { OperatingCompany } from "@/lib/companies";
@@ -209,7 +210,7 @@ export async function projectFromLead(input: {
     clientName: lead.fullName,
     clientEmail: lead.email,
     operatingCompany: input.operatingCompany,
-    services: lead.services,
+    services: getProjectServices({title: input.title, clientCompany: lead.companyName, clientName: lead.fullName, services: lead.services}),
     classification: input.classification,
     startDate: input.startDate,
     billingStructure: proposal?.billingStructure ?? input.billingStructure ?? "Fixed",
@@ -254,16 +255,5 @@ export function getProjectDisplayTitle(project: { title: string; clientCompany?:
 }
 
 export function getProjectDisplayServices(project: Pick<Project, "title" | "clientCompany" | "clientName" | "services">): string {
-  const heading = getProjectDisplayTitle(project);
-  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const headingPrefix = new RegExp(`^${escapedHeading}\\s*[·—–|:-]\\s*`, "i");
-  const seen = new Set<string>();
-  return project.services.flatMap(service => service.trim().replace(headingPrefix, "").split(","))
-    .map(service => service.trim())
-    .filter(service => {
-      const key = service.toLowerCase();
-      if (!key || key === heading.toLowerCase() || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }).join(", ");
+  return getProjectServices(project).join(", ");
 }

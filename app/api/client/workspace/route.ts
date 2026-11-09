@@ -1,3 +1,4 @@
+import { getProjectServices } from "@/lib/project-services";
 import { NextResponse } from "next/server";
 import { authenticatedDatabase } from "@/lib/authenticated-api";
 import { serverSupabase } from "@/lib/server-supabase";
@@ -42,6 +43,9 @@ export async function GET(request: Request) {
           scope_excluded: row.scope_excluded, assumptions: row.assumptions};
       }
     }
+  }
+  for (const project of projects) {
+    if (project.details) project.details.services = getProjectServices({title: project.title, clientCompany: project.client_company, services: project.details.services});
   }
   return NextResponse.json({projects}, {headers: {"Cache-Control": "no-store"}});
 }

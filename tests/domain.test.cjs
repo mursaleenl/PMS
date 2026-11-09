@@ -11,8 +11,8 @@ test('project cards show the company once and deduplicate service descriptions',
  const {getProjectDisplayTitle,getProjectDisplayServices}=load('lib/projects.ts');
  const project={title:'ZeroGrid LLC — Branding, Website',clientCompany:'ZeroGrid LLC',clientName:'Contact',services:['ZeroGrid LLC','ZeroGrid LLC · Branding, Website','CRM','Branding','Multiple']};
  assert.equal(getProjectDisplayTitle(project),'ZeroGrid LLC');
- assert.equal(getProjectDisplayServices(project),'Branding, Website, CRM, Multiple');
- assert.equal(getProjectDisplayServices({...project,services:['ZeroGrid LLC']}),'');
+ assert.equal(getProjectDisplayServices(project),'Branding, Website');
+ assert.equal(getProjectDisplayServices({...project,title:'ZeroGrid LLC',services:['ZeroGrid LLC']}),'');
 });
 function seed(){
  sync.clearWorkspaceMemory();

@@ -1,5 +1,7 @@
 "use client";
 
+import { getInheritedInvoiceDescription } from "@/lib/project-services";
+import { readLeads } from "@/lib/leads";
 import { DEFAULT_INVOICE_PAYMENT_DETAILS } from "@/lib/invoice-payment-details";
 import {usePaymentReferences} from "@/lib/payment-references";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
@@ -1021,8 +1023,9 @@ export default function InvoicesPage() {
                               Description / Scope of work
                               <input
                                 name="description"
+                                key={activeProject.id}
                                 required
-                                defaultValue={activeProject.scopeIncluded || (activeProject.services || []).join(" & ") || activeProject.title || "Project Retainer Services"}
+                                defaultValue={getInheritedInvoiceDescription(activeProject, readLeads().find(lead => lead.id === activeProject.leadId))}
                               />
                             </label>
                             <label className="field">
