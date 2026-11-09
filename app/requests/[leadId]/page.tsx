@@ -1,4 +1,8 @@
 "use client";
+import {EditDetailsDialog} from "@/app/_components/edit-details-dialog";
+import {canEditRecordDetails,parseServiceDetails} from "@/lib/record-editing";
+import {showToast} from "@/app/_components/toast-hub";
+
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -20,6 +24,7 @@ export default function LeadWorkspacePage() {
   const leadId = params.leadId;
   const { users: assignableUsers } = useAssignableUsers();
   const [lead, setLead] = useState<Lead | null>(null);
+  const [editingDetails,setEditingDetails]=useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const converting = useRef(false);
@@ -98,6 +103,28 @@ export default function LeadWorkspacePage() {
   return <div className="page-content lead-workspace-page">
     <Link className="back-link" href="/requests"><ArrowLeft size={15} />Leads</Link>
     <header className="record-heading"><div><h1>{lead.companyName || lead.fullName}</h1></div><StatusBadge status={lead.status} /></header>
+
+    {canEditRecordDetails(role)&&<button type="button" className="button button-quiet" onClick={()=>setEditingDetails(true)}>Edit lead details</button>}
+    {canEditRecordDetails(role)&&editingDetails&&<EditDetailsDialog title="Edit lead details" onClose={()=>setEditingDetails(false)} fields={[
+      {name:"fullName",label:"Contact name",value:lead.fullName,required:true},
+      {name:"companyName",label:"Company name",value:lead.companyName},
+      {name:"email",label:"Contact email",value:lead.email,type:"email"},
+      {name:"phone",label:"Phone",value:lead.phone},
+      {name:"designation",label:"Designation",value:lead.designation},
+      {name:"companyWebsite",label:"Website",value:lead.companyWebsite},
+      {name:"country",label:"Country",value:lead.country},
+      {name:"timezone",label:"Timezone",value:lead.timezone},
+      {name:"industry",label:"Industry",value:lead.industry},
+      {name:"services",label:"Services (comma separated)",value:lead.services.join(", ")},
+      {name:"description",label:"Description",value:lead.description,type:"textarea"},
+      {name:"referenceLinks",label:"Reference links",value:lead.referenceLinks,type:"textarea"},
+      {name:"budgetNote",label:"Budget notes",value:lead.budgetNote,type:"textarea"},
+      {name:"urgency",label:"Urgency",value:lead.urgency,options:["Standard","Rush"]},
+    ]} onSave={async values=>{
+      if(!canEditRecordDetails(role))throw new Error("You do not have permission to edit leads.");
+      updateLead(lead.id,{fullName:values.fullName,companyName:values.companyName,email:values.email,phone:values.phone,designation:values.designation,companyWebsite:values.companyWebsite,country:values.country,timezone:values.timezone,industry:values.industry,services:parseServiceDetails(values.services),description:values.description,referenceLinks:values.referenceLinks,budgetNote:values.budgetNote,urgency:values.urgency as Lead["urgency"]});
+      await flushWorkspaceChanges();showToast({message:"Lead details saved."});
+    }}/>}
 
     {workflowOpen && <section className={`panel record-section operating-company-step ${lead.operatingCompany ? "is-selected" : "needs-selection"}`} id="workflow-company">
       <div className="record-section-heading"><div><span className="section-icon"><ShieldCheck size={17} /></span><div><h2>Choose operating company</h2><p>Choose the studio responsible for this lead and its project.</p></div></div><span className="workflow-state">{companySelectionLocked ? "Company confirmed" : lead.operatingCompany ? "Selected" : "Required before project setup"}</span></div>

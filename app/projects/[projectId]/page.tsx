@@ -1,4 +1,8 @@
 "use client";
+import {EditDetailsDialog} from "@/app/_components/edit-details-dialog";
+import {canEditRecordDetails,parseServiceDetails,validateProjectServiceDetails} from "@/lib/record-editing";
+import {flushWorkspaceChanges} from "@/lib/workspace-sync";
+
 
 import { getProjectLogoSrc } from "@/lib/project-logo";
 import { ProjectLogoUpload } from "@/app/_components/project-logo";
@@ -257,6 +261,7 @@ export default function ProjectWorkspacePage() {
   const [linkedLead,setLinkedLead]=useState<Lead|null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ProjectTab>("Overview");
+  const [editingDetails,setEditingDetails]=useState(false);
   const [showDispatch, setShowDispatch] = useState(false);
   const [showManagedPlan, setShowManagedPlan] = useState(false);
   const [managedPlan, setManagedPlan] = useState<ManagedProject | null>(null);
@@ -353,7 +358,7 @@ export default function ProjectWorkspacePage() {
   const projectLogo = getProjectLogoSrc(project);
   return <div className="page-content project-detail-page">
     <Link className="back-link" href="/projects"><ArrowLeft size={15} />Project portfolio</Link>
-    <header className="record-heading project-room-heading"><div className="project-room-summary"><div className="project-room-identity">{projectLogo && <img className="project-workspace-logo" src={projectLogo} alt={`${getProjectDisplayTitle(project)} logo`} />}<h1>{getProjectDisplayTitle(project)}</h1></div><div className="project-room-copy"><p className="project-room-services">Project type: {project.projectType === "internal" ? "Internal" : "External"}</p>{services && <p className="project-room-services">{services}</p>}<div className="project-lifecycle-status"><StatusBadge status={project.status}/>{health && <StatusBadge status={health}/>}</div></div></div><div className="project-lifecycle-actions"><div className="project-lifecycle-buttons">{(role === "admin" || role === "project_manager")&&((project.status === "COMPLETED" || project.status === "AMC") ? project.projectType === "internal" ? null : managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-quiet" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>)}{(role === "admin" || role === "project_manager") && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></div></header>
+    <header className="record-heading project-room-heading"><div className="project-room-summary"><div className="project-room-identity">{projectLogo && <img className="project-workspace-logo" src={projectLogo} alt={`${getProjectDisplayTitle(project)} logo`} />}<h1>{getProjectDisplayTitle(project)}</h1></div><div className="project-room-copy"><p className="project-room-services">Project type: {project.projectType === "internal" ? "Internal" : "External"}</p>{services && <p className="project-room-services">{services}</p>}<div className="project-lifecycle-status"><StatusBadge status={project.status}/>{health && <StatusBadge status={health}/>}</div></div></div><div className="project-lifecycle-actions"><div className="project-lifecycle-buttons">{canEditRecordDetails(role)&&<button type="button" className="button button-quiet" onClick={()=>setEditingDetails(true)}>Edit project</button>}{(role === "admin" || role === "project_manager")&&((project.status === "COMPLETED" || project.status === "AMC") ? project.projectType === "internal" ? null : managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-quiet" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>)}{(role === "admin" || role === "project_manager") && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></div></header>
 
     <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{project.status === "COMPLETED" ? "Completed" : "Active"}</strong></div><div><small>OPEN WORK ITEMS</small><strong><Link href="/work" style={{ textDecoration: "none", color: "inherit" }}>{workItems.filter((task) => task.status !== "DONE").length} · In Tasks</Link></strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim() && !DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim())).length}</strong></div></section>
 
@@ -429,6 +434,40 @@ export default function ProjectWorkspacePage() {
     {activeTab === "Messages" && <section className="panel portal-record"><ProjectConversation projectId={project.id}/></section>}
     {activeTab === "Staging & Links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"]] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16} /></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12} /></a> : <strong>Not added</strong>}</div>{((role === "admin" || role === "project_manager") || ((role === "employee") && key === "staging")) && <button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button>}</article>; })}</div><p className="storage-note">Project links are saved to your workspace. Repository and hosting permissions are managed by their providers.</p></section>}
 
+    {canEditRecordDetails(role)&&editingDetails&&<EditDetailsDialog title="Edit project details" onClose={()=>setEditingDetails(false)} fields={[
+      {name:"title",label:"Project title",value:project.title,required:true},
+      {name:"services",label:"Services (comma separated)",value:getProjectDisplayServices(project)},
+      {name:"objectives",label:"Objectives",value:project.objectives,type:"textarea"},
+      {name:"deliverables",label:"Deliverables",value:project.deliverables,type:"textarea"},
+      {name:"scopeIncluded",label:"Description / included scope",value:project.scopeIncluded,type:"textarea"},
+      {name:"scopeExcluded",label:"Excluded scope",value:project.scopeExcluded,type:"textarea"},
+      {name:"assumptions",label:"Assumptions",value:project.assumptions,type:"textarea"},
+      {name:"startDate",label:"Start date",value:project.startDate,type:"date",required:true},
+      {name:"targetDate",label:"Target date",value:project.targetDate,type:"date"},
+      {name:"priority",label:"Priority",value:project.priority||"Normal",options:["Low","Normal","High","Urgent"]},
+      ...(project.projectType!=="internal"?[
+        {name:"clientCompany",label:"Client company",value:project.clientCompany},
+        {name:"clientName",label:"Contact name",value:project.clientName,required:true},
+        {name:"clientEmail",label:"Contact email",value:project.clientEmail,type:"email" as const},
+        {name:"classification",label:"Classification",value:project.classification,options:["New Client","Repeat Client","Referral"]},
+        {name:"billingStructure",label:"Billing structure",value:project.billingStructure,options:["Fixed","Hourly","Retainer"]},
+        {name:"contractedValue",label:"Contract value",value:project.contractedValue,type:"number" as const,min:0,required:true},
+        {name:"currency",label:"Currency",value:project.currency,required:true},
+        {name:"revisionRounds",label:"Revision rounds",value:project.revisionRounds,type:"number" as const,min:0},
+      ]:[]),
+    ]} onSave={async values=>{
+      if(!canEditRecordDetails(role))throw new Error("You do not have permission to edit projects.");
+      if(values.targetDate&&values.targetDate<values.startDate)throw new Error("Target date must be on or after the start date.");
+      const updates:Partial<Project>={title:values.title,services:parseServiceDetails(values.services),scopeIncluded:values.scopeIncluded,objectives:values.objectives,deliverables:values.deliverables,scopeExcluded:values.scopeExcluded,assumptions:values.assumptions,startDate:values.startDate,targetDate:values.targetDate||undefined,priority:values.priority as Project["priority"]};
+      if(project.projectType!=="internal"){
+        validateProjectServiceDetails(values.title, updates.services ?? []);
+        const currency=values.currency.toUpperCase();
+        if(!/^[A-Z]{3}$/.test(currency))throw new Error("Enter a three-letter currency code.");
+        if(!Number.isInteger(Number(values.revisionRounds))||Number(values.revisionRounds)<0)throw new Error("Revision rounds must be a whole number.");
+        Object.assign(updates,{clientCompany:values.clientCompany,clientName:values.clientName,clientEmail:values.clientEmail,classification:values.classification,billingStructure:values.billingStructure,contractedValue:Number(values.contractedValue),currency,revisionRounds:Number(values.revisionRounds)});
+      }
+      updateProject(project.id,updates);await flushWorkspaceChanges();showToast({message:"Project details saved."});
+    }}/>}
     {(role === "admin" || role === "project_manager") && showDispatch && <TaskDispatchDialog project={project} onClose={() => setShowDispatch(false)} onDispatch={dispatchTask} />}
     {(role === "admin" || role === "project_manager") && showManagedPlan && <ManagedPlanDrawer projects={[project]} initialProjectId={project.id} onClose={() => setShowManagedPlan(false)} onCreated={(item) => setManagedPlan(item)} />}
     <p className="storage-note">Changes are saved to your workspace database.</p>

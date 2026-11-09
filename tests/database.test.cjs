@@ -34,6 +34,11 @@ function change(collection,row,revision=null) {return {collection,id:row.id,expe
 
 test('workspace database migrations and transactional workflows',async t=>{
  await setup();
+ await t.test('enquiries persist without email or phone and do not fabricate contact details',async()=>{
+   await save([change('leads',lead('OPTIONAL-CONTACT',{companyName:'No Contact Company',email:'',phone:''}))]);
+   const {rows}=await db.query("select email,phone from public.leads where external_id='OPTIONAL-CONTACT'");
+   assert.equal(rows[0].email,'');assert.equal(rows[0].phone,null);
+ });
  await t.test('migration is rerunnable',async()=>{await db.exec(readDatabaseSection('workspace-reliability'));});
  await t.test('retired lead stages migrate once and cannot be saved again',async()=>{
    const attachment={name:'scope.pdf',dataUrl:'data:application/pdf;base64,JVBERg=='};

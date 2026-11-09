@@ -63,8 +63,8 @@ export default function ProjectEnquiryPage() {
       <section className="form-section"><div className="form-section-title"><span>01</span><div><h2>Contact details</h2><p>Who made the enquiry, and how can the team reach them?</p></div></div><div className="form-grid">
         <label className="field required">Full name<input name="fullName" autoComplete="name" placeholder="Contact full name" required /></label>
         <label className="field">Designation<input name="designation" autoComplete="organization-title" placeholder="e.g. Founder, Marketing Director" /></label>
-        <label className="field required">Email address<input name="email" type="email" autoComplete="email" placeholder="contact@example.com" required /></label>
-        <label className="field">Phone number<input name="phone" type="tel" autoComplete="tel" placeholder="+1 555 000 0000" /></label>
+        <label className="field">Email address (optional)<input name="email" type="email" autoComplete="email" placeholder="contact@example.com" /></label>
+        <label className="field">Phone number (optional)<input name="phone" type="tel" autoComplete="tel" placeholder="+1 555 000 0000" /></label>
         <label className="field">Company / organization name<input name="companyName" autoComplete="organization" placeholder="Enter company or organization name" /></label>
         <label className="field">Company website<input name="companyWebsite" type="text" placeholder="example.com" /></label>
         <label className="field">Country<input name="country" autoComplete="country-name" placeholder="Country or region" /></label>

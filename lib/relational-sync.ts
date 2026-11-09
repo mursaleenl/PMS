@@ -453,7 +453,7 @@ export function serializeRecord(collection: WorkspaceCollection, value: unknown)
     designation: nullable(lead.designation),
     company_name: nullable(lead.companyName),
     company_website: nullable(lead.companyWebsite),
-    email: lead.email || "unknown@example.invalid",
+    email: lead.email?.trim() || "",
     phone: nullable(lead.phone),
     country: nullable(lead.country),
     timezone: nullable(lead.timezone),

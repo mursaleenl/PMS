@@ -1,4 +1,10 @@
 "use client";
+import {EditDetailsDialog} from "@/app/_components/edit-details-dialog";
+import {canEditRecordDetails,linkedCustomerLeadIds} from "@/lib/record-editing";
+import {useWorkspaceAuth} from "@/lib/workspace-auth";
+import {flushWorkspaceChanges} from "@/lib/workspace-sync";
+import {showToast} from "@/app/_components/toast-hub";
+
 import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 
 import Link from "next/link";
@@ -20,9 +26,9 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { getProjectDisplayTitle, getProjectDisplayServices, readProjects, type Project } from "@/lib/projects";
-import { readManagedProjects, type ManagedProject } from "@/lib/post-sale";
-import { readLeads, type Lead } from "@/lib/leads";
+import { getProjectDisplayTitle, getProjectDisplayServices, readProjects, updateProject, type Project } from "@/lib/projects";
+import { readManagedProjects, updateManagedProject, type ManagedProject } from "@/lib/post-sale";
+import { readLeads, updateLead, type Lead } from "@/lib/leads";
 import { readInvoices, type StoredInvoice } from "@/lib/invoices";
 import { EmptyState } from "@/app/_components/empty-state";
 
@@ -57,6 +63,9 @@ function clientSlug(value: string) {
 }
 
 export default function ClientsPage() {
+  const {role}=useWorkspaceAuth();
+  const [editingClient,setEditingClient]=useState<ClientRecord|null>(null);
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [plans, setPlans] = useState<ManagedProject[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -623,6 +632,7 @@ export default function ClientsPage() {
                         {/* Section 1: All Client Details */}
                         <section>
                           <h2>Client details</h2>
+                          {canEditRecordDetails(role)&&(client.projects.length>0||client.managedPlans.length>0||linkedCustomerLeadIds(client,projects,leads).length>0)&&<button type="button" className="button button-quiet" onClick={()=>setEditingClient(client)}>Edit customer</button>}
                           <div className="client-contact-fields">
                             <div>
                               <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--ws-muted, #64748b)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
@@ -847,6 +857,29 @@ export default function ClientsPage() {
           )}
         </>
       )}
+      {canEditRecordDetails(role)&&editingClient&&<EditDetailsDialog title="Edit customer details" onClose={()=>setEditingClient(null)} fields={[
+        {name:"companyName",label:"Company name",value:editingClient.companyName||(!editingClient.projects.length?editingClient.name:""),required:!editingClient.projects.length},
+        ...((editingClient.projects.length||linkedCustomerLeadIds(editingClient,projects,leads).length)?[
+          {name:"name",label:"Contact name",value:editingClient.name,required:true},
+          {name:"email",label:"Contact email",value:editingClient.email,type:"email" as const},
+        ]:[]),
+        ...(linkedCustomerLeadIds(editingClient,projects,leads).length?[
+          {name:"phone",label:"Phone",value:editingClient.phone},
+          {name:"designation",label:"Designation",value:editingClient.designation},
+          {name:"country",label:"Country",value:editingClient.country},
+          {name:"website",label:"Website",value:editingClient.website},
+          {name:"industry",label:"Industry",value:editingClient.industry},
+        ]:[]),
+      ]} onSave={async values=>{
+        if(!canEditRecordDetails(role))throw new Error("You do not have permission to edit customers.");
+        const leadIds=linkedCustomerLeadIds(editingClient,readProjects(),readLeads());
+        const projectIds=new Set(editingClient.projects.map(project=>project.id));
+        const linkedProjects=readProjects().filter(project=>projectIds.has(project.id)||leadIds.includes(project.leadId));
+        for(const id of leadIds)updateLead(id,{fullName:values.name,companyName:values.companyName,email:values.email,phone:values.phone,designation:values.designation,country:values.country,companyWebsite:values.website,industry:values.industry});
+        for(const project of linkedProjects)updateProject(project.id,{clientName:values.name,clientCompany:values.companyName,clientEmail:values.email});
+        for(const plan of editingClient.managedPlans)updateManagedProject(plan.id,{clientCompany:values.companyName||values.name});
+        await flushWorkspaceChanges();setExpandedClient(null);showToast({message:"Customer details saved."});
+      }}/>}
     </div>
   );
 }
