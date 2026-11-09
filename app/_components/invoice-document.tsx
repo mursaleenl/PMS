@@ -1,3 +1,4 @@
+import { DEFAULT_INVOICE_PAYMENT_DETAILS } from "@/lib/invoice-payment-details";
 import type {StoredInvoice} from "@/lib/invoices";
 import {formatMoney as money} from "@/lib/currency";
 export type InvoiceDocumentData = Pick<StoredInvoice,"invoiceNumber"|"operatingCompany"|"billTo"|"clientName"|"clientEmail"|"issueDate"|"dueDate"|"description"|"quantity"|"unitPrice"|"subtotal"|"contractValue"|"gstEnabled"|"gstRate"|"gstAmount"|"total"|"depositAmount"|"currency"|"paymentInstructions"|"transactionReference"|"status">;
@@ -62,9 +63,10 @@ export function InvoiceDocument({invoice:activeInvoice}:{invoice:InvoiceDocument
                 <div className="invoice-summary-row">
                   <div className="invoice-payment-details">
                     <strong>PAYMENT DETAILS</strong>
-                    <p>
-                      {activeInvoice.paymentInstructions ||
-                        `Sample account: ${activeInvoice.operatingCompany} Studio · Account no. 0000 0000 0000 · IFSC: SAMPLE0001`}
+                    <p style={{ whiteSpace: "pre-line" }}>
+                      {activeInvoice.paymentInstructions?.trim() && !activeInvoice.paymentInstructions.startsWith("Sample account:")
+                        ? activeInvoice.paymentInstructions
+                        : DEFAULT_INVOICE_PAYMENT_DETAILS}
                     </p>
                     {activeInvoice.transactionReference && (
                       <p style={{ marginTop: 6, color: "var(--ws-muted, #16a34a)", fontWeight: 600 }}>

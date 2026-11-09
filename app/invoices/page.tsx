@@ -1,5 +1,6 @@
 "use client";
 
+import { DEFAULT_INVOICE_PAYMENT_DETAILS } from "@/lib/invoice-payment-details";
 import {usePaymentReferences} from "@/lib/payment-references";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
@@ -298,7 +299,7 @@ export default function InvoicesPage() {
         depositAmount: total,
         currency: activeProject.currency || "USD",
         paymentTerms: SAMPLE_PAYMENT_TERMS,
-        paymentInstructions: `Sample account: ${company} Studio · Account no. 0000 0000 0000 · IFSC: SAMPLE0001`,
+        paymentInstructions: DEFAULT_INVOICE_PAYMENT_DETAILS,
         status: "GENERATED",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -357,7 +358,7 @@ export default function InvoicesPage() {
         paymentTerms: String(data.get("paymentTerms") || SAMPLE_PAYMENT_TERMS),
         paymentInstructions: String(
           data.get("paymentInstructions") ||
-            `Sample account: ${company} Studio · Account no. 0000 0000 0000 · IFSC: SAMPLE0001`
+            DEFAULT_INVOICE_PAYMENT_DETAILS
         ),
         status: "GENERATED",
         createdAt: new Date().toISOString(),
@@ -1316,9 +1317,10 @@ export default function InvoicesPage() {
                     </label>
                     <label className="field invoice-field-full">
                       Payment instructions
-                      <input
+                      <textarea
                         name="paymentInstructions"
-                        defaultValue={`Sample account: ${customCompany} Studio · Account no. 0000 0000 0000 · IFSC: SAMPLE0001`}
+                        rows={6}
+                        defaultValue={DEFAULT_INVOICE_PAYMENT_DETAILS}
                       />
                     </label>
                   </div>
