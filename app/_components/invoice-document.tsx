@@ -94,7 +94,14 @@ export function InvoiceDocument({invoice:activeInvoice}:{invoice:InvoiceDocument
 
                 <div className="invoice-sample-details">
                   <div className="invoice-sample-signature">
-                    <span>Hanan Lateef</span>
+                    <img
+                      src="/hanan-signature.png"
+                      className="invoice-signature-image"
+                      alt="Hanan Lateef signature"
+                      width={183}
+                      height={86}
+                      style={{ display: "block", maxWidth: "100%", height: "auto", objectFit: "contain", filter: "brightness(1.04)", mixBlendMode: "multiply" }}
+                    />
                     <strong>AUTHORIZED SIGNATORY</strong>
                   </div>
                   <div>

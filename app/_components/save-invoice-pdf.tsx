@@ -22,7 +22,7 @@ export async function saveInvoicePdf(invoice:StoredInvoice,token:string){
    element.style.setProperty('color',element.closest('thead')?'#ffffff':'#000000','important');
    element.style.setProperty('-webkit-text-fill-color','currentColor','important');
    element.style.setProperty('text-shadow','none','important');
-   element.style.setProperty('filter','none','important');
+   element.style.setProperty('filter',element.matches('.invoice-signature-image')?'brightness(1.04)':'none','important');
    element.style.setProperty('opacity','1','important');
   });
   sheet.querySelectorAll<HTMLElement>('thead th').forEach(element=>element.style.setProperty('background','#0f172a','important'));
