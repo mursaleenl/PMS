@@ -8,7 +8,6 @@ export function InvoiceDocument({invoice:activeInvoice}:{invoice:InvoiceDocument
  const invoiceAmount=activeInvoice.subtotal??activeInvoice.contractValue??0;
  const invoiceGst=activeInvoice.gstEnabled?activeInvoice.gstAmount??0:0;
  const invoiceTotal=activeInvoice.total??activeInvoice.depositAmount;
- const SAMPLE_CONTACT="billing@vrkspace.example · +91 00000 00000";
  return (<div className={`invoice-print-area invoice-reference-layout${isServnInvoice ? " invoice-company-servn" : ""}`}>
                 <div className="invoice-paper-head">
                   <div>
@@ -106,7 +105,7 @@ export function InvoiceDocument({invoice:activeInvoice}:{invoice:InvoiceDocument
                   </div>
                   <div>
                     <strong>CONTACT US</strong>
-                    <p>{SAMPLE_CONTACT}</p>
+                    <p><a href="mailto:hello@evecture.studio">hello@evecture.studio</a> · +91-9070900680</p>
                   </div>
                 </div>
               </div>);
