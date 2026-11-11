@@ -1,11 +1,13 @@
 "use client";
 import {useLiveRefresh} from "@/lib/live-refresh";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { ClipboardCheck, MessageSquareWarning, RefreshCw, Send } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { ClipboardCheck, MessageSquareWarning, RefreshCw, Send, Trash2 } from "lucide-react";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { supabase } from "@/lib/supabase";
+
+function readDeleteError(error:unknown){return error&&typeof error==="object"&&"message" in error?String(error.message):"Could not delete the review.";}
 
 type ReviewStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
 type ReviewType = "BUG" | "ISSUE";
@@ -51,6 +53,8 @@ export default function ReviewsPage() {
   const [pagePath, setPagePath] = useState("");
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const deleting=useRef(false);
+  const [deletingId,setDeletingId]=useState<string|null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const loadReviews = useCallback(async () => {
@@ -105,6 +109,12 @@ export default function ReviewsPage() {
     else setReviews((items) => items.map((item) => item.id === review.id ? result.data as WorkspaceReview : item));
   }
 
+  async function deleteReview(review:WorkspaceReview){
+    if(!supabase||!isAdmin||review.status!=="RESOLVED"||deleting.current)return;
+    if(!window.confirm(`Delete “${review.title}”? This permanently removes the resolved review.`))return;
+    deleting.current=true;setDeletingId(review.id);setError("");
+    try{const result=await supabase.rpc("delete_resolved_review",{p_review_id:review.id});if(result.error)throw result.error;setReviews(items=>items.filter(item=>item.id!==review.id));}catch(cause){setError(readDeleteError(cause));}finally{deleting.current=false;setDeletingId(null);}
+  }
   async function saveAdminNote(review: WorkspaceReview) {
     if (!supabase || !isAdmin) return;
     setError("");
@@ -134,9 +144,10 @@ export default function ReviewsPage() {
       <div className="overview-section-heading"><div><h2>{isAdmin ? "Review queue" : "My reports"}</h2><p>{isAdmin ? "Reports submitted by the team." : "Your reports and their progress."}</p></div><span className="reviews-count">{reviews.length} {reviews.length === 1 ? "report" : "reports"}</span></div>
       {error && <p className="form-error" role="alert">{error}</p>}
       {loading ? <div className="panel reviews-empty" role="status">Loading reviews…</div> : reviews.length === 0 ? <div className="panel reviews-empty"><ClipboardCheck size={22} strokeWidth={1.75} aria-hidden="true" /><strong>No reports yet</strong><span>{isAdmin ? "Employee and admin reports will appear here." : "Reports you submit will appear here."}</span></div> : <div className="reviews-list">{reviews.map((review) => <article className="panel review-card" key={review.id}>
-        <header className="review-card-header"><div><div className="review-card-title-line"><h3>{review.title}</h3><StatusBadge status={review.status}>{statusLabels[review.status]}</StatusBadge></div><p>{review.reporter_name}{review.reporter_email ? ` · ${review.reporter_email}` : ""} · {new Date(review.created_at).toLocaleString()}</p></div>{isAdmin && <label className="field review-status-field">Status<select value={review.status} onChange={(event) => void updateStatus(review, event.target.value as ReviewStatus)}><option value="OPEN">Open</option><option value="IN_PROGRESS">In progress</option><option value="RESOLVED">Resolved</option></select></label>}</header>
+        <header className="review-card-header"><div><div className="review-card-title-line"><h3>{review.title}</h3><StatusBadge status={review.status}>{statusLabels[review.status]}</StatusBadge></div><p>{review.reporter_name}{review.reporter_email ? ` · ${review.reporter_email}` : ""} · {new Date(review.created_at).toLocaleString()}</p></div>{isAdmin && <label className="field review-status-field">Status<select value={review.status} disabled={deletingId!==null} onChange={(event) => void updateStatus(review, event.target.value as ReviewStatus)}><option value="OPEN">Open</option><option value="IN_PROGRESS">In progress</option><option value="RESOLVED">Resolved</option></select></label>}</header>
         <div className="review-meta-row"><span>{review.report_type === "BUG" ? "Bug" : "Issue"}</span><span>Priority: {priorityLabels[review.priority]}</span>{review.page_path && <span>Page: {review.page_path}</span>}</div>
         <p className="review-description">{review.description}</p>
+        {isAdmin&&review.status==="RESOLVED"&&<div className="review-delete-actions"><button type="button" className="button button-quiet" disabled={deletingId!==null} onClick={()=>void deleteReview(review)}><Trash2 size={14}/>{deletingId===review.id?"Deleting…":"Delete"}</button></div>}
         {isAdmin ? <div className="review-admin-note"><label className="field">Admin follow-up note<textarea rows={2} maxLength={2000} value={notes[review.id] ?? review.admin_note ?? ""} onChange={(event) => setNotes((current) => ({ ...current, [review.id]: event.target.value }))} placeholder="Add a fix plan or follow-up note" /></label><button className="button button-quiet" type="button" onClick={() => void saveAdminNote(review)}>Save note</button></div> : review.admin_note && <div className="review-admin-note-read"><strong>Admin update</strong><p>{review.admin_note}</p></div>}
       </article>)}</div>}
     </section>

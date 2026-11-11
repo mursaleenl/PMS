@@ -1914,3 +1914,33 @@ html body .app-shell #workspace-content .qa-image-dialog h2 { margin:0; font-siz
 .qa-image-dialog > img { display:block; max-width:100%; max-height:70dvh; width:auto; height:auto; margin:auto; object-fit:contain; }
 .qa-image-dialog > a { justify-self:start; }
 html body .app-shell #workspace-content :is(.qa-image-upload,.project-logo-upload) input[type=file]::file-selector-button { height:36px; padding:0 12px; margin-right:12px; border:1px solid #cbd5e1 !important; border-radius:0 !important; background:#ffffff !important; color:#0f172a !important; font:inherit; font-size:13px; cursor:pointer; }
+/* QA reports use explicit sections, with attachment actions alongside the details. */
+.qa-report-header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:18px; border-bottom:1px solid #e2e8f0; }
+.qa-report-kind { color:#334155; font-size:13px; font-weight:600; }
+.qa-report-status { display:flex; align-items:center; gap:10px; color:#64748b; font-size:12px; }
+html body .app-shell #workspace-content .qa-page .qa-report-status select { width:auto; min-width:120px; min-height:38px; margin:0; padding:7px 10px; border:1px solid #cbd5e1 !important; border-radius:0 !important; background:white; color:#0f172a; font-size:13px; }
+.qa-report-content { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:32px; padding-top:22px; }
+.qa-report-copy { display:grid; gap:22px; min-width:0; }
+.qa-report-copy section { min-width:0; }
+.qa-section-label { display:block; margin-bottom:8px; font-size:12px; font-weight:500; line-height:1.5; color:#64748b; }
+html body .app-shell #workspace-content .qa-report-copy h2 { margin:0; font-size:19px; line-height:1.5; }
+.qa-report-attachment { min-width:150px; }
+.qa-report-attachment button { display:inline-flex; gap:8px; align-items:center; }
+.qa-report-project { display:grid; min-width:0; gap:4px; }
+.qa-report-project .qa-section-label { margin-bottom:2px; }
+.qa-report-project small { padding-left:22px; font-size:13px; line-height:1.5; color:#64748b; overflow-wrap:anywhere; }
+.review-delete-actions { display:flex; justify-content:flex-end; margin:16px 0; }
+.qa-project-picker { display:grid; align-content:start; gap:8px; min-width:0; font-size:13px; font-weight:500; color:#0f172a; }
+html body .app-shell #workspace-content .qa-dialog .qa-project-trigger { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; height:auto !important; min-height:64px; margin:0; padding:10px 12px !important; border:1px solid #cbd5e1 !important; background:#ffffff !important; color:#0f172a !important; text-align:left; }
+.qa-project-trigger > span,.qa-project-popover [role=option] > span { display:grid; gap:4px; min-width:0; }
+.qa-project-trigger strong,.qa-project-popover strong { font-size:14px; font-weight:500; white-space:normal; overflow-wrap:anywhere; }
+.qa-project-trigger small,.qa-project-popover small { color:#64748b; font-size:12px; font-weight:400; white-space:normal; overflow-wrap:anywhere; }
+.qa-project-trigger > svg,.qa-project-popover [role=option] > svg { flex:none; }
+html body .app-shell #workspace-content .qa-project-popover[popover] { position:fixed; right:auto; bottom:auto; margin:0; padding:0; max-width:calc(100vw - 32px); border:1px solid #cbd5e1; border-radius:0; background:#ffffff; color:#0f172a; box-shadow:0 12px 32px rgb(15 23 42 / 14%); overflow:auto; }
+.qa-project-search { position:sticky; top:0; display:flex; gap:8px; align-items:center; padding:10px; border-bottom:1px solid #e2e8f0; background:#ffffff; }
+html body .app-shell #workspace-content .qa-dialog .qa-project-search input { width:100%; min-width:0; min-height:36px; border:0 !important; padding:6px !important; font-size:13px; }
+html body .app-shell #workspace-content .qa-project-popover [role=option] { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:60px; height:auto !important; padding:12px !important; border:0 !important; border-bottom:1px solid #f1f5f9 !important; border-radius:0; background:#ffffff !important; color:#0f172a !important; text-align:left; cursor:pointer; }
+html body .app-shell #workspace-content .qa-project-popover [role=option]:is(:hover,:focus-visible,[aria-selected=true]) { background:#f4f4f5 !important; outline:none; }
+.qa-project-popover p { padding:12px; font-size:13px; color:#64748b; }
+@media(max-width:600px){.qa-report-content{grid-template-columns:minmax(0,1fr);gap:22px}.qa-report-header{align-items:flex-start}.qa-report-status{flex-direction:column;align-items:flex-start;gap:4px}.qa-report-attachment{min-width:0}}
+html body .app-shell #workspace-content .qa-dialog .qa-form-row > .field select { min-height:64px; }

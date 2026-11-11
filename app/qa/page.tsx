@@ -1,13 +1,13 @@
 "use client";
+import {QaProjectPicker} from "@/app/_components/qa-project-picker";
 import {ReportImageUpload} from "@/app/_components/report-image-upload";
 import type {CompressedImage} from "@/lib/image-compression";
-import {readGeneralTasks} from "@/lib/general-tasks";
 import Link from "next/link";
 import {useEffect,useRef,useState,type FormEvent} from "react";
-import {Bug,FolderOpen,Plus,X} from "lucide-react";
+import {Bug,FolderOpen,Image as ImageIcon,Plus,Trash2,X} from "lucide-react";
 import {useWorkspaceAuth} from "@/lib/workspace-auth";
-import {getProjectDisplayTitle,isProjectAssignedToUser,readProjects,type Project,type ProjectWorkItem} from "@/lib/projects";
-import {qaKindLabels,readQaReports,saveQaReport,type QaKind,type QaReport} from "@/lib/qa";
+import {getProjectClientLabel,getProjectDisplayTitle,isProjectAssignedToUser,readProjects,type Project} from "@/lib/projects";
+import {deleteResolvedQaReport,setQaStatus,qaKindLabels,readQaReports,saveQaReport,type QaKind,type QaReport} from "@/lib/qa";
 import {createUuid} from "@/lib/uuid";
 
 function QaForm({projects,onClose,onSaved}:{projects:Project[];onClose:()=>void;onSaved:()=>void}){
@@ -33,11 +33,11 @@ function QaForm({projects,onClose,onSaved}:{projects:Project[];onClose:()=>void;
   finally{saving.current=false;setBusy(false);}
  }
  return <dialog ref={dialog} className="assign-task-dialog qa-dialog" aria-labelledby="qa-form-title" onCancel={event=>{if(saving.current)event.preventDefault();else onClose();}}>
-  <header><div><h2 id="qa-form-title">New QA report</h2><p>Report a bug, change, or improvement.</p></div><button type="button" className="icon-button" aria-label="Close QA form" disabled={busy} onClick={onClose}><X size={18}/></button></header>
+  <header><div><h2 id="qa-form-title">New QA report</h2><p>Report a bug, change, or improvement.</p></div><button type="button" className="icon-button" aria-label="Close QA form" disabled={busy} onClick={onClose}><X size={18} aria-hidden="true"/></button></header>
   <form onSubmit={submit}><fieldset className="qa-form-fields" disabled={busy||Boolean(pending.current)}>
    <div className="qa-form-row">
     <label className="field">Report type<select name="kind" defaultValue="BUG">{Object.entries(qaKindLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
-    <label className="field">Project (optional)<select aria-label="Project" value={projectId} onChange={event=>setProjectId(event.target.value)}><option value="">General report</option>{options.map(project=><option key={project.id} value={project.id}>{getProjectDisplayTitle(project)}</option>)}</select></label>
+    <QaProjectPicker projects={options} value={projectId} onChange={setProjectId}/>
    </div>
    <label className="field required">Title<input name="title" required maxLength={1000} placeholder="Give your report a short title"/></label>
    <label className="field required">Details<textarea name="details" required rows={5} maxLength={5000} placeholder="Describe what happened or what you would like to improve"/></label>
@@ -48,23 +48,37 @@ function QaForm({projects,onClose,onSaved}:{projects:Project[];onClose:()=>void;
 function ReportImageDialog({report,onClose}:{report:QaReport;onClose:()=>void}){
  const dialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{const node=dialog.current,previous=document.activeElement;node?.showModal();return()=>{node?.close();if(previous instanceof HTMLElement&&previous.isConnected)previous.focus();};},[]);
- return <dialog ref={dialog} className="qa-image-dialog" aria-label="Report image" onCancel={onClose}><header><h2>{report.title}</h2><button type="button" className="icon-button" aria-label="Close image" onClick={onClose}><X size={18}/></button></header><img src={report.image_data_url!} alt={`Image for ${report.title}`}/><a className="button button-quiet" href={report.image_data_url!} download={report.image_name||"report-image.webp"}>Download image</a></dialog>;
+ return <dialog ref={dialog} className="qa-image-dialog" aria-label="Report image" onCancel={onClose}><header><h2>{report.title}</h2><button type="button" className="icon-button" aria-label="Close image" onClick={onClose}><X size={18} aria-hidden="true"/></button></header><img src={report.image_data_url!} alt={`Image for ${report.title}`}/><a className="button button-quiet" href={report.image_data_url!} download={report.image_name||"report-image.webp"}>Download image</a></dialog>;
 }
 export default function QaPage(){
  const {role,user}=useWorkspaceAuth();const [projects,setProjects]=useState<Project[]>([]),[reports,setReports]=useState<QaReport[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(""),[form,setForm]=useState(false);
- const [generalTasks,setGeneralTasks]=useState<ProjectWorkItem[]>([]);
+ const [busyId,setBusyId]=useState<string|null>(null);
+ const busy=useRef(false);
+ const canManage=role==="admin"||role==="project_manager";
  const [preview,setPreview]=useState<QaReport|null>(null);
  const internal=role==="admin"||role==="project_manager"||role==="employee";
  async function refresh(){try{setError("");setReports(await readQaReports());}catch(cause){setError(cause instanceof Error?cause.message:"Could not load QA reports.");}finally{setLoading(false);}}
- useEffect(()=>{if(!internal)return;void refresh();const update=()=>{setProjects(readProjects());setGeneralTasks(readGeneralTasks());};update();window.addEventListener("evecture:projects-updated",update);window.addEventListener("evecture:general-tasks-updated",update);return()=>{window.removeEventListener("evecture:projects-updated",update);window.removeEventListener("evecture:general-tasks-updated",update);};},[internal,user?.id]);
+ useEffect(()=>{if(!internal)return;void refresh();const update=()=>setProjects(readProjects());update();window.addEventListener("evecture:projects-updated",update);return()=>{window.removeEventListener("evecture:projects-updated",update);};},[internal,user?.id]);
+ async function changeStatus(report:QaReport,status:"OPEN"|"RESOLVED"){
+  if(!canManage||busy.current)return;busy.current=true;setBusyId(report.id);setError("");
+  try{await setQaStatus(report.id,status);setReports(items=>items.map(item=>item.id===report.id?{...item,status}:item));}catch(cause){setError(cause instanceof Error?cause.message:"Could not update the status.");}finally{busy.current=false;setBusyId(null);}
+ }
+ async function removeReport(report:QaReport){
+  if(!canManage||report.status!=="RESOLVED"||busy.current)return;
+  if(!window.confirm(`Delete “${report.title}”? This permanently removes the resolved report and its image.`))return;
+  busy.current=true;setBusyId(report.id);setError("");try{await deleteResolvedQaReport(report.id);setReports(items=>items.filter(item=>item.id!==report.id));}catch(cause){setError(cause instanceof Error?cause.message:"Could not delete the report.");}finally{busy.current=false;setBusyId(null);}
+ }
  if(!internal)return null;
  return <div className="page-content qa-page"><section className="welcome-row qa-page-heading"><div><h1>QA</h1><p className="welcome-subtitle">Report bugs, changes, and improvements.</p></div><button type="button" className="button button-primary" onClick={()=>setForm(true)}><Plus size={16}/>New report</button></section>
   {error&&<p className="form-error" role="alert">{error} <button type="button" className="button button-quiet" onClick={()=>void refresh()}>Retry</button></p>}
   {loading?<p role="status">Loading reports…</p>:reports.length===0&&!error?<section className="panel qa-empty"><Bug size={28} strokeWidth={1.5} aria-hidden="true"/><h2>No reports yet</h2><p>Report a bug, request a change, or share an improvement.</p></section>:<div className="qa-report-list">{reports.map(report=>{
-   const project=projects.find(project=>project.id===report.project?.external_id),task=(project?.workItems||generalTasks).find(task=>task.id===report.task?.external_id);
-   const status=task?.status||report.task?.status||"OPEN";
-   const statusLabel:Record<string,string>={OPEN:"Open",TO_DO:"To do",IN_PROGRESS:"In progress",BLOCKED:"Blocked",UNDER_REVIEW:"In review",DONE:"Completed"};
-   return <article key={report.id} className="panel qa-report"><div className="qa-report-meta"><span>{qaKindLabels[report.kind]}</span><span>{statusLabel[status]||status.replaceAll("_"," ")}</span></div><h2>{report.title}</h2><p className="qa-report-details">{report.details}</p>{report.image_data_url&&<button type="button" className="qa-report-image" aria-label={`View image for ${report.title}`} onClick={()=>setPreview(report)}><img src={report.image_data_url} alt={`Image for ${report.title}`} loading="lazy"/><span>View image</span></button>}<footer>{report.project?<Link href={`/projects/${report.project.external_id}`}><FolderOpen size={14} aria-hidden="true"/>{project?getProjectDisplayTitle(project):report.project.external_id}</Link>:<span>General report</span>}{report.task?<Link href="/work">Task · {task?.assignee||report.task.assignee_name}</Link>:null}</footer></article>;
+   const project=projects.find(project=>project.id===report.project?.external_id);
+   const projectName=project?getProjectDisplayTitle(project):report.project?.title||report.project?.external_id;
+   const organization=project?getProjectClientLabel(project):report.project?.client_company;
+   const status=report.status||"OPEN";
+   return <article key={report.id} className="panel qa-report"><header className="qa-report-header"><span className="qa-report-kind">{qaKindLabels[report.kind]}</span>{canManage?<label className="qa-report-status">Status<select aria-label={`Status for ${report.title}`} value={status} disabled={busyId!==null} onChange={event=>void changeStatus(report,event.target.value as "OPEN"|"RESOLVED")}><option value="OPEN">Open</option><option value="RESOLVED">Resolved</option></select></label>:<span>{status==="RESOLVED"?"Resolved":"Open"}</span>}</header>
+    <div className="qa-report-content"><div className="qa-report-copy"><section><span className="qa-section-label">Title</span><h2>{report.title}</h2></section><section><span className="qa-section-label">Details</span><p className="qa-report-details">{report.details}</p></section></div>{report.image_data_url&&<aside className="qa-report-attachment"><span className="qa-section-label">Attachment</span><button type="button" className="button button-quiet" aria-label={`View image for ${report.title}`} onClick={()=>setPreview(report)}><ImageIcon size={16}/>View image</button></aside>}</div>
+    <footer><div className="qa-report-project"><span className="qa-section-label">Project</span>{report.project?<><Link href={`/projects/${report.project.external_id}`}><FolderOpen size={14} aria-hidden="true"/>{projectName}</Link>{organization&&<small>{organization}</small>}</>:<span>General report</span>}</div>{canManage&&status==="RESOLVED"&&<button type="button" className="button button-quiet" disabled={busyId!==null} onClick={()=>void removeReport(report)}><Trash2 size={14}/>Delete</button>}</footer></article>;
   })}</div>}
   {preview&&<ReportImageDialog report={preview} onClose={()=>setPreview(null)}/>}
   {form&&<QaForm projects={projects} onClose={()=>setForm(false)} onSaved={()=>void refresh()}/>}

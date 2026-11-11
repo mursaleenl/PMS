@@ -2302,4 +2302,49 @@ $$;
 revoke all on function public.submit_qa_report(uuid,text,text,text,text,uuid,text,text) from public,anon;
 grant execute on function public.submit_qa_report(uuid,text,text,text,text,uuid,text,text) to authenticated;
 
+-- ===== Section: report-resolution =====
+alter table public.qa_reports add column if not exists status text not null default 'OPEN';
+alter table public.qa_reports drop constraint if exists qa_reports_status_check;
+alter table public.qa_reports add constraint qa_reports_status_check check(status in ('OPEN','RESOLVED'));
+
+create or replace function public.set_qa_report_status(p_report_id uuid,p_status text)
+returns void language plpgsql security definer set search_path=public
+as $$
+begin
+  if not coalesce(public.can_manage_workspace(),false) then raise exception 'Only administrators and project managers can resolve QA reports' using errcode='42501'; end if;
+  if p_status is null or p_status not in ('OPEN','RESOLVED') then raise exception 'Choose Open or Resolved'; end if;
+  update public.qa_reports set status=p_status where id=p_report_id;
+  if not found then raise exception 'The report no longer exists'; end if;
+end;
+$$;
+revoke all on function public.set_qa_report_status(uuid,text) from public,anon;
+grant execute on function public.set_qa_report_status(uuid,text) to authenticated;
+
+create or replace function public.delete_resolved_qa_report(p_report_id uuid)
+returns void language plpgsql security definer set search_path=public
+as $$
+begin
+  if not coalesce(public.can_manage_workspace(),false) then raise exception 'Only administrators and project managers can delete QA reports' using errcode='42501'; end if;
+  delete from public.qa_reports where id=p_report_id and status='RESOLVED';
+  if not found then raise exception 'Only resolved QA reports can be deleted. Refresh the reports and try again.'; end if;
+end;
+$$;
+revoke all on function public.delete_resolved_qa_report(uuid) from public,anon;
+grant execute on function public.delete_resolved_qa_report(uuid) to authenticated;
+
+-- Keep direct review deletions subject to the same resolved-only rule.
+drop policy if exists "workspace admins delete reviews" on public.workspace_reviews;
+create policy "workspace admins delete reviews" on public.workspace_reviews for delete to authenticated using(public.is_workspace_admin() and status='RESOLVED');
+create or replace function public.delete_resolved_review(p_review_id uuid)
+returns void language plpgsql security definer set search_path=public
+as $$
+begin
+  if not coalesce(public.is_workspace_admin(),false) then raise exception 'Only administrators can delete reviews' using errcode='42501'; end if;
+  delete from public.workspace_reviews where id=p_review_id and status='RESOLVED';
+  if not found then raise exception 'Only resolved reviews can be deleted. Refresh the reviews and try again.'; end if;
+end;
+$$;
+revoke all on function public.delete_resolved_review(uuid) from public,anon;
+grant execute on function public.delete_resolved_review(uuid) to authenticated;
+
 commit;
