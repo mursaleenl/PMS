@@ -6,7 +6,46 @@
 -- Supabase supplies auth.users, auth.uid(), auth.jwt(), and platform roles.
 -- Keep sections in dependency order. Generate the empty-testing installer with:
 -- node scripts/build-testing-database.cjs
+-- Close workspace and Supabase Table Editor tabs before running this schema update.
+-- A busy database is rejected before changes begin; rerun the complete file when idle.
+-- All sections run in one transaction and roll back together on failure.
 begin;
+
+-- ===== Section: migration-locks =====
+-- Take the strongest locks first, before RLS/trigger updates can acquire them out of order.
+-- NOWAIT prevents waiting for a reader/writer while holding locks that it needs.
+do $migration_locks$
+declare table_name text;
+begin
+  if not pg_try_advisory_xact_lock(hashtextextended('workspace-graph-write',0)) then
+    raise exception 'Workspace is busy. No schema changes were applied.'
+      using errcode='55P03',hint='Wait for workspace saves to finish, then rerun the complete database file.';
+  end if;
+  begin
+  -- The foundation also replaces a trigger on auth.users and creates user foreign keys.
+  table_name='auth.users';
+  lock table auth.users in access exclusive mode nowait;
+  for table_name in
+    select c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='public' and c.relkind in ('r','p') and c.relname=any(array[
+      'attendance_audit','attendance_challenges','attendance_records','attendance_sessions',
+      'attendance_settings','audit_events','clients','general_tasks',
+      'invoice_payment_references','invoices','leads','managed_projects',
+      'profiles','project_clients','project_links','project_messages',
+      'project_team_members','project_work_items','projects','proposal_events',
+      'proposal_follow_ups','proposals','qa_reports','workspace_members',
+      'workspace_mutations','workspace_notifications','workspace_number_counters','workspace_records',
+      'workspace_reviews'
+    ]) order by c.relname
+  loop
+    execute format('lock table public.%I in access exclusive mode nowait',table_name);
+  end loop;
+exception when lock_not_available then
+  raise exception 'Database update could not lock %. No schema changes were applied.',table_name
+    using errcode='55P03',hint='Close workspace and Supabase Table Editor tabs, wait for active requests to finish, then rerun the complete database file.';
+  end;
+end;
+$migration_locks$;
 
 -- ===== Section: foundation =====
 -- VRKSpace Supabase foundation
@@ -664,7 +703,7 @@ create or replace function public.workspace_upsert_row(p_table text,p_row jsonb,
 returns uuid language plpgsql set search_path = public
 as $$ declare cols text; vals text; updates text; result uuid;
 begin
-  if p_table not in ('clients','leads','projects','proposals','proposal_follow_ups','project_team_members','project_work_items','project_links','managed_projects','invoices') then raise exception 'Invalid table'; end if;
+  if p_table not in ('clients','leads','projects','proposals','proposal_follow_ups','project_team_members','project_work_items','project_links','managed_projects','invoices','general_tasks') then raise exception 'Invalid table'; end if;
   select string_agg(format('%I',key),',' order by key), string_agg(format('r.%I',key),',' order by key),
     string_agg(format('%I=excluded.%I',key,key),',' order by key) filter(where key not in ('id','created_at','created_by'))
     into cols,vals,updates from jsonb_object_keys(p_row) key
@@ -774,7 +813,7 @@ begin
 
   for change in select value from jsonb_array_elements(p_changes) order by case value->>'collection' when 'leads' then 1 when 'projects' then 2 when 'management' then 3 when 'invoices' then 4 else 5 end loop
     collection_name=change->>'collection'; external_key=change->>'id';
-    table_name=case collection_name when 'leads' then 'leads' when 'projects' then 'projects' when 'management' then 'managed_projects' when 'invoices' then 'invoices' end;
+    table_name=case collection_name when 'leads' then 'leads' when 'projects' then 'projects' when 'management' then 'managed_projects' when 'invoices' then 'invoices' when 'generalTasks' then 'general_tasks' end;
     if table_name is null or external_key is null then raise exception 'Invalid collection or record'; end if;
     key_name=case when collection_name='invoices' then 'invoice_number' else 'external_id' end;
     expected=(change->>'expectedRevision')::bigint;
@@ -784,12 +823,16 @@ begin
       raise exception 'CONFLICT: % was changed or deleted in another session. Reload the latest data.',external_key using errcode='40001';
     end if;
     if not public.can_manage_workspace() then
+      if collection_name='generalTasks' then
+        if change->>'operation'<>'save' or not coalesce(public.employee_general_task_save_allowed(root_id,change->'data'->'row'->'task'),false) then raise exception 'Employees can create general tasks for themselves and update only their assigned progress.'; end if;
+      else
       if collection_name<>'projects' or change->>'operation'<>'save' or root_id is null
         or not exists(select 1 from public.projects p where p.id=root_id and (
           exists(select 1 from public.project_team_members t where t.project_id=p.id and t.user_id=auth.uid())
           or exists(select 1 from public.project_work_items w where w.project_id=p.id and public.is_task_assignee(w.id))
         )) or not public.employee_project_task_update_allowed(root_id,change->'data') then
         raise exception 'Employees can update only their own assigned task progress.';
+      end if;
       end if;
     end if;
     if change->>'operation'='delete' then
@@ -820,6 +863,8 @@ begin
         select lead_id,proposal_id,client_id into lead_id_value,proposal_id_value,client_id_value from public.projects where id=root_id;
       end if;
       payload=(payload-'deposit_amount'-'deposit_status')||jsonb_build_object('lead_id',lead_id_value,'proposal_id',proposal_id_value,'client_id',client_id_value);
+    elsif collection_name='generalTasks' then
+      payload=payload||jsonb_build_object('created_by',auth.uid());
     elsif collection_name='management' then
       select id into project_id_value from public.projects where external_id=data->>'sourceProjectId';
       if nullif(data->>'sourceProjectId','') is not null and project_id_value is null then raise exception 'Linked project does not exist'; end if;
@@ -1563,8 +1608,8 @@ end $$;
 revoke all on function public.read_client_records() from public,anon;
 grant execute on function public.read_client_records() to authenticated;
 
-commit;
-begin;
+
+
 -- Separate client reports from administrator-confirmed invoice payment fields.
 create table if not exists public.invoice_payment_references (
   invoice_id uuid primary key references public.invoices(id) on delete cascade,
@@ -1913,7 +1958,6 @@ begin
   return new;
 end $$;
 
-commit;
 
 -- ===== Section: task-deadlines =====
 alter table public.project_work_items add column if not exists deadline timestamptz;
@@ -2008,3 +2052,260 @@ begin
   return new;
 end $$;
 revoke all on function public.validate_task_assignees() from public,anon,authenticated;
+
+-- ===== Section: qa-reports =====
+create table if not exists public.qa_reports (
+  id uuid primary key default gen_random_uuid(),
+  kind text not null check(kind in ('BUG','CHANGE','IMPROVEMENT')),
+  title text not null check(length(trim(title)) between 1 and 1000),
+  details text not null check(length(trim(details)) between 1 and 5000),
+  project_id uuid references public.projects(id) on delete set null,
+  task_id uuid unique references public.project_work_items(id) on delete set null,
+  created_by uuid not null references auth.users(id),
+  created_at timestamptz not null default now()
+);
+create index if not exists qa_reports_project_idx on public.qa_reports(project_id);
+alter table public.qa_reports enable row level security;
+revoke all on public.qa_reports from anon,authenticated;
+grant select on public.qa_reports to authenticated;
+drop policy if exists "internal users read QA reports" on public.qa_reports;
+create policy "internal users read QA reports" on public.qa_reports for select to authenticated using (
+  public.can_manage_workspace() or (public.current_workspace_role()='employee' and
+    (created_by=auth.uid() or (project_id is not null and public.employee_can_access_project(project_id))))
+);
+
+create or replace function public.assign_qa_report(p_report_id uuid,p_project_external_id text,p_assignee_id uuid)
+returns uuid language plpgsql security definer set search_path=public
+as $$
+declare report public.qa_reports; project_uuid uuid; assigned_name text; task_uuid uuid;
+begin
+  if not coalesce(public.is_internal_workspace_user(),false) then raise exception 'Workspace membership required' using errcode='42501'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('workspace-graph-write',0));
+  select * into report from public.qa_reports where id=p_report_id for update;
+  if not found then raise exception 'Report no longer exists'; end if;
+  if not public.can_manage_workspace() and report.created_by<>auth.uid() then raise exception 'You can assign only your own reports' using errcode='42501'; end if;
+  if report.task_id is not null then return report.task_id; end if;
+  select id into project_uuid from public.projects where external_id=p_project_external_id for update;
+  if project_uuid is null then raise exception 'Choose a project for the task'; end if;
+  if report.project_id is not null and report.project_id<>project_uuid then raise exception 'The fix must belong to the report project'; end if;
+  if not public.can_manage_workspace() and (p_assignee_id is distinct from auth.uid() or not public.employee_can_access_project(project_uuid)) then raise exception 'Create tasks only for yourself in assigned projects' using errcode='42501'; end if;
+  select coalesce(nullif(trim(display_name),''),split_part(email,'@',1)) into assigned_name from public.workspace_members where user_id=p_assignee_id and role in ('admin','project_manager','employee') limit 1;
+  if assigned_name is null then raise exception 'Choose a member from the workspace directory'; end if;
+  insert into public.project_work_items(project_id,external_id,title,description,kind,assignee_user_id,assignee_name,assignees,priority,estimated_hours,logged_hours,status)
+  values(project_uuid,'QA-'||report.id::text,report.title,report.details,case when report.kind='BUG' then 'QA_BUG' else 'FEATURE_DEV' end,p_assignee_id,assigned_name,jsonb_build_array(jsonb_build_object('userId',p_assignee_id,'name',assigned_name)),'P3',0,0,'TO_DO') returning id into task_uuid;
+  update public.projects set revision=revision+1 where id=project_uuid;
+  update public.qa_reports set project_id=project_uuid,task_id=task_uuid where id=report.id;
+  return task_uuid;
+end;
+$$;
+revoke all on function public.assign_qa_report(uuid,text,uuid) from public,anon;
+grant execute on function public.assign_qa_report(uuid,text,uuid) to authenticated;
+
+create or replace function public.submit_qa_report(p_id uuid,p_kind text,p_title text,p_details text,p_project_external_id text default null,p_assignee_id uuid default null)
+returns uuid language plpgsql security definer set search_path=public
+as $$
+declare project_uuid uuid; existing public.qa_reports;
+begin
+  if not coalesce(public.is_internal_workspace_user(),false) then raise exception 'Workspace membership required' using errcode='42501'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('workspace-graph-write',0));
+  if p_project_external_id is not null then
+    select id into project_uuid from public.projects where external_id=p_project_external_id;
+    if project_uuid is null then raise exception 'Choose an available project'; end if;
+    if not public.can_manage_workspace() and not public.employee_can_access_project(project_uuid) then raise exception 'Choose one of your assigned projects' using errcode='42501'; end if;
+  end if;
+  select * into existing from public.qa_reports where id=p_id;
+  if found then
+    if existing.created_by<>auth.uid() or existing.kind is distinct from p_kind or existing.title is distinct from trim(p_title) or existing.details is distinct from trim(p_details) then raise exception 'Invalid report save identifier'; end if;
+    return existing.id;
+  end if;
+  insert into public.qa_reports(id,kind,title,details,project_id,created_by) values(p_id,p_kind,trim(p_title),trim(p_details),project_uuid,auth.uid());
+  if p_assignee_id is not null then perform public.assign_qa_report(p_id,p_project_external_id,p_assignee_id); end if;
+  return p_id;
+end;
+$$;
+revoke all on function public.submit_qa_report(uuid,text,text,text,text,uuid) from public,anon;
+grant execute on function public.submit_qa_report(uuid,text,text,text,text,uuid) to authenticated;
+
+-- ===== Section: general-tasks =====
+create table if not exists public.general_tasks (
+  id uuid primary key default gen_random_uuid(),external_id text not null unique,
+  task jsonb not null,revision bigint not null default 0,
+  created_by uuid not null references auth.users(id),created_at timestamptz not null default now()
+);
+alter table public.general_tasks enable row level security;
+revoke all on public.general_tasks from anon,authenticated;
+grant select on public.general_tasks to authenticated;
+drop policy if exists "members read assigned general tasks" on public.general_tasks;
+create policy "members read assigned general tasks" on public.general_tasks for select to authenticated using (
+  public.can_manage_workspace() or (public.current_workspace_role()='employee' and (task->>'assigneeId'=auth.uid()::text
+    or exists(select 1 from jsonb_array_elements(task->'assignees') person where person->>'userId'=auth.uid()::text)))
+);
+create or replace function public.employee_general_task_save_allowed(p_id uuid,p_task jsonb)
+returns boolean language plpgsql stable security definer set search_path=public
+as $$ declare previous jsonb;
+begin
+  if public.current_workspace_role()<>'employee' then return false; end if;
+  if p_id is null then
+    return p_task->>'assigneeId'=auth.uid()::text and jsonb_array_length(p_task->'assignees')=1
+      and p_task->'assignees'->0->>'userId'=auth.uid()::text and p_task->>'status'='TO_DO'
+      and (p_task->>'loggedHours')::numeric=0 and nullif(p_task->>'timerStartedAt','') is null
+      and nullif(p_task->>'blockerReason','') is null and coalesce(p_task->'proof','{}')='{}'::jsonb
+      and nullif(p_task->>'reviewNotes','') is null and not coalesce((p_task->>'revisionRequested')::boolean,false);
+  end if;
+  select task into previous from public.general_tasks where id=p_id;
+  if previous is null or not (previous->>'assigneeId'=auth.uid()::text or exists(select 1 from jsonb_array_elements(previous->'assignees') person where person->>'userId'=auth.uid()::text)) then return false; end if;
+  return (previous-array['status','loggedHours','blockerReason','proof','reviewNotes','revisionRequested','timerStartedAt'])
+    = (p_task-array['status','loggedHours','blockerReason','proof','reviewNotes','revisionRequested','timerStartedAt']);
+exception when others then return false;
+end;
+$$;
+revoke all on function public.employee_general_task_save_allowed(uuid,jsonb) from public,anon,authenticated;
+
+create or replace function public.validate_general_task()
+returns trigger language plpgsql security definer set search_path=public
+as $$ declare person jsonb; data jsonb=new.task;
+begin
+  if data->>'id' is distinct from new.external_id or nullif(trim(data->>'title'),'') is null or length(data->>'title')>1000 or length(coalesce(data->>'description',''))>5000
+    or coalesce(data->>'status','') not in ('TO_DO','IN_PROGRESS','BLOCKED','UNDER_REVIEW','DONE')
+    or coalesce(data->>'priority','') not in ('P1','P2','P3','P4')
+    or coalesce(data->>'kind','') not in ('FEATURE_DEV','CLIENT_FEEDBACK_TODO','QA_BUG')
+    or coalesce((data->>'estimatedHours')::numeric,-1)<0 or coalesce((data->>'loggedHours')::numeric,-1)<0
+    or jsonb_typeof(data->'assignees') is distinct from 'array' or jsonb_array_length(data->'assignees') not between 1 and 100
+    or data->>'assigneeId' is distinct from data->'assignees'->0->>'userId'
+    or data->>'assignee' is distinct from data->'assignees'->0->>'name'
+    then raise exception 'Invalid general task details'; end if;
+  perform (data->>'createdAt')::timestamptz;
+  if data->>'deadline' is not null then perform (data->>'deadline')::timestamptz; end if;
+  for person in select value from jsonb_array_elements(data->'assignees') loop
+    if nullif(trim(person->>'name'),'') is null or not exists(select 1 from public.workspace_members where user_id=(person->>'userId')::uuid and role in ('admin','employee','project_manager')) then raise exception 'Select assignees from the workspace directory'; end if;
+  end loop;
+  if (select count(distinct value->>'userId') from jsonb_array_elements(data->'assignees'))<>jsonb_array_length(data->'assignees') then raise exception 'Task assignees must be unique'; end if;
+  return new;
+end;
+$$;
+revoke all on function public.validate_general_task() from public,anon,authenticated;
+drop trigger if exists validate_general_task on public.general_tasks;
+create trigger validate_general_task before insert or update on public.general_tasks for each row execute function public.validate_general_task();
+
+-- Upgrade the graph RPC while preserving installed project permissions and revision checks.
+do $upgrade$
+declare definition text;
+begin
+  select pg_get_functiondef('public.workspace_upsert_row(text,jsonb,text)'::regprocedure) into definition;
+  definition=replace(definition,'''project_links'',''managed_projects'',''invoices'') then','''project_links'',''managed_projects'',''invoices'',''general_tasks'') then');
+  execute definition;
+  select pg_get_functiondef('public.save_workspace_changes(jsonb,uuid)'::regprocedure) into definition;
+  if position('employee_general_task_save_allowed' in definition)=0 then
+    definition=replace(definition,'when ''invoices'' then ''invoices'' end;','when ''invoices'' then ''invoices'' when ''generalTasks'' then ''general_tasks'' end;');
+    definition=replace(definition,E'if not public.can_manage_workspace() then\n      if collection_name<>''projects''',E'if not public.can_manage_workspace() then\n      if collection_name=''generalTasks'' then\n        if change->>''operation''<>''save'' or not coalesce(public.employee_general_task_save_allowed(root_id,change->''data''->''row''->''task''),false) then raise exception ''Employees can create general tasks for themselves and update only their assigned progress.''; end if;\n      else\n      if collection_name<>''projects''');
+    definition=replace(definition,E'raise exception ''Employees can update only their own assigned task progress.'';\n      end if;\n    end if;',E'raise exception ''Employees can update only their own assigned task progress.'';\n      end if;\n      end if;\n    end if;');
+    definition=replace(definition,E'elsif collection_name=''management'' then\n',E'elsif collection_name=''generalTasks'' then\n      payload=payload||jsonb_build_object(''created_by'',auth.uid());\n    elsif collection_name=''management'' then\n');
+    execute definition;
+  end if;
+end;
+$upgrade$;
+
+create or replace function public.notify_general_task_assignment()
+returns trigger language plpgsql security definer set search_path=public
+as $$ declare person jsonb;
+begin
+  for person in select value from jsonb_array_elements(new.task->'assignees') loop
+    if TG_OP='INSERT' or not exists(select 1 from jsonb_array_elements(old.task->'assignees') previous where previous->>'userId'=person->>'userId') then
+      insert into public.workspace_notifications(recipient_id,type,title,message,link) values((person->>'userId')::uuid,'TASK','Task assigned',new.task->>'title','/work');
+    end if;
+  end loop;
+  return new;
+end;
+$$;
+revoke all on function public.notify_general_task_assignment() from public,anon,authenticated;
+drop trigger if exists notify_general_task_assignment on public.general_tasks;
+create trigger notify_general_task_assignment after insert or update on public.general_tasks for each row execute function public.notify_general_task_assignment();
+
+-- ===== Section: general-qa-tasks =====
+alter table public.qa_reports add column if not exists general_task_id uuid unique references public.general_tasks(id) on delete set null;
+create or replace function public.assign_qa_report(p_report_id uuid,p_project_external_id text,p_assignee_id uuid)
+returns uuid language plpgsql security definer set search_path=public
+as $$
+declare report public.qa_reports; project_uuid uuid; assigned_name text; task_uuid uuid; external_key text;
+begin
+  if not coalesce(public.is_internal_workspace_user(),false) then raise exception 'Workspace membership required' using errcode='42501'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('workspace-graph-write',0));
+  select * into report from public.qa_reports where id=p_report_id for update;
+  if not found then raise exception 'Report no longer exists'; end if;
+  if not public.can_manage_workspace() and report.created_by<>auth.uid() then raise exception 'You can assign only your own reports' using errcode='42501'; end if;
+  if report.task_id is not null or report.general_task_id is not null then return coalesce(report.task_id,report.general_task_id); end if;
+  if nullif(p_project_external_id,'') is not null then
+    select id into project_uuid from public.projects where external_id=p_project_external_id for update;
+    if project_uuid is null then raise exception 'Choose an available project'; end if;
+  end if;
+  if report.project_id is not null and report.project_id is distinct from project_uuid then raise exception 'The fix must belong to the report project'; end if;
+  if not public.can_manage_workspace() and (p_assignee_id is distinct from auth.uid() or (project_uuid is not null and not public.employee_can_access_project(project_uuid))) then raise exception 'Create tasks only for yourself in assigned projects' using errcode='42501'; end if;
+  select coalesce(nullif(trim(display_name),''),split_part(email,'@',1)) into assigned_name from public.workspace_members where user_id=p_assignee_id and role in ('admin','project_manager','employee') limit 1;
+  if assigned_name is null then raise exception 'Choose a member from the workspace directory'; end if;
+  external_key='QA-'||report.id::text;
+  if project_uuid is null then
+    insert into public.general_tasks(external_id,created_by,task) values(external_key,auth.uid(),jsonb_build_object(
+      'id',external_key,'title',report.title,'description',report.details,'kind',case when report.kind='BUG' then 'QA_BUG' else 'FEATURE_DEV' end,
+      'assigneeId',p_assignee_id,'assignee',assigned_name,'assignees',jsonb_build_array(jsonb_build_object('userId',p_assignee_id,'name',assigned_name)),
+      'priority','P3','estimatedHours',0,'loggedHours',0,'status','TO_DO','createdAt',now())) returning id into task_uuid;
+    update public.qa_reports set general_task_id=task_uuid where id=report.id;
+  else
+    insert into public.project_work_items(project_id,external_id,title,description,kind,assignee_user_id,assignee_name,assignees,priority,estimated_hours,logged_hours,status)
+    values(project_uuid,external_key,report.title,report.details,case when report.kind='BUG' then 'QA_BUG' else 'FEATURE_DEV' end,p_assignee_id,assigned_name,jsonb_build_array(jsonb_build_object('userId',p_assignee_id,'name',assigned_name)),'P3',0,0,'TO_DO') returning id into task_uuid;
+    update public.projects set revision=revision+1 where id=project_uuid;
+    update public.qa_reports set project_id=project_uuid,task_id=task_uuid where id=report.id;
+  end if;
+  return task_uuid;
+end;
+$$;
+revoke all on function public.assign_qa_report(uuid,text,uuid) from public,anon;
+grant execute on function public.assign_qa_report(uuid,text,uuid) to authenticated;
+
+-- ===== Section: qa-report-images =====
+-- Store the optimized raster attachment, capped by decoded bytes rather than base64 length.
+create or replace function public.valid_compressed_image(p_value text,p_max_bytes integer)
+returns boolean language plpgsql immutable set search_path=public
+as $$
+begin
+  if p_value is null then return true; end if;
+  if length(p_value)>((p_max_bytes+2)/3)*4+64 or p_value !~ '^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$' then return false; end if;
+  return octet_length(decode(split_part(p_value,',',2),'base64')) between 1 and p_max_bytes;
+exception when others then return false;
+end;
+$$;
+revoke all on function public.valid_compressed_image(text,integer) from public,anon,authenticated;
+alter table public.qa_reports add column if not exists image_data_url text;
+alter table public.qa_reports add column if not exists image_name text;
+alter table public.qa_reports drop constraint if exists qa_reports_image_check;
+alter table public.qa_reports add constraint qa_reports_image_check check(public.valid_compressed_image(image_data_url,358400) and
+  (image_name is null or length(trim(image_name)) between 1 and 200) and (image_data_url is not null or image_name is null));
+-- Replace the old signature to avoid ambiguous PostgREST overloads; defaults retain old callers.
+drop function if exists public.submit_qa_report(uuid,text,text,text,text,uuid);
+create or replace function public.submit_qa_report(p_id uuid,p_kind text,p_title text,p_details text,p_project_external_id text default null,p_assignee_id uuid default null,p_image_data_url text default null,p_image_name text default null)
+returns uuid language plpgsql security definer set search_path=public
+as $$
+declare project_uuid uuid; existing public.qa_reports; image_value text=nullif(p_image_data_url,''); image_filename text=nullif(trim(p_image_name),'');
+begin
+  if not coalesce(public.is_internal_workspace_user(),false) then raise exception 'Workspace membership required' using errcode='42501'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('workspace-graph-write',0));
+  if p_project_external_id is not null then
+    select id into project_uuid from public.projects where external_id=p_project_external_id;
+    if project_uuid is null then raise exception 'Choose an available project'; end if;
+    if not public.can_manage_workspace() and not public.employee_can_access_project(project_uuid) then raise exception 'Choose one of your assigned projects' using errcode='42501'; end if;
+  end if;
+  if not public.valid_compressed_image(image_value,358400) then raise exception 'Choose a compressed PNG, JPG, or WebP image up to 350 KB'; end if;
+  select * into existing from public.qa_reports where id=p_id;
+  if found then
+    if existing.created_by<>auth.uid() or existing.kind is distinct from p_kind or existing.title is distinct from trim(p_title) or existing.details is distinct from trim(p_details)
+      or existing.image_data_url is distinct from image_value or existing.image_name is distinct from image_filename then raise exception 'Invalid report save identifier'; end if;
+    return existing.id;
+  end if;
+  insert into public.qa_reports(id,kind,title,details,project_id,created_by,image_data_url,image_name) values(p_id,p_kind,trim(p_title),trim(p_details),project_uuid,auth.uid(),image_value,image_filename);
+  if p_assignee_id is not null then perform public.assign_qa_report(p_id,p_project_external_id,p_assignee_id); end if;
+  return p_id;
+end;
+$$;
+revoke all on function public.submit_qa_report(uuid,text,text,text,text,uuid,text,text) from public,anon;
+grant execute on function public.submit_qa_report(uuid,text,text,text,text,uuid,text,text) to authenticated;
+
+commit;

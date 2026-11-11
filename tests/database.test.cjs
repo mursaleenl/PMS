@@ -22,6 +22,7 @@ async function setup() {
  `);
  await db.exec(readDatabaseSection('foundation').replace('create extension if not exists pgcrypto;',''));
  await db.exec(readDatabaseSection('workspace-reliability'));
+ await db.exec(readDatabaseSection('general-tasks'));
  for(const [id,email] of [[ADMIN,'admin@example.com'],[EMPLOYEE,'employee@example.com'],[CLIENT,'client@example.com'],[OUTSIDER,'outsider@example.com']]) await db.query(`insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())`,[id,email]);
  await db.query(`insert into public.workspace_members(user_id,email,role) values($1,'admin@example.com','admin'),($2,'employee@example.com','employee'),($3,'client@example.com','client')`,[ADMIN,EMPLOYEE,CLIENT]);
  await identity(ADMIN,'admin@example.com');
@@ -229,7 +230,7 @@ test('workspace database migrations and transactional workflows',async t=>{
    assert.deepEqual(Object.keys(own.details).sort(),['services','start_date','scope_included','scope_excluded','assumptions'].sort());
    assert.equal(own.team,undefined);
    assert.equal(own.details.operating_company,undefined);
-   assert.deepEqual(Object.keys(own).sort(),['id','external_id','title','client_company','details','status','total_tasks','completed_tasks'].sort());
+   assert.deepEqual(Object.keys(own).sort(),['id','external_id','title','logo_data_url','client_company','details','status','total_tasks','completed_tasks'].sort());
    for(const table of ['clients','projects','project_work_items','project_links','proposals','invoices','project_messages','project_team_members']) {
      assert.equal((await db.query(`select count(*)::int n from ${table}`)).rows[0].n,0,table);
    }
@@ -294,7 +295,7 @@ test('workspace database migrations and transactional workflows',async t=>{
    assert.ok(!projects.some(p=>p.external_id==='PRIVATE'));
    const project=projects.find(p=>p.external_id==='NOTICE-PROJECT');
    assert.ok(project.tasks.length);
-   assert.deepEqual(Object.keys(project).sort(),['id','external_id','title','client_company','status','details','tasks','total_tasks','completed_tasks'].sort());
+   assert.deepEqual(Object.keys(project).sort(),['id','external_id','title','logo_data_url','client_company','status','details','tasks','total_tasks','completed_tasks'].sort());
    assert.deepEqual(Object.keys(project.details).sort(),['services','start_date','scope_included','scope_excluded','assumptions'].sort());
    assert.deepEqual(Object.keys(project.tasks[0]).sort(),['id','status','title']);
    await db.exec('reset role');

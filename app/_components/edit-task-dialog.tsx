@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useRef,useState,type FormEvent} from "react";
+import {GENERAL_TASKS_ID,updateGeneralTask} from "@/lib/general-tasks";
 import {X} from "lucide-react";
 import {useAssignableUsers} from "@/lib/assignees";
 import {useWorkspaceAuth} from "@/lib/workspace-auth";
@@ -42,6 +43,7 @@ export function EditTaskDialog({projectId,task,onClose}:{projectId:string;task:P
     }
     pending.current=patch;
    }
+   if(projectId===GENERAL_TASKS_ID){updateGeneralTask(task.id,pending.current);await flushWorkspaceChanges();onClose();return;}
    const project=readProjects().find(item=>item.id===projectId);
    if(!project?.workItems?.some(item=>item.id===task.id))throw new Error("This task is no longer available.");
    updateProject(projectId,{workItems:project.workItems.map(item=>item.id===task.id?{...item,...pending.current}:item)});

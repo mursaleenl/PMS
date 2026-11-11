@@ -11,6 +11,7 @@ import { CalendarPicker } from "@/app/_components/calendar-picker";
 export function InternalProjectDrawer({ onClose, onCreated }: { onClose: () => void; onCreated: (project: Project) => void }) {
   const { users } = useAssignableUsers();
   const [logoDataUrl, setLogoDataUrl] = useState<string | undefined>();
+  const [logoBusy,setLogoBusy]=useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const pending = useRef<Project | null>(null);
@@ -23,7 +24,7 @@ export function InternalProjectDrawer({ onClose, onCreated }: { onClose: () => v
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busy||logoBusy) return;
     const data = new FormData(event.currentTarget);
     const managerId = String(data.get("manager") || "");
     const manager = users.find(person => person.id === managerId && person.role === "project_manager");
@@ -63,7 +64,7 @@ export function InternalProjectDrawer({ onClose, onCreated }: { onClose: () => v
       <p>Organize internal work with tasks, a project manager, messages, and project links.</p>
       <form ref={form} onSubmit={submit}>
         <fieldset disabled={busy || Boolean(pending.current)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-          <ProjectLogoUpload value={logoDataUrl} onChange={setLogoDataUrl} />
+          <ProjectLogoUpload value={logoDataUrl} onChange={setLogoDataUrl} onProcessingChange={setLogoBusy} />
           <label className="field required">Project name<input name="title" required maxLength={200} /></label>
           <label className="field">Description<textarea name="description" rows={5} placeholder="What are we working on?" /></label>
           <label className="field">Objectives<textarea name="objectives" rows={3} placeholder="What should this project achieve?" /></label>
@@ -73,7 +74,7 @@ export function InternalProjectDrawer({ onClose, onCreated }: { onClose: () => v
           <div className="internal-project-team"><h3>Team members</h3><p>Select the people working on this project.</p>{users.filter(person => person.id).map(person => <label key={person.id}><input type="checkbox" name="team" value={person.id} />{person.name}</label>)}</div>
         </fieldset>
         {error && <p className="form-error" role="alert">{error}</p>}
-        <div className="form-actions"><button className="button button-quiet" type="button" onClick={onClose} disabled={busy}>Cancel</button><button className="button button-primary" type="submit" disabled={busy}>{busy ? "Saving…" : pending.current ? "Retry saving" : "Create internal project"}</button></div>
+        <div className="form-actions"><button className="button button-quiet" type="button" onClick={onClose} disabled={busy}>Cancel</button><button className="button button-primary" type="submit" disabled={busy||logoBusy}>{busy ? "Saving…" : pending.current ? "Retry saving" : "Create internal project"}</button></div>
       </form>
     </aside>
   </div>;

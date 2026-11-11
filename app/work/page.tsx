@@ -1,5 +1,6 @@
 "use client";
 
+import {GENERAL_TASKS_ID,generalTaskContext,readGeneralTasks,updateGeneralTask} from "@/lib/general-tasks";
 import {EditTaskDialog} from "@/app/_components/edit-task-dialog";
 import {TaskDeadline} from "@/app/_components/task-deadline";
 import Link from "next/link";
@@ -10,7 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowDownUp, ArrowRight, Check, ChevronDown, CircleAlert, FileCheck2, Filter, GripVertical, Kanban, List, MoreHorizontal, Plus, Search, ShieldAlert, Users } from "lucide-react";
 import { EmptyState } from "@/app/_components/empty-state";
 import { StatusBadge } from "@/app/_components/status-badge";
-import { getTaskAssignees, getTaskAssigneeLabel, getProjectDisplayTitle, getProjectDisplayServices, canViewProjectTask, readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
+import { isTaskAssignedToUser, getTaskAssignees, getTaskAssigneeLabel, getProjectDisplayTitle, getProjectDisplayServices, canViewProjectTask, readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
 import { useAssignableUsers } from "@/lib/assignees";
@@ -34,6 +35,7 @@ const kanbanColumns: { status: VisibleTaskStatus; label: string }[] = [
 ];
 
 function saveTaskChanges(projectId: string, taskId: string, updates: Partial<ProjectWorkItem>) {
+  if(projectId===GENERAL_TASKS_ID){updateGeneralTask(taskId,updates);return;}
   const currentProjects = readProjects();
   const target = currentProjects.find((project) => project.id === projectId);
   if (!target) return;
@@ -44,6 +46,7 @@ export default function MyWorkPage() {
   const {role,user,members}=useWorkspaceAuth();
   const { users: assignableUsers } = useAssignableUsers();
   const [showAssignTask, setShowAssignTask] = useState(false);
+  const [generalTasks,setGeneralTasks]=useState<ProjectWorkItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [assignee, setAssignee] = useState("");
   const [filter, setFilter] = useState<TaskFilter>("TO_DO");
@@ -65,13 +68,15 @@ export default function MyWorkPage() {
   }
 
   useEffect(() => {
-    const refresh = () => setProjects(readProjects());
+    const refresh = () => {setProjects(readProjects());setGeneralTasks(readGeneralTasks());};
     refresh();
     window.addEventListener("evecture:projects-updated", refresh);
     window.addEventListener("storage", refresh);
+    window.addEventListener("evecture:general-tasks-updated",refresh);
     return () => {
       window.removeEventListener("evecture:projects-updated", refresh);
       window.removeEventListener("storage", refresh);
+      window.removeEventListener("evecture:general-tasks-updated",refresh);
     };
   }, []);
 
@@ -89,7 +94,7 @@ export default function MyWorkPage() {
   }, []);
 
   const employeeName=(members.find((member)=>member.user_id===user?.id)?.display_name||user?.user_metadata?.full_name||user?.email?.split("@")[0]||"").trim().toLowerCase();
-  const allTasks = useMemo(() => projects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))).filter(({project, task}) => canViewProjectTask(project, task, role, user?.id, employeeName)), [projects,role,user?.id,employeeName]);
+  const allTasks = useMemo(() => projects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))).filter(({project, task}) => canViewProjectTask(project, task, role, user?.id, employeeName)).concat(generalTasks.filter(task=>role==="admin"||role==="project_manager"||isTaskAssignedToUser(task,user?.id,employeeName)).map(task=>({project:generalTaskContext,task}))), [projects,generalTasks,role,user?.id,employeeName]);
   const canEditTask = role === "admin" || role === "project_manager";
   const canCreateTask = canEditTask || role === "employee";
   const assignees = [...new Set([
@@ -262,7 +267,7 @@ export default function MyWorkPage() {
           <small>Total tasks</small>
           <strong>{allTasks.length}</strong>
         </div>
-        <span className="task-stat-note">Across projects</span>
+        <span className="task-stat-note">Project and general tasks</span>
       </button>
       <button type="button" className={`task-stat-card ${filter === "IN_PROGRESS" ? "selected" : ""}`} onClick={() => { setFilter("IN_PROGRESS"); setViewMode("LIST"); }}>
         <div className="task-stat-copy">
@@ -287,7 +292,7 @@ export default function MyWorkPage() {
       </button>
     </section>
 
-    {allTasks.length === 0 ? <EmptyState icon={<FileCheck2 size={22} />} title={(role === "employee") ? "No tasks assigned" : "No dispatched tasks yet"} description={(role === "employee") ? "Tasks assigned to you will appear here." : "Dispatch a task from any project workspace to see it on the Tasks board."} action={<Link className="button button-primary" href="/projects"><Plus size={14} />Open projects</Link>} /> : <section className="panel task-table-panel">
+    {allTasks.length === 0 ? <EmptyState icon={<FileCheck2 size={22} />} title={(role === "employee") ? "No tasks assigned" : "No tasks yet"} description={(role === "employee") ? "View your assigned work or create a task for yourself." : "Create a general task or assign work to a project."} action={<Link className="button button-primary" href="/projects"><Plus size={14} />Open projects</Link>} /> : <section className="panel task-table-panel">
       <div className="task-table-heading">
         <div>
           <h2>All tasks</h2>
@@ -434,7 +439,7 @@ export default function MyWorkPage() {
                           </div>
                         </td>
                         <td className="task-project-cell">
-                          <Link className="task-project-link" href={`/projects/${project.id}`}>
+                          {project.id===GENERAL_TASKS_ID?<span>General task</span>:<Link className="task-project-link" href={`/projects/${project.id}`}>
                             <span className="project-card-identity project-task-identity">
                               <ProjectCardLogo src={project.logoDataUrl} projectType={project.projectType} title={getProjectDisplayTitle(project)} />
                               <span className="project-task-copy"><strong>{getProjectDisplayTitle(project)}</strong>
@@ -442,7 +447,7 @@ export default function MyWorkPage() {
                                 <small className="mono-meta">{project.id}</small>
                               </span>
                             </span>
-                          </Link>
+                          </Link>}
                         </td>
                         <td className="task-assignee-cell">
                           {getTaskAssignees(task).length ? (
@@ -551,7 +556,7 @@ export default function MyWorkPage() {
                           onDragEnd={handleDragEnd}
                         >
                           <div className="task-kanban-card-top">
-                            <Link
+                            {project.id===GENERAL_TASKS_ID?<span className="task-kanban-project-pill">General task</span>:<Link
                               href={`/projects/${project.id}`}
                               className="task-kanban-project-pill"
                               title={`${getProjectDisplayTitle(project)} (${project.id})`}
@@ -564,7 +569,7 @@ export default function MyWorkPage() {
                                   <span className="project-pill-id">{project.id}</span>
                                 </span>
                               </span>
-                            </Link>
+                            </Link>}
                             <span className="drag-handle" title="Drag to reorder or update status">
                               <GripVertical size={13} />
                             </span>

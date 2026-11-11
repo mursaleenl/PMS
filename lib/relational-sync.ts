@@ -17,7 +17,7 @@ type RelationalSnapshot = {
   requiresMigration: boolean;
 };
 
-const collections: WorkspaceCollection[] = ["leads", "projects", "management", "invoices"];
+const collections: WorkspaceCollection[] = ["leads", "projects", "management", "invoices", "generalTasks"];
 
 function fail(result: { error: { message?: string; details?: string } | null }, action: string) {
   if (result.error) throw new Error(`${action}: ${result.error.message || result.error.details || "database request failed"}`);
@@ -224,8 +224,8 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
       if ((result.data?.length ?? 0) < 500) return {data};
     }
   }
-  const [leads, proposals, followUps, invoices, projects, team, workItems, links, managed] = await Promise.all(
-    ["leads", "proposals", "proposal_follow_ups", "invoices", "projects", "project_team_members", "project_work_items", "project_links", "managed_projects"].map(readTable)
+  const [leads, proposals, followUps, invoices, projects, team, workItems, links, managed, general] = await Promise.all(
+    ["leads", "proposals", "proposal_follow_ups", "invoices", "projects", "project_team_members", "project_work_items", "project_links", "managed_projects", "general_tasks"].map(readTable)
   );
   const schemaCheck = await client.from("leads").select("revision").limit(1);
   const schemaVersion = await client.rpc("workspace_schema_version");
@@ -427,7 +427,7 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     updatedAt: text(row.updated_at),
   }));
 
-  const values: RelationalValues = { leads: hydratedLeads, projects: hydratedProjects, management: hydratedManagement, invoices: hydratedInvoices, postSaleOperations: [] };
+  const values: RelationalValues = { leads: hydratedLeads, projects: hydratedProjects, management: hydratedManagement, invoices: hydratedInvoices, postSaleOperations: [], generalTasks: general.data.map(row=>({...row.task,id:row.external_id})) };
   // Every relational collection is authoritative, including an empty one.
   // Do not fall back to the legacy workspace_records table or client state:
   // deleting the final row must make the collection empty in the app.
@@ -436,7 +436,7 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     remoteCollections: new Set<WorkspaceCollection>(collections),
     legacyCollections: new Set<WorkspaceCollection>(),
     requiresMigration: Boolean(schemaCheck.error) || schemaVersion.data !== 1 || [...leadRows,...projectRows,...managedRows,...invoiceRows].some(row => row.revision === undefined),
-    revisions: Object.fromEntries(([ ["leads",leadRows], ["projects",projectRows], ["management",managedRows], ["invoices",invoiceRows] ] as [WorkspaceCollection, DbRow[]][]).flatMap(([collection,rows]) => rows.map(row => {
+    revisions: Object.fromEntries(([ ["leads",leadRows], ["projects",projectRows], ["management",managedRows], ["invoices",invoiceRows], ["generalTasks",general.data] ] as [WorkspaceCollection, DbRow[]][]).flatMap(([collection,rows]) => rows.map(row => {
       return [`${collection}:${collection === "invoices" ? row.invoice_number : row.external_id || row.id}`, number(row.revision)];
     }))),
   };
@@ -451,6 +451,7 @@ export type WorkspaceChange = {
 };
 
 export function serializeRecord(collection: WorkspaceCollection, value: unknown): Record<string, unknown> {
+  if (collection === "generalTasks") { const task=value as ProjectWorkItem;return {row:{external_id:task.id,task,created_at:task.createdAt}}; }
   if (collection === "leads") {
     const lead = value as Lead;
     return { row: {

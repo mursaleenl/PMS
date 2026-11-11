@@ -1,4 +1,5 @@
 "use client";
+import {compressImage,readFileDataUrl} from "@/lib/image-compression";
 import {OperatingOrganizationField} from "@/app/_components/operating-organization-field";
 import { useState, type FormEvent } from "react";
 import { Check, Download, FileText, ShieldCheck } from "lucide-react";
@@ -9,15 +10,6 @@ import { ProposalGenerator } from "@/app/_components/proposal-generator";
 import { StatusBadge } from "@/app/_components/status-badge";
 
 const MAX_DOCUMENT_BYTES = 1_200_000;
-
-function readFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Unable to read file"));
-    reader.onerror = () => reject(new Error("Unable to read file"));
-    reader.readAsDataURL(file);
-  });
-}
 
 export function ProposalWorkspace({ lead }: { lead: Lead }) {
   const [error,setError]=useState("");
@@ -36,15 +28,16 @@ export function ProposalWorkspace({ lead }: { lead: Lead }) {
 
   async function selectDocument(file: File | undefined, setter: (value: { name: string; dataUrl: string } | null) => void) {
     if (!file) return;
-    if (file.size > MAX_DOCUMENT_BYTES) {
+    if (!file.type.startsWith("image/") && file.size > MAX_DOCUMENT_BYTES) {
       setError("Attachments must be under 1.2 MB.");
       return;
     }
     try {
-      setter({ name: file.name, dataUrl: await readFile(file) });
+      if(file.type.startsWith("image/")){const image=await compressImage(file);setter({name:image.name,dataUrl:image.dataUrl});}
+      else setter({ name: file.name, dataUrl: await readFileDataUrl(file) });
       setError("");
-    } catch {
-      setError("Could not read the selected document.");
+    } catch(cause) {
+      setError(cause instanceof Error?cause.message:"Could not read the selected document.");
     }
   }
 

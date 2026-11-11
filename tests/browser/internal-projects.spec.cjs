@@ -23,8 +23,8 @@ test('internal projects use the default logo across views and keep custom upload
   await page.getByRole('button', { name: 'Project status', exact: true }).click();
   await expect(page.locator('.project-board-card .project-card-logo')).toHaveAttribute('src', '/internal-project-logo.png');
   await page.locator('.project-logo-upload-compact input[type=file]').setInputFiles('public/internal-project-logo.png');
-  await expect(page.locator('.project-workspace-logo')).toHaveAttribute('src', /^data:image\/png;base64,/);
-  await expect(page.locator('.project-board-card .project-card-logo')).toHaveAttribute('src', /^data:image\/png;base64,/);
+  await expect(page.locator('.project-workspace-logo')).toHaveAttribute('src', /^data:image\/(?:png|webp);base64,/);
+  await expect(page.locator('.project-board-card .project-card-logo')).toHaveAttribute('src', /^data:image\/(?:png|webp);base64,/);
 });
 
 test('admin creates internal work without commercial fields', async ({ page }) => {

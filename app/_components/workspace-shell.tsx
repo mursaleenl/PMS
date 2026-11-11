@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ListTodo, ChevronDown, ChevronRight, Command, Files, FolderOpenDot, Repeat2, ContactRound, PanelsTopLeft, LogOut, Menu, X, ScanLine, ReceiptText, Search, SlidersHorizontal, User, UserRoundCog, Building2, ClipboardCheck, BriefcaseBusiness } from "lucide-react";
+import { Bug, ListTodo, ChevronDown, ChevronRight, Command, Files, FolderOpenDot, Repeat2, ContactRound, PanelsTopLeft, LogOut, Menu, X, ScanLine, ReceiptText, Search, SlidersHorizontal, User, UserRoundCog, Building2, ClipboardCheck, BriefcaseBusiness } from "lucide-react";
 import { WorkspaceSyncFeedback } from "@/app/_components/providers";
 import { CommandPalette } from "@/app/_components/command-palette";
 import { ToastHub } from "@/app/_components/toast-hub";
@@ -15,6 +15,7 @@ const workspaceGroups = [
     { label: "Dashboard", href: "/", icon: PanelsTopLeft },
     { label: "Projects", href: "/projects", icon: FolderOpenDot },
     { label: "Tasks", href: "/work", icon: ListTodo },
+    { label: "QA", href: "/qa", icon: Bug },
     { label: "Attendance", href: "/work/attendance", icon: ScanLine },
   ]},
   { title: "Sales", items: [
@@ -33,6 +34,7 @@ const employeeGroups = [
     { label: "Dashboard", href: "/", icon: PanelsTopLeft },
     { label: "Projects", href: "/projects", icon: FolderOpenDot },
     { label: "Tasks", href: "/work", icon: ListTodo },
+    { label: "QA", href: "/qa", icon: Bug },
     { label: "Attendance", href: "/work/attendance", icon: ScanLine },
   ]},
 ];

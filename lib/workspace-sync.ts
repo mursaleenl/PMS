@@ -1,5 +1,6 @@
-export type WorkspaceCollection = "leads" | "projects" | "management" | "postSaleOperations" | "invoices";
+export type WorkspaceCollection = "leads" | "projects" | "management" | "postSaleOperations" | "invoices" | "generalTasks";
 export const workspaceStorage: Record<WorkspaceCollection, {changedEvent:string}> = {
+  generalTasks: {changedEvent:"evecture:general-tasks-updated"},
   leads: { changedEvent: "evecture:leads-updated" }, projects: { changedEvent: "evecture:projects-updated" },
   management: { changedEvent: "evecture:post-sale-updated" }, postSaleOperations: { changedEvent: "evecture:post-sale-operations-updated" }, invoices: { changedEvent: "evecture:invoices-updated" },
 };

@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { WorkspaceAuthProvider, useWorkspaceAuth } from "@/lib/workspace-auth";
 import { persistWorkspaceChanges, readRelationalWorkspace, workspaceChanges } from "@/lib/relational-sync";
 
-const collections: WorkspaceCollection[] = ["leads", "projects", "management", "invoices"];
+const collections: WorkspaceCollection[] = ["leads", "projects", "management", "invoices", "generalTasks"];
 
 type SyncFeedback = { state: "loading"|"ready"|"saving"|"error"; canSave:boolean; message:string; retry:(() => Promise<void>)|null; reload:() => void };
 const SyncContext = createContext<SyncFeedback | null>(null);

@@ -1845,3 +1845,72 @@ html body .app-shell #workspace-content :is(.task-dispatch-dialog,.assign-task-d
 @media (max-width: 420px) { .task-target-tools { flex-wrap: wrap; } .task-target-tools input { flex-basis: 100%; } }
 
 .task-deadline { display: block; color: #64748b; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+
+/* QA report page and its compact reporting form. */
+.qa-page { display:grid; gap:24px; min-width:0; }
+.qa-page-heading { margin:0; align-items:center; gap:20px; }
+.qa-report-list { display:grid; gap:16px; min-width:0; }
+.qa-report,.qa-empty { padding:24px; min-width:0; margin:0; }
+.qa-empty { display:flex; min-height:240px; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; }
+.qa-empty h2 { margin:4px 0 0; font-size:18px; }
+.qa-empty p { margin:0; max-width:360px; color:#64748b; line-height:1.6; }
+.qa-report-meta,.qa-report footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; font-size:13px; color:#64748b; }
+.qa-report-meta > :first-child { font-weight:600; color:#334155; }
+.qa-report h2 { margin:14px 0 8px; font-size:18px; line-height:1.4; overflow-wrap:anywhere; }
+.qa-report-details { margin:0; color:#475569; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.7; }
+.qa-report footer { border-top:1px solid #e2e8f0; margin-top:20px; padding-top:16px; }
+.qa-report footer a { display:inline-flex; align-items:center; gap:8px; min-width:0; overflow-wrap:anywhere; color:#334155; }
+html body .app-shell #workspace-content .qa-dialog { width:min(600px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); padding:0; border:1px solid #e2e8f0; background:#ffffff; overflow-y:auto; overscroll-behavior:contain; }
+html body .app-shell #workspace-content .qa-dialog > header { position:sticky; top:0; z-index:2; display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin:0; padding:24px; border-bottom:1px solid #e2e8f0; background:#ffffff; }
+html body .app-shell #workspace-content .qa-dialog h2 { margin:0; font-size:20px; line-height:1.4; text-transform:none !important; }
+.qa-dialog header p { margin:6px 0 0; font-size:13px; line-height:1.5; color:#64748b; }
+html body .app-shell #workspace-content .qa-dialog header .icon-button { display:grid; place-items:center; flex:none; width:36px; min-width:36px; height:36px; padding:0 !important; border:1px solid #e2e8f0; background:#ffffff; color:#475569; }
+html body .app-shell #workspace-content .qa-dialog .qa-form-fields { display:grid; gap:20px; min-width:0; margin:0; padding:24px; border:0; }
+.qa-form-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; }
+html body .app-shell #workspace-content .qa-dialog .field { display:grid; align-content:start; gap:8px; min-width:0; margin:0; font-size:13px; font-weight:500; line-height:1.5; color:#0f172a !important; }
+html body .app-shell #workspace-content .qa-dialog :is(input,textarea,select) { box-sizing:border-box; width:100%; min-width:0; min-height:44px; margin:0; padding:10px 12px; border:1px solid #cbd5e1 !important; border-radius:0 !important; background:#ffffff !important; color:#0f172a !important; font:inherit; font-size:14px; font-weight:400; line-height:1.5; box-shadow:none; }
+html body .app-shell #workspace-content .qa-dialog textarea { min-height:140px; resize:vertical; }
+html body .app-shell #workspace-content .qa-dialog ::placeholder { color:#71717a; }
+html body .app-shell #workspace-content .qa-dialog .qa-form-actions { position:sticky; bottom:0; z-index:1; display:flex; justify-content:flex-end; gap:10px; margin:0; padding:18px 24px; border-top:1px solid #e2e8f0; background:#ffffff; }
+.qa-dialog .qa-form-error { margin:0 24px 20px; }
+html body .app-shell #workspace-content .qa-page button { text-transform:none !important; letter-spacing:normal; }
+html body .app-shell #workspace-content .qa-page .button-primary { background:#0f172a !important; color:#ffffff !important; border-color:#0f172a !important; }
+html body .app-shell #workspace-content .qa-page .button-quiet { background:#ffffff !important; color:#0f172a !important; border-color:#e2e8f0 !important; }
+html body .app-shell #workspace-content .qa-page :is(input,textarea,select,button):focus-visible { outline:2px solid #0f172a !important; outline-offset:2px; box-shadow:none !important; }
+@media(max-width:560px){
+ .qa-page-heading { flex-wrap:wrap; gap:16px; }
+ .qa-form-row { grid-template-columns:minmax(0,1fr); }
+ .qa-report,.qa-empty { padding:20px; }
+ html body .app-shell #workspace-content .qa-dialog > header,html body .app-shell #workspace-content .qa-dialog .qa-form-fields { padding:20px; }
+ html body .app-shell #workspace-content .qa-dialog .qa-form-actions { padding:16px 20px; }
+ .qa-dialog .qa-form-error { margin:0 20px 16px; }
+ html body .app-shell #workspace-content .qa-dialog :is(input,textarea,select) { font-size:16px; }
+}
+html body .app-shell #workspace-content .assign-task-dialog .field { color:#0f172a !important; }
+html body .app-shell #workspace-content .assign-task-dialog :is(input,textarea,select) { border-color:#cbd5e1 !important; }
+html body .app-shell #workspace-content .assign-task-dialog .button-primary { background:#0f172a !important; color:#ffffff !important; border-color:#0f172a !important; }
+html body .app-shell #workspace-content .assign-task-dialog :is(button,h2) { text-transform:none !important; }
+html body .app-shell #workspace-content .qa-page :is(.panel,button) { border-radius:0 !important; }
+html body .app-shell #workspace-content .qa-page h2 { text-transform:none !important; }
+html body .app-shell #workspace-content .qa-page .button { min-height:38px; font-size:13px !important; }
+html body .app-shell #workspace-content .qa-dialog h2 { font-size:20px !important; }
+html body .app-shell #workspace-content .qa-dialog :is(input,textarea)::placeholder { color:#71717a !important; }
+.qa-image-upload { display:grid; gap:12px; min-width:0; }
+.qa-image-upload .field small { color:#64748b; font-size:12px; font-weight:400; }
+.qa-image-preview { display:flex; align-items:center; gap:16px; min-width:0; padding:12px; border:1px solid #e2e8f0; }
+.qa-image-preview img { width:88px; height:88px; object-fit:contain; flex:none; background:#f8fafc; }
+.qa-image-preview > div { display:grid; gap:8px; min-width:0; }
+.qa-image-preview span { overflow-wrap:anywhere; font-size:13px; }
+.qa-image-preview small { color:#64748b; font-size:12px; }
+.qa-image-preview button { justify-self:start; }
+html body .app-shell #workspace-content .qa-page .qa-report-image { display:inline-flex; flex-direction:column; align-items:flex-start; gap:8px; height:auto; max-width:100%; margin-top:18px; padding:0; border:0; color:#475569; background:transparent; font-size:12px; }
+.qa-report-image img { display:block; max-width:100%; width:240px; max-height:180px; object-fit:contain; object-position:left center; border:1px solid #e2e8f0; }
+.qa-image-dialog { width:min(1100px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); margin:auto; padding:20px; overflow:auto; border:1px solid #e2e8f0; background:white; color:#0f172a; }
+.qa-image-dialog[open] { display:grid; gap:16px; }
+.qa-image-dialog::backdrop { background:rgb(0 0 0 / 45%); }
+.qa-image-dialog header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+html body .app-shell #workspace-content .qa-image-dialog h2 { margin:0; font-size:16px; text-transform:none; overflow-wrap:anywhere; }
+.qa-image-dialog header button { flex:none; }
+.qa-image-dialog > img { display:block; max-width:100%; max-height:70dvh; width:auto; height:auto; margin:auto; object-fit:contain; }
+.qa-image-dialog > a { justify-self:start; }
+html body .app-shell #workspace-content :is(.qa-image-upload,.project-logo-upload) input[type=file]::file-selector-button { height:36px; padding:0 12px; margin-right:12px; border:1px solid #cbd5e1 !important; border-radius:0 !important; background:#ffffff !important; color:#0f172a !important; font:inherit; font-size:13px; cursor:pointer; }
