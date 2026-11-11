@@ -47,6 +47,9 @@ export default function ProjectEnquiryPage() {
     if(selectedClient&&!clients.some(client=>clientKey(client)===selectedClient)){
       setError("Select an existing client before saving the enquiry.");return;
     }
+    if(!String(new FormData(event.currentTarget).get("projectName")||"").trim()){
+      setError("Enter a project name.");return;
+    }
     if (services.length === 0) {
       setError("Select at least one service so we can route the enquiry correctly.");
       return;
@@ -58,6 +61,7 @@ export default function ProjectEnquiryPage() {
     const companyWebsite = rawWebsite ? (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(rawWebsite) ? rawWebsite : `https://${rawWebsite}`) : "";
     const lead = {
       id: createUuid(), createdAt: now,
+      projectName: String(form.get("projectName") || "").trim(),
       fullName: String(form.get("fullName") || "").trim(),
       designation: String(form.get("designation") || "").trim(),
       companyName: String(form.get("companyName") || "").trim(),
@@ -101,12 +105,13 @@ export default function ProjectEnquiryPage() {
         <label className="field">Designation<input name="designation" value={contact.designation} onChange={event=>setContact(current=>({...current,designation:event.target.value}))} autoComplete="organization-title" placeholder="e.g. Founder, Marketing Director" /></label>
         <label className="field">Email address (optional)<input name="email" value={contact.email} onChange={event=>setContact(current=>({...current,email:event.target.value}))} readOnly={Boolean(selectedClient)} type="email" autoComplete="email" placeholder="contact@example.com" /></label>
         <label className="field">Phone number (optional)<input name="phone" value={contact.phone} onChange={event=>setContact(current=>({...current,phone:event.target.value}))} type="tel" autoComplete="tel" placeholder="+1 555 000 0000" /></label>
-        <label className="field">Company / organization name<input name="companyName" value={contact.companyName} onChange={event=>setContact(current=>({...current,companyName:event.target.value}))} readOnly={Boolean(selectedClient)} autoComplete="organization" placeholder="Enter company or organization name" /></label>
+        <label className="field">Company / organization name<input name="companyName" value={contact.companyName} onChange={event=>setContact(current=>({...current,companyName:event.target.value}))} autoComplete="organization" placeholder="Enter company or organization name" /></label>
         <label className="field">Company website<input name="companyWebsite" value={contact.companyWebsite} onChange={event=>setContact(current=>({...current,companyWebsite:event.target.value}))} type="text" placeholder="example.com" /></label>
         <label className="field">Country<input name="country" value={contact.country} onChange={event=>setContact(current=>({...current,country:event.target.value}))} autoComplete="country-name" placeholder="Country or region" /></label>
       </div></section>
 
       <section className="form-section"><div className="form-section-title"><span>02</span><div><h2>Project details</h2><p>Record the project requirements and expected outcomes.</p></div></div>
+        <label className="field required">Project name<input name="projectName" required maxLength={200} placeholder="e.g. Website redesign or mobile app" /></label>
         <fieldset className="field service-field"><legend className="field-label required">Services required</legend><div className="choice-grid">{serviceTypes.map((service) => <label className={`choice-card ${services.includes(service) ? "choice-selected" : ""}`} key={service}><input type="checkbox" checked={services.includes(service)} onChange={() => toggleService(service)} /><span className="choice-check">{services.includes(service) && <Check size={11} strokeWidth={2.5} />}</span><span>{service}</span></label>)}</div><small className="field-hint">Select all that apply.</small></fieldset>
         <div className="form-grid"><label className="field required">Industry<select name="industry" required value={industry} onChange={event=>setIndustry(event.target.value)}><option value="" disabled>Select an industry</option>{industries.map((industry) => <option key={industry}>{industry}</option>)}</select></label><label className="field required">Urgency<select name="urgency" defaultValue="Standard"><option>Standard</option><option>Rush</option></select></label></div>
         <label className="field required description-field">Project goals<textarea name="description" rows={5} required placeholder="Describe the project challenge, expected outcome, and relevant requirements." /></label>

@@ -8,7 +8,7 @@ import { InternalProjectDrawer } from "@/app/_components/internal-project-drawer
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Check, ListTodo, FolderKanban, Handshake, Plus, Receipt, Trash2, User, X } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
-import { deleteProject, readProjects, type Project, updateProject, getProjectDisplayTitle, getProjectDisplayServices, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
+import { deleteProject, readProjects, type Project, updateProject, getProjectDisplayTitle, getProjectDisplayServices, getProjectClientLabel, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject } from "@/lib/post-sale";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
@@ -128,7 +128,7 @@ export default function ProjectsPage() {
             <ProjectCardLogo src={project.logoDataUrl} title={getProjectDisplayTitle(project)} projectType={project.projectType} />
             <div className="portfolio-project-copy">
               <h2 className="portfolio-card-title">{getProjectDisplayTitle(project)}</h2>
-              {project.projectType!=="internal"&&project.title&&project.title!==getProjectDisplayTitle(project)&&<p className="portfolio-project-name">{project.title}</p>}
+              {project.projectType!=="internal"&&(project.clientCompany||project.clientName)&&<p className="portfolio-project-name">{getProjectClientLabel(project)}</p>}
               {services && <p className="portfolio-card-subtitle">{services}</p>}
             </div>
           </div>

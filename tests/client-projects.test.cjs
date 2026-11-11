@@ -22,6 +22,9 @@ test('multiple independent projects persist under the same client and appear in 
   await db.query("insert into workspace_members(user_id,email,role) values($1,'admin@example.com','admin'),($2,'client@example.com','client')",[admin,client]);
   const identity=async(id,email)=>db.query("select set_config('request.jwt.claim.sub',$1,false),set_config('request.jwt.claims',$2,false)",[id,JSON.stringify({email})]);
   await identity(admin,'admin@example.com');
+  const enquiry={id:'PROJECT-NAME-LEAD',projectName:'Client mobile app',createdAt:'2026-11-11T00:00:00Z',fullName:'Client',companyName:'Client Co',email:'client@example.com',services:['UI/UX'],status:'NEW',urgency:'Standard'};
+  await db.query('select save_workspace_changes($1::jsonb)',[JSON.stringify([{collection:'leads',id:enquiry.id,expectedRevision:null,operation:'save',data:serializeRecord('leads',enquiry)}])]);
+  assert.equal((await db.query("select project_name from leads where external_id='PROJECT-NAME-LEAD'")).rows[0].project_name,'Client mobile app');
   let counter=0;
   const {createClientProject}=createLoader({'@/lib/numbering':{reserveWorkspaceNumber:async()=>`EVE-MULTI-${++counter}`}})('lib/client-projects.ts');
   const input={client:{name:'Client',companyName:'Client Co',email:'client@example.com',contactDetails:{phone:'+91 1234567890',country:'India'}},description:'Independent scope',services:['Website'],startDate:'2026-11-11',operatingCompany:'Evecture',billingStructure:'Fixed',currency:'USD',team:[]};
@@ -41,6 +44,36 @@ test('multiple independent projects persist under the same client and appear in 
   await identity(client,'client@example.com');await db.exec('set role authenticated');
   const visible=(await db.query('select read_client_projects() result')).rows[0].result;
   assert.deepEqual(visible.map(row=>row.title).sort(),['Mobile app','Website']);
+  await db.exec('reset role');await identity(admin,'admin@example.com');
+  await db.exec(readDatabaseSection('employee-role-access'));await db.exec(readDatabaseSection('employee-client-rls-fix'));
+  await db.exec(readDatabaseSection('shared-project-clients'));await db.exec(readDatabaseSection('shared-project-clients'));
+  const partner='00000000-0000-0000-0000-000000000004',outsider='00000000-0000-0000-0000-000000000005';
+  await db.query("insert into auth.users(id,email,email_confirmed_at) values($1,'partner@example.com',now()),($2,'outsider@example.com',now())",[partner,outsider]);
+  await db.query("insert into workspace_members(user_id,email,role) values($1,'partner@example.com','client'),($2,'outsider@example.com','client')",[partner,outsider]);
+  first.additionalClients=[{name:'Partner',companyName:'Partner Co',email:'partner@example.com'}];
+  await db.query('select save_workspace_changes($1::jsonb)',[JSON.stringify([{collection:'projects',id:first.id,expectedRevision:0,operation:'save',data:serializeRecord('projects',first)}])]);
+  const shared=(await db.query('select id,client_id from projects where external_id=$1',[first.id])).rows[0];
+  assert.equal(shared.client_id,rows[0].client_id);
+  assert.equal((await db.query('select count(*)::int total from project_clients where project_id=$1',[shared.id])).rows[0].total,2);
+  await db.query("insert into invoices(invoice_number,project_id,client_id,status) values('PRIMARY-ONLY',$1,$2,'SENT')",[shared.id,shared.client_id]);
+  await identity(partner,'partner@example.com');await db.exec('set role authenticated');
+  assert.deepEqual((await db.query('select read_client_projects() result')).rows[0].result.map(row=>row.title),['Website']);
+  assert.equal((await db.query('select count(*)::int total from invoices')).rows[0].total,0);
+  await db.query("insert into project_messages(project_id,sender_id,sender_name,body) values($1,$2,'Partner','Shared project message')",[shared.id,partner]);
+  await assert.rejects(db.query('insert into project_clients(project_id,client_id) values($1,$2)',[shared.id,shared.client_id]));
+  await db.exec('reset role');await identity(outsider,'outsider@example.com');await db.exec('set role authenticated');
+  assert.deepEqual((await db.query('select read_client_projects() result')).rows[0].result,[]);
+  assert.equal((await db.query('select count(*)::int total from project_messages')).rows[0].total,0);
+  await assert.rejects(db.query("insert into project_messages(project_id,sender_id,sender_name,body) values($1,$2,'Outsider','Forbidden')",[shared.id,outsider]));
+  await db.exec('reset role');await identity(admin,'admin@example.com');
+  first.additionalClients=[];
+  await db.query('select save_workspace_changes($1::jsonb)',[JSON.stringify([{collection:'projects',id:first.id,expectedRevision:1,operation:'save',data:serializeRecord('projects',first)}])]);
+  await identity(partner,'partner@example.com');await db.exec('set role authenticated');
+  assert.deepEqual((await db.query('select read_client_projects() result')).rows[0].result,[]);
+  assert.equal((await db.query('select count(*)::int total from project_messages')).rows[0].total,0);
+  await db.exec('reset role');await identity(client,'client@example.com');await db.exec('set role authenticated');
+  assert.equal((await db.query('select read_client_projects() result')).rows[0].result.length,2);
+
  }finally{await db.close();}
 });
 

@@ -169,7 +169,7 @@ export default function PostSalePage() {
                 onClick={() => setExpandedPlan(isExpanded ? null : item.id)}
               >
                 <span className="client-card-main">
-                  <span className="project-card-identity"><ProjectCardLogo src={linked?.logoDataUrl} title={item.projectTitle} /><span><strong>{linked ? getProjectDisplayTitle(linked) : item.clientCompany || item.projectTitle}</strong><span className="project-display-services">{linked ? getProjectDisplayServices(linked) : item.projectTitle}</span></span></span>
+                  <span className="project-card-identity"><ProjectCardLogo src={linked?.logoDataUrl} title={item.projectTitle} /><span><strong>{linked ? getProjectDisplayTitle(linked) : item.projectTitle || item.clientCompany}</strong><span className="project-display-services">{linked ? getProjectDisplayServices(linked) : item.model}</span></span></span>
                   <small>{item.clientCompany || "Client not named"}{item.model ? ` · ${item.model}` : ""}</small>
                 </span>
                 <span className="client-card-stat">

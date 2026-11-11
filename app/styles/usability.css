@@ -1739,3 +1739,11 @@ html body #workspace-content .enquiry-form .enquiry-client-selection { margin: 0
 html body #workspace-content .enquiry-client-selection .field { margin: 0; }
 html body #workspace-content .enquiry-client-selection select { width: 100%; min-width: 0; border-radius: 0 !important; }
 html body #workspace-content .enquiry-client-selection .field-hint { margin: 8px 0 0; line-height: 1.6; color: #64748b; }
+
+.project-primary-client { display: grid; gap: 6px; padding: 16px 0; margin-bottom: 18px; border-block: 1px solid #e2e8f0; }
+.project-primary-client :is(small,span) { color: #64748b; font-size: 12px; }
+.project-clients-list { display: grid; gap: 10px; }
+.project-clients-list label { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e2e8f0; cursor: pointer; }
+.project-clients-list label > span { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.project-clients-list small { color: #64748b; line-height: 1.5; }
+html body .app-shell #workspace-content .project-clients-dialog .project-clients-list input[type=checkbox] { width: 16px; height: 16px; min-height: 16px; flex: 0 0 16px; padding: 0; margin: 2px 0 0; accent-color: #ffffff; }

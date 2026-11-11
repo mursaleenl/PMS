@@ -120,6 +120,7 @@ export type LeadInvoice = {
 
 export type Lead = {
   id: string;
+  projectName?: string;
   createdAt: string;
   fullName: string;
   designation: string;

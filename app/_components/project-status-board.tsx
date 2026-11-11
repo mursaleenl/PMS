@@ -7,7 +7,7 @@ import {ManagedPlanDrawer} from "@/app/_components/managed-plan-drawer";
 import {readManagedProjects,deleteManagedProject} from "@/lib/post-sale";
 import Link from "next/link";
 import {GripVertical,ListTodo,User} from "lucide-react";
-import {readProjects,updateProject,getProjectDisplayTitle,getProjectDisplayServices,canViewProjectTask,type Project} from "@/lib/projects";
+import {readProjects,updateProject,getProjectDisplayTitle,getProjectDisplayServices,getProjectClientLabel,canViewProjectTask,type Project} from "@/lib/projects";
 import {useWorkspaceAuth} from "@/lib/workspace-auth";
 import {DUMMY_ASSIGNABLE_NAMES} from "@/lib/assignees";
 
@@ -65,7 +65,7 @@ export function ProjectStatusBoard({project}:{project:Project}) {
         </div>
         <div className="project-card-identity project-board-identity">
           <ProjectCardLogo src={project.logoDataUrl} title={getProjectDisplayTitle(project)} projectType={project.projectType} />
-          <div className="project-board-copy"><h4>{getProjectDisplayTitle(project)}</h4>{services&&<p className="project-board-services">{services}</p>}</div>
+          <div className="project-board-copy"><h4>{getProjectDisplayTitle(project)}</h4>{project.projectType!=="internal"&&(project.clientCompany||project.clientName)&&<p className="project-board-client">{getProjectClientLabel(project)}</p>}{services&&<p className="project-board-services">{services}</p>}</div>
         </div>
         <div className="project-board-task-count"><ListTodo size={14} aria-hidden="true"/><span>{openTasks} open {openTasks===1?"task":"tasks"}</span></div>
         <div className="project-board-card-meta"><span className="project-board-manager" title={`Project Manager: ${managerName}`}><User size={12} aria-hidden="true"/><span>{managerName}</span></span><span className="project-status-reference">{project.id}</span></div>

@@ -7,7 +7,10 @@ async function authorize(request:Request,context:Context) {
   if (!auth) return null;
   const {projectId}=await context.params;
   const {data,error}=await auth.client.from("projects").select("id").eq("external_id",projectId).maybeSingle();
-  return error || !data ? null : {...auth,project:data};
+  if(!error&&data)return {...auth,project:data};
+  const visible=await auth.client.rpc("read_client_projects");
+  const shared=Array.isArray(visible.data)?visible.data.find(project=>project.external_id===projectId||project.id===projectId):null;
+  return visible.error||!shared?null:{...auth,project:{id:shared.id}};
 }
 export async function GET(request:Request,context:Context) {
   const auth=await authorize(request,context);

@@ -79,7 +79,7 @@ export default function LeadWorkspacePage() {
         team,
       });
       addProject(project);
-      updateLead(lead.id, { status: "CONVERTED", projectId: project.id });
+      updateLead(lead.id, { status: "CONVERTED", projectId: project.id, projectName:project.title });
       await flushWorkspaceChanges();
       router.push(`/projects/${project.id}`);
     } catch (cause) {
@@ -94,7 +94,7 @@ export default function LeadWorkspacePage() {
   const projectProposal = [...(lead.proposals ?? [])].sort((a, b) => b.version - a.version).find((proposal) => proposal.status === "ACCEPTED") ?? latest;
   if ((role === "employee")) return <div className="page-content lead-workspace-page">
     <Link className="back-link" href="/requests"><ArrowLeft size={15} />Leads</Link>
-    <header className="record-heading"><div><h1>{lead.companyName || lead.fullName}</h1><p className="welcome-subtitle">{lead.fullName}{lead.designation ? ` · ${lead.designation}` : ""} · {lead.email}{lead.phone ? ` · ${lead.phone}` : ""}</p></div><StatusBadge status={lead.status} /></header>
+    <header className="record-heading"><div><h1>{lead.projectName || lead.companyName || lead.fullName}</h1>{lead.projectName&&<p>{lead.companyName || lead.fullName}</p>}<p className="welcome-subtitle">{lead.fullName}{lead.designation ? ` · ${lead.designation}` : ""} · {lead.email}{lead.phone ? ` · ${lead.phone}` : ""}</p></div><StatusBadge status={lead.status} /></header>
     <section className="panel record-section"><div className="record-section-heading"><div><h2>Enquiry details</h2><p>{lead.services.join(" · ") || "Project enquiry"}</p></div></div><div className="enquiry-summary-grid"><div><small>Company</small><p>{lead.companyName || "Individual enquiry"}</p></div><div><small>Industry</small><p>{lead.industry || "Not recorded"}</p></div><div><small>Urgency</small><p>{lead.urgency || "Not recorded"}</p></div><div><small>Country</small><p>{lead.country || "Not recorded"}</p></div></div><p className="lead-description">{lead.description || "No enquiry description recorded."}</p>{lead.referenceLinks && <p><a href={lead.referenceLinks.startsWith("http") ? lead.referenceLinks : `https://${lead.referenceLinks}`} target="_blank" rel="noreferrer">Reference link</a></p>}</section>
   </div>;
   const workflowOpen = lead.status !== "LOST";
@@ -102,10 +102,11 @@ export default function LeadWorkspacePage() {
 
   return <div className="page-content lead-workspace-page">
     <Link className="back-link" href="/requests"><ArrowLeft size={15} />Leads</Link>
-    <header className="record-heading"><div><h1>{lead.companyName || lead.fullName}</h1></div><StatusBadge status={lead.status} /></header>
+    <header className="record-heading"><div><h1>{lead.projectName || lead.companyName || lead.fullName}</h1>{lead.projectName&&<p>{lead.companyName || lead.fullName}</p>}</div><StatusBadge status={lead.status} /></header>
 
     {canEditRecordDetails(role)&&<button type="button" className="button button-quiet" onClick={()=>setEditingDetails(true)}>Edit lead details</button>}
     {canEditRecordDetails(role)&&editingDetails&&<EditDetailsDialog title="Edit lead details" onClose={()=>setEditingDetails(false)} fields={[
+      {name:"projectName",label:"Project name",value:lead.projectName},
       {name:"fullName",label:"Contact name",value:lead.fullName,required:true},
       {name:"companyName",label:"Company name",value:lead.companyName},
       {name:"email",label:"Contact email",value:lead.email,type:"email"},
@@ -122,7 +123,7 @@ export default function LeadWorkspacePage() {
       {name:"urgency",label:"Urgency",value:lead.urgency,options:["Standard","Rush"]},
     ]} onSave={async values=>{
       if(!canEditRecordDetails(role))throw new Error("You do not have permission to edit leads.");
-      updateLead(lead.id,{fullName:values.fullName,companyName:values.companyName,email:values.email,phone:values.phone,designation:values.designation,companyWebsite:values.companyWebsite,country:values.country,timezone:values.timezone,industry:values.industry,services:parseServiceDetails(values.services),description:values.description,referenceLinks:values.referenceLinks,budgetNote:values.budgetNote,urgency:values.urgency as Lead["urgency"]});
+      updateLead(lead.id,{projectName:values.projectName,fullName:values.fullName,companyName:values.companyName,email:values.email,phone:values.phone,designation:values.designation,companyWebsite:values.companyWebsite,country:values.country,timezone:values.timezone,industry:values.industry,services:parseServiceDetails(values.services),description:values.description,referenceLinks:values.referenceLinks,budgetNote:values.budgetNote,urgency:values.urgency as Lead["urgency"]});
       await flushWorkspaceChanges();showToast({message:"Lead details saved."});
     }}/>}
 
@@ -137,7 +138,7 @@ export default function LeadWorkspacePage() {
     {(["NEW", "PROPOSAL_SENT", "ACCEPTED"].includes(lead.status)) && !lead.projectId && <section className="panel record-section project-create-section"><div className="record-section-heading"><div><span className="section-icon"><Check size={17} /></span><div><h2>Move to Projects</h2><p>{lead.status === "ACCEPTED" ? "Set the project owner and setup details to create its workspace." : "Create a project workspace. Proposals can be managed separately on the Proposals page."} Deposit and SOW tracking can be completed separately.</p></div></div></div>
       <div className="commercial-proof"><span className={lead.acceptanceDocumentDataUrl ? "" : "commercial-proof-pending"}>{lead.acceptanceDocumentDataUrl ? <Check size={13} /> : <Clock3 size={13} />}Signed SOW · {lead.acceptanceDocumentDataUrl ? lead.acceptanceDocumentName : "not attached"}</span><span className={lead.invoice?.status === "CONFIRMED_PAID" ? "" : "commercial-proof-pending"}>{lead.invoice?.status === "CONFIRMED_PAID" ? <Check size={13} /> : <Clock3 size={13} />}Deposit · {lead.invoice ? lead.invoice.status.replaceAll("_", " ") : "not recorded"}</span></div>
       <form className="project-create-form" onSubmit={createProjectFromLead}>
-        <div className="proposal-fields-grid"><label className="field required">Project title<input name="projectTitle" required defaultValue={lead.services.length > 0 ? lead.services.join(", ") : `${lead.companyName || lead.fullName} Delivery`} /></label><label className="field required">Project classification<select name="classification" required defaultValue={lead.acquisitionSource === "Referral" ? "Referral" : lead.acquisitionSource === "Repeat client" ? "Repeat Client" : "New Client"}><option>New Client</option><option>Repeat Client</option><option>Referral</option></select></label><label className="field required">Project start date<CalendarPicker name="startDate" required /></label></div>
+        <div className="proposal-fields-grid"><label className="field required">Project name<input name="projectTitle" required defaultValue={lead.projectName || (lead.services.length > 0 ? lead.services.join(", ") : `${lead.companyName || lead.fullName} Delivery`)} /></label><label className="field required">Project classification<select name="classification" required defaultValue={lead.acquisitionSource === "Referral" ? "Referral" : lead.acquisitionSource === "Repeat client" ? "Repeat Client" : "New Client"}><option>New Client</option><option>Repeat Client</option><option>Referral</option></select></label><label className="field required">Project start date<CalendarPicker name="startDate" required /></label></div>
         {!projectProposal && <div className="proposal-fields-grid"><label className="field">Contract amount (optional)<input name="contractedValue" type="number" min="0" step="0.01" placeholder="0.00" /></label><label className="field">Currency<select name="currency" defaultValue="USD">{["USD","INR","EUR","GBP","AED","AUD","CAD"].map(currency=><option key={currency}>{currency}</option>)}</select></label><label className="field">Billing structure<select name="billingStructure" defaultValue="Fixed"><option>Fixed</option><option>Hourly</option><option>Retainer</option></select></label></div>}
         <label className="field">Project manager (optional)
           <select name="projectManager" defaultValue="">

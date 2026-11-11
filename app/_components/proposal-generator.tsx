@@ -53,6 +53,7 @@ export function ProposalGenerator({ lead: sourceLead, forceCompose = false }: { 
           ...previous,
           version: Math.max(0, ...(current?.proposals ?? []).map((item) => item.version)) + 1,
           status: "DRAFT", createdAt: now, sentAt: undefined, shareToken: createUuid(),
+          projectTitle: current?.projectName || previous?.projectTitle,
           proposalTitle: value("proposalTitle"), preparedBy: company,
           executiveSummary: value("executiveSummary") || value("scopeIncluded"),
           scopeIncluded: value("scopeIncluded"), scopeExcluded: value("scopeExcluded"), deliverables: value("deliverables"),
@@ -121,7 +122,7 @@ export function ProposalGenerator({ lead: sourceLead, forceCompose = false }: { 
           <label className="field">Company / organization<input name="companyName" defaultValue={lead?.companyName || ""} placeholder="Company or organization name" /></label>
           <label className="field required">Operating company<select name="operatingCompany" aria-label="Operating company" required disabled={!!lead?.operatingCompany} defaultValue={lead?.operatingCompany || ""}><option value="" disabled>Select an operating company</option>{operatingCompanies.map(company=><option key={company}>{company}</option>)}</select></label>
         </div>
-        <label className="field required">Proposal title<input name="proposalTitle" required defaultValue={latest?.proposalTitle || (lead ? `Proposal for ${lead.companyName || lead.fullName}` : "")} /></label>
+        <label className="field required">Proposal title<input name="proposalTitle" required defaultValue={latest?.proposalTitle || (lead ? `Proposal for ${lead.projectName || lead.companyName || lead.fullName}` : "")} /></label>
         <label className="field">Executive summary<textarea name="executiveSummary" rows={3} defaultValue={latest?.executiveSummary || lead?.description || ""} placeholder="Summarize the client’s goals and your proposed solution" /></label>
         <div className="proposal-fields-grid">
           <label className="field required">Scope of work<textarea name="scopeIncluded" rows={4} required defaultValue={latest?.scopeIncluded || lead?.description} placeholder="What work is included?" /></label>

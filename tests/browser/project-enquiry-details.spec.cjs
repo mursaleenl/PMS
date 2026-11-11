@@ -9,14 +9,14 @@ for(const role of ['admin','project_manager'])test(`${role} can edit previously 
  await expect(form.getByLabel('Phone number',{exact:true})).toHaveValue('+1 555 0100');
  await expect(form.getByLabel('Designation',{exact:true})).toHaveValue('Founder');
  await expect(form.getByLabel('Company website',{exact:true})).toHaveValue('https://northstar.example');
- await expect(form.getByLabel('Original enquiry goals',{exact:true})).toHaveValue(tables.leads[0].description);
+ await expect(form.getByLabel('Project goals',{exact:true})).toHaveValue(tables.leads[0].description);
  await form.getByLabel('Phone number',{exact:true}).fill('+91 9000000000');
  await form.getByLabel('Designation',{exact:true}).fill('Director');
  await form.getByLabel('Company website',{exact:true}).fill('https://updated.example');
  await form.getByLabel('Country',{exact:true}).fill('India');
  await form.getByLabel('Timezone',{exact:true}).fill('Asia/Kolkata');
  await form.getByLabel('Industry',{exact:true}).fill('Technology');
- await form.getByLabel('Original enquiry goals',{exact:true}).fill('Updated project requirements');
+ await form.getByLabel('Project goals',{exact:true}).fill('Updated project requirements');
  await form.getByLabel('Reference links',{exact:true}).fill('https://reference.example');
  await form.getByLabel('Estimated budget range',{exact:true}).fill('$10,000–$25,000');
  await form.getByLabel('Budget notes',{exact:true}).fill('Budget approved');
@@ -30,7 +30,7 @@ for(const role of ['admin','project_manager'])test(`${role} can edit previously 
  await page.reload();await page.getByRole('button',{name:'Edit project',exact:true}).click();
  await expect(form.getByLabel('Phone number',{exact:true})).toHaveValue('+91 9000000000');
  await expect(form.getByLabel('Country',{exact:true})).toHaveValue('India');
- await expect(form.getByLabel('Original enquiry goals',{exact:true})).toHaveValue('Updated project requirements');
+ await expect(form.getByLabel('Project goals',{exact:true})).toHaveValue('Updated project requirements');
 });
 test('a project without a linked lead can save its own phone and contact details',async({page})=>{
  const {calls}=await mockWorkspace(page);
@@ -41,4 +41,23 @@ test('a project without a linked lead can save its own phone and contact details
  await form.getByLabel('Phone number',{exact:true}).fill('+44 2000');
  await form.getByRole('button',{name:'Save changes',exact:true}).click();await expect(form).not.toBeVisible();
  expect(calls.flatMap(call=>call.p_changes)[0].data.row.enquiry_details.phone).toBe('+44 2000');
+});
+
+for(const role of ['admin','employee'])test(`${role} overview shows logged project details without financial or obsolete scope fields`,async({page})=>{
+ await mockWorkspace(page,{role});
+ await page.route('**/rest/v1/leads?*',route=>route.fulfill({json:[{...tables.leads[0],country:'India',urgency:'Rush',budget_note:'Private budget discussion',phone:'Private contact number'}]}));
+ await page.route('**/rest/v1/projects?*',route=>route.fulfill({json:[{...tables.projects[0],scope_included:'Legacy confidential scope',scope_excluded:'Legacy exclusions',assumptions:'Legacy assumptions'}]}));
+ await page.goto('/projects/EVE-2026-001');
+ const panel=page.locator('.project-scope-panel');
+ await expect(panel.getByRole('heading',{name:'Project details',exact:true})).toBeVisible();
+ for(const value of [tables.leads[0].description,'Professional Services','Rush','India','Services required','Project goals'])await expect(panel).toContainText(value);
+ for(const value of ['Included scope','Excluded scope','Assumptions','Payment terms','Billing structure','Legacy confidential scope','Legacy exclusions','Legacy assumptions','Private budget discussion','Private contact number','Not recorded','None specified'])await expect(panel).not.toContainText(value);
+});
+
+test('project details omit unfilled enquiry fields and fit mobile widths',async({page})=>{
+ await mockWorkspace(page);
+ await page.route('**/rest/v1/projects?*',route=>route.fulfill({json:[{...tables.projects[0],lead_id:null,enquiry_details:{},client_email:'independent@example.com'}]}));
+ await page.goto('/projects/EVE-2026-001');const panel=page.locator('.project-scope-panel');
+ for(const label of ['Project goals','Industry','Urgency','Country','Not recorded','None specified'])await expect(panel).not.toContainText(label);
+ for(const width of [320,390,1280]){await page.setViewportSize({width,height:900});expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);}
 });

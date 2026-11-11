@@ -77,7 +77,7 @@ export function CommandPalette() {
     const items: SearchItem[] = [];
     const employeeName = (members.find((member) => member.user_id === user?.id)?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "").trim();
     for (const lead of (role === "employee") ? [] : leads) {
-      items.push({ kind: "Request", title: lead.companyName || lead.fullName, detail: `${formatLeadId(lead.id)} · ${lead.status.replaceAll("_", " ")}`, href: `/requests/${lead.id}`, terms: `${lead.fullName} ${lead.companyName} ${lead.email} ${lead.services.join(" ")} ${lead.id}` });
+      items.push({ kind: "Request", title: lead.projectName || lead.companyName || lead.fullName, detail: `${formatLeadId(lead.id)} · ${lead.status.replaceAll("_", " ")}`, href: `/requests/${lead.id}`, terms: `${lead.projectName || ""} ${lead.fullName} ${lead.companyName} ${lead.email} ${lead.services.join(" ")} ${lead.id}` });
     }
     for (const project of projects.filter((item) => (role !== "employee") || isProjectAssignedToUser(item, user?.id, employeeName))) items.push({ kind: "Project", logoSrc: getProjectLogoSrc(project), title: getProjectDisplayTitle(project), detail: `${project.id}${getProjectDisplayServices(project) ? ` - ${getProjectDisplayServices(project)}` : ""}`, href: `/projects/${project.id}`, terms: `${project.title} ${project.id} ${project.clientCompany} ${project.clientName} ${project.services.join(" ")}` });
     const clients = new Map<string, { name: string; detail: string; terms: string }>();
@@ -96,7 +96,7 @@ export function CommandPalette() {
       }
     }
     for (const plan of (role === "employee") ? [] : plans) {
-      const name = plan.clientCompany || plan.projectTitle;
+      const name = plan.projectTitle || plan.clientCompany;
       items.push({ kind: "Retainers", title: plan.projectTitle, detail: `${name} · ${plan.model}`, href: "/post-sale", terms: `${name} ${plan.projectTitle} ${plan.model}` });
       if (plan.clientCompany && !clients.has(plan.clientCompany.toLowerCase())) {
         clients.set(plan.clientCompany.toLowerCase(), { name: plan.clientCompany, detail: "Client · Managed plan", terms: plan.clientCompany });

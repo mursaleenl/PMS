@@ -44,6 +44,21 @@ export function getProjectEnquiryDetails(project: {enquiryDetails?:ProjectEnquir
   return {...original,...Object.fromEntries(Object.entries(project.enquiryDetails??{}).filter(([,value])=>value!==undefined))};
 }
 
+export type ProjectClient = {name:string;companyName?:string;email?:string;contactDetails?:ProjectEnquiryDetails};
+export function projectClientKey(client:ProjectClient):string {
+  return client.email?.trim().toLowerCase()||`${client.companyName?.trim().toLowerCase()||""}:${client.name.trim().toLowerCase()}`;
+}
+export function getProjectClients(project:Pick<Project,"clientName"|"clientCompany"|"clientEmail"|"additionalClients"|"enquiryDetails">):ProjectClient[]{
+  const clients:ProjectClient[]=[];
+  for(const client of [{name:project.clientName,companyName:project.clientCompany,email:project.clientEmail,contactDetails:project.enquiryDetails},...(project.additionalClients??[])]){
+    if((client.name?.trim()||client.companyName?.trim())&&!clients.some(item=>projectClientKey(item)===projectClientKey(client)))clients.push(client);
+  }
+  return clients;
+}
+export function getProjectClientLabel(project:Pick<Project,"clientName"|"clientCompany"|"clientEmail"|"additionalClients"|"enquiryDetails">):string {
+  return getProjectClients(project).map(client=>client.companyName||client.name).join(" · ");
+}
+
 export type Project = {
   id: string;
   leadId: string;
@@ -59,6 +74,7 @@ export type Project = {
   clientName: string;
   clientEmail: string;
   enquiryDetails?: ProjectEnquiryDetails;
+  additionalClients?: ProjectClient[];
   operatingCompany?: OperatingCompany;
   services: string[];
   classification: ProjectClassification;
@@ -213,7 +229,7 @@ export async function projectFromLead(input: {
     id: await nextProjectId(),
     leadId: lead.id,
     createdAt: new Date().toISOString(),
-    title: input.title,
+    title: input.title.trim() || lead.projectName?.trim() || "Untitled project",
     clientCompany: lead.companyName,
     clientName: lead.fullName,
     clientEmail: lead.email,
@@ -258,7 +274,7 @@ export async function createInternalProject(input: { title: string; description:
 }
 
 export function getProjectDisplayTitle(project: { title: string; clientCompany?: string; clientName?: string }): string {
-  return [project.clientCompany, project.clientName, project.title]
+  return [project.title, project.clientCompany, project.clientName]
     .map(value => value?.trim())
     .find(value => value && !/^(none|n\/a|null|undefined|-)$/i.test(value)) || "Untitled Project";
 }

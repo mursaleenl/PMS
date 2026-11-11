@@ -65,3 +65,13 @@ test('legacy client project enrichment scopes both project IDs and account owner
   assert.deepEqual(filters,[['client_user_id','CLIENT'],['id',['P1']],['client_id',['C1']]]);
  } finally {if(previousKey===undefined)delete process.env.SUPABASE_SERVICE_ROLE_KEY;else process.env.SUPABASE_SERVICE_ROLE_KEY=previousKey;}
 });
+
+test('shared project messages use client-visible RPC membership and reject unrelated projects',async()=>{
+ let permitted=true,reads=0;
+ const chain={select(){return this;},eq(){return this;},maybeSingle:async()=>({data:null,error:null}),order(){return this;},limit:async()=>{reads++;return {data:[],error:null};}};
+ const client={from:()=>chain,rpc:async()=>({data:permitted?[{id:'shared-id',external_id:'SHARED-1'}]:[],error:null})};
+ const api=createLoader({'@/lib/authenticated-api':{authenticatedDatabase:async()=>({client,user:{id:'CLIENT'}})}})('app/api/projects/[projectId]/messages/route.ts');
+ const request=new Request('http://localhost/api/projects/SHARED-1/messages'),context={params:Promise.resolve({projectId:'SHARED-1'})};
+ assert.equal((await api.GET(request,context)).status,200);assert.equal(reads,1);
+ permitted=false;assert.equal((await api.GET(request,context)).status,404);assert.equal(reads,1);
+});

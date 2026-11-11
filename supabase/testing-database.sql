@@ -199,6 +199,7 @@ create index if not exists leads_client_id_idx on public.leads(client_id);
 create index if not exists leads_email_idx on public.leads(lower(email));
 
 -- Fields retained by the browser-first UI and now stored relationally.
+alter table public.leads add column if not exists project_name text;
 alter table public.leads add column if not exists qualification_note text;
 alter table public.leads add column if not exists acceptance_document_name text;
 alter table public.leads add column if not exists acceptance_document_data_url text;
@@ -326,6 +327,7 @@ create table if not exists public.projects (
 alter table public.projects add column if not exists logo_data_url text;
 alter table public.projects drop constraint if exists projects_logo_check;
 alter table public.projects add constraint projects_logo_check check (logo_data_url is null or (length(logo_data_url) <= 700000 and logo_data_url ~ '^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$'));
+alter table public.projects add column if not exists additional_clients jsonb not null default '[]'::jsonb;
 alter table public.projects add column if not exists enquiry_details jsonb not null default '{}'::jsonb;
 alter table public.projects drop constraint if exists projects_enquiry_details_check;
 alter table public.projects add constraint projects_enquiry_details_check check (jsonb_typeof(enquiry_details) = 'object');
@@ -1679,5 +1681,93 @@ begin
     execute format('create policy "project managers operational access" on public.%I for all to authenticated using (public.current_workspace_role()=''project_manager'') with check (public.current_workspace_role()=''project_manager'')',table_name);
   end loop;
 end $$;
+
+-- ===== Section: shared-project-clients =====
+-- Keep the primary client for billing; additional clients participate in delivery.
+alter table public.projects add column if not exists additional_clients jsonb not null default '[]'::jsonb;
+alter table public.projects drop constraint if exists projects_additional_clients_check;
+alter table public.projects add constraint projects_additional_clients_check check (
+  jsonb_typeof(additional_clients)='array' and jsonb_array_length(additional_clients)<=100
+  and (project_type<>'internal' or additional_clients='[]'::jsonb)
+);
+create table if not exists public.project_clients (
+  project_id uuid not null references public.projects(id) on delete cascade,
+  client_id uuid not null references public.clients(id) on delete cascade,
+  primary key(project_id,client_id)
+);
+create index if not exists project_clients_client_idx on public.project_clients(client_id,project_id);
+alter table public.project_clients enable row level security;
+revoke all on public.project_clients from anon,authenticated;
+grant select on public.project_clients to authenticated;
+
+create or replace function public.sync_project_clients()
+returns trigger language plpgsql security definer set search_path=public
+as $$ declare participant jsonb; participant_id uuid;
+begin
+  if TG_OP='INSERT' and new.client_id is null and new.additional_clients='[]'::jsonb then return new; end if;
+  if TG_OP='UPDATE' and new.additional_clients is not distinct from old.additional_clients and new.client_id is not distinct from old.client_id then return new; end if;
+  if not coalesce(public.can_manage_workspace(),false) then raise exception 'Only project managers and administrators can change project clients' using errcode='42501'; end if;
+  delete from public.project_clients where project_id=new.id;
+  if new.client_id is not null then insert into public.project_clients values(new.id,new.client_id); end if;
+  for participant in select value from jsonb_array_elements(new.additional_clients) loop
+    if jsonb_typeof(participant)<>'object' or coalesce(nullif(trim(participant->>'name'),''),nullif(trim(participant->>'companyName'),'')) is null then raise exception 'Each project client needs a contact or company name'; end if;
+    participant_id=public.workspace_client(coalesce(nullif(trim(participant->>'companyName'),''),trim(participant->>'name')),trim(participant->>'name'),coalesce(trim(participant->>'email'),''));
+    insert into public.project_clients values(new.id,participant_id) on conflict do nothing;
+  end loop;
+  return new;
+end $$;
+revoke all on function public.sync_project_clients() from public,anon,authenticated;
+drop trigger if exists sync_project_clients on public.projects;
+create trigger sync_project_clients after insert or update of additional_clients,client_id on public.projects for each row execute function public.sync_project_clients();
+insert into public.project_clients(project_id,client_id) select id,client_id from public.projects where client_id is not null on conflict do nothing;
+insert into public.project_clients(project_id,client_id)
+ select p.id,public.workspace_client(coalesce(nullif(trim(c->>'companyName'),''),trim(c->>'name')),trim(c->>'name'),coalesce(trim(c->>'email'),''))
+ from public.projects p cross join lateral jsonb_array_elements(p.additional_clients) c on conflict do nothing;
+
+create or replace function public.client_can_access_project(p_project_id uuid)
+returns boolean language sql stable security definer set search_path=public
+as $$ select public.current_workspace_role()='client' and exists(
+  select 1 from public.project_clients pc join public.clients c on c.id=pc.client_id
+  where pc.project_id=p_project_id and c.client_user_id=auth.uid()
+); $$;
+revoke all on function public.client_can_access_project(uuid) from public,anon;
+grant execute on function public.client_can_access_project(uuid) to authenticated;
+drop policy if exists "workspace participants read client links" on public.project_clients;
+create policy "workspace participants read client links" on public.project_clients for select to authenticated using (
+  public.can_manage_workspace() or public.employee_can_access_project(project_id) or public.client_can_access_project(project_id)
+);
+
+create or replace function public.read_client_projects()
+returns jsonb language plpgsql stable security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null or public.current_workspace_role() is distinct from 'client' then
+    raise exception 'Client access required' using errcode = '42501';
+  end if;
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'id',p.id,'external_id',p.external_id,'title',p.title,'logo_data_url',p.logo_data_url,'client_company',coalesce(nullif(trim(p.client_company),''),(select c.company_name from public.clients c where c.id=p.client_id)),'status',p.status,
+      'tasks',coalesce((select jsonb_agg(jsonb_build_object('id',w.id,'title',w.title,'status',w.status) order by w.created_at,w.id) from public.project_work_items w where w.project_id=p.id),'[]'::jsonb),
+      'details',jsonb_build_object('services',p.services,'start_date',p.start_date,'scope_included',p.scope_included,'scope_excluded',p.scope_excluded,'assumptions',p.assumptions),
+      'total_tasks',(select count(*) from public.project_work_items w where w.project_id=p.id),
+      'completed_tasks',(select count(*) from public.project_work_items w where w.project_id=p.id and w.status='DONE')
+    ) order by p.created_at desc,p.id)
+    from public.projects p
+    where public.client_can_access_project(p.id)
+  ),'[]'::jsonb);
+end;
+$$;
+revoke all on function public.read_client_projects() from public,anon;
+grant execute on function public.read_client_projects() to authenticated;
+
+-- Project messages are shared only among participants; billing policies remain unchanged.
+drop policy if exists "project participants read messages" on public.project_messages;
+create policy "project participants read messages" on public.project_messages for select to authenticated using (
+  exists(select 1 from public.projects p where p.id=project_id) or public.client_can_access_project(project_id)
+);
+drop policy if exists "project participants send messages" on public.project_messages;
+create policy "project participants send messages" on public.project_messages for insert to authenticated with check (
+  sender_id=auth.uid() and (exists(select 1 from public.projects p where p.id=project_id) or public.client_can_access_project(project_id))
+);
 
 commit;

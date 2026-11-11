@@ -22,7 +22,7 @@ function LeadSummary({ lead, now }: { lead: Lead; now: number }) {
   const companyLabel = company && !["none", "n/a"].includes(company.toLowerCase()) ? company : "Individual enquiry";
   return <>
     <span className="lead-main">
-      <strong>{lead.fullName}{lead.designation && <small>{lead.designation}</small>}</strong>
+      <strong>{lead.projectName || lead.fullName}{lead.projectName ? <small>{lead.fullName}</small> : lead.designation && <small>{lead.designation}</small>}</strong>
       <span className="lead-summary-details"><span>{companyLabel}</span>{lead.services.length > 0 && <><span aria-hidden="true"> &middot; </span><span>{lead.services.join(", ")}</span></>}</span>
     </span>
     <StatusBadge status={lead.status} />
@@ -65,7 +65,7 @@ export default function RequestsPage() {
   const visibleLeads = useMemo(() => leads.filter((lead) => {
     const matchesStatus = status === "All" || lead.status === status;
     const term = query.trim().toLowerCase();
-    const matchesQuery = !term || [lead.fullName, lead.companyName, lead.email, lead.services.join(" "), lead.industry].some((text) => text.toLowerCase().includes(term));
+    const matchesQuery = !term || [lead.projectName || "", lead.fullName, lead.companyName, lead.email, lead.services.join(" "), lead.industry].some((text) => text.toLowerCase().includes(term));
     return matchesStatus && matchesQuery;
   }).sort((left,right)=>(Date.parse(right.createdAt)||0)-(Date.parse(left.createdAt)||0)), [leads, query, status]);
 

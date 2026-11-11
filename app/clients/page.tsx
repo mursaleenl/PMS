@@ -27,7 +27,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { getProjectDisplayTitle, getProjectDisplayServices, readProjects, updateProject, type Project } from "@/lib/projects";
+import { getProjectClients, projectClientKey, getProjectDisplayTitle, getProjectDisplayServices, readProjects, updateProject, type Project } from "@/lib/projects";
 import { readManagedProjects, updateManagedProject, type ManagedProject } from "@/lib/post-sale";
 import { readLeads, updateLead, type Lead } from "@/lib/leads";
 import { readInvoices, type StoredInvoice } from "@/lib/invoices";
@@ -467,6 +467,17 @@ export default function ClientsPage() {
       }
     }
 
+    // Shared delivery projects appear under every explicitly linked client.
+    for(const project of projects)for(const participant of getProjectClients(project).slice(1)){
+      let client=findExisting(participant.name,participant.email,participant.companyName);
+      if(!client){
+        const key=`shared-${projectClientKey(participant)}`;
+        client={key,name:participant.name||participant.companyName||"Client",companyName:participant.companyName,email:participant.email,phone:participant.contactDetails?.phone,country:participant.contactDetails?.country,website:participant.contactDetails?.companyWebsite,industry:participant.contactDetails?.industry,designation:participant.contactDetails?.designation,projects:[],managedPlans:[]};
+        clientMap.set(key,client);
+      }
+      if(!client.projects.some(item=>item.id===project.id))client.projects.push({id:project.id,title:getProjectDisplayTitle(project),displayServices:getProjectDisplayServices(project),logoDataUrl:project.logoDataUrl,status:project.status,operatingCompany:project.operatingCompany});
+    }
+
     return [...clientMap.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [projects, plans, leads, invoices]);
 
@@ -830,7 +841,7 @@ export default function ClientsPage() {
                                 >
                                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
                                     <strong style={{ fontSize: 14, fontWeight: 700, color: "var(--ws-text, #0f172a)" }}>
-                                      {plan.clientCompany || plan.projectTitle || plan.model}
+                                      {plan.projectTitle || plan.clientCompany || plan.model}
                                     </strong>
                                     {plan.status && (
                                       <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ws-text, #475569)" }}>
@@ -879,7 +890,12 @@ export default function ClientsPage() {
         const projectIds=new Set(editingClient.projects.map(project=>project.id));
         const linkedProjects=readProjects().filter(project=>projectIds.has(project.id)||leadIds.includes(project.leadId));
         for(const id of leadIds)updateLead(id,{fullName:values.name,companyName:values.companyName,email:values.email,phone:values.phone,designation:values.designation,country:values.country,companyWebsite:values.website,industry:values.industry});
-        for(const project of linkedProjects)updateProject(project.id,{clientName:values.name,clientCompany:values.companyName,clientEmail:values.email,enquiryDetails:{...project.enquiryDetails,phone:values.phone??project.enquiryDetails?.phone,designation:values.designation??project.enquiryDetails?.designation,country:values.country??project.enquiryDetails?.country,companyWebsite:values.website??project.enquiryDetails?.companyWebsite,industry:values.industry??project.enquiryDetails?.industry}});
+        const editingKey=projectClientKey({name:editingClient.name,companyName:editingClient.companyName,email:editingClient.email});
+        for(const project of linkedProjects){
+          const extra=project.additionalClients?.some(client=>projectClientKey(client)===editingKey);
+          if(extra)updateProject(project.id,{additionalClients:project.additionalClients?.map(client=>projectClientKey(client)===editingKey?{...client,name:values.name,companyName:values.companyName,email:values.email,contactDetails:{...client.contactDetails,phone:values.phone??client.contactDetails?.phone,country:values.country??client.contactDetails?.country,companyWebsite:values.website??client.contactDetails?.companyWebsite,industry:values.industry??client.contactDetails?.industry,designation:values.designation??client.contactDetails?.designation}}:client)});
+          else updateProject(project.id,{clientName:values.name,clientCompany:values.companyName,clientEmail:values.email,enquiryDetails:{...project.enquiryDetails,phone:values.phone??project.enquiryDetails?.phone,designation:values.designation??project.enquiryDetails?.designation,country:values.country??project.enquiryDetails?.country,companyWebsite:values.website??project.enquiryDetails?.companyWebsite,industry:values.industry??project.enquiryDetails?.industry}});
+        }
         for(const plan of editingClient.managedPlans)updateManagedProject(plan.id,{clientCompany:values.companyName||values.name});
         await flushWorkspaceChanges();setExpandedClient(null);showToast({message:"Customer details saved."});
       }}/>}

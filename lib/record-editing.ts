@@ -11,8 +11,9 @@ export function parseServiceDetails(value: string): string[] {
   });
 }
 
-export function linkedCustomerLeadIds(customer: {email?:string;projects:{id:string}[]}, projects:{id:string;leadId:string}[], leads:{id:string;email:string;projectId?:string}[]): string[] {
- const projectIds=new Set(customer.projects.map(project=>project.id));
+export function linkedCustomerLeadIds(customer: {name?:string;companyName?:string;email?:string;projects:{id:string}[]}, projects:{id:string;leadId:string;additionalClients?:{name:string;companyName?:string;email?:string}[]}[], leads:{id:string;email:string;projectId?:string}[]): string[] {
+ const matches=(client:{name:string;companyName?:string;email?:string})=>customer.email?client.email?.trim().toLowerCase()===customer.email.trim().toLowerCase():client.name===customer.name&&client.companyName===customer.companyName;
+ const projectIds=new Set(customer.projects.map(project=>project.id).filter(id=>!projects.find(project=>project.id===id)?.additionalClients?.some(matches)));
  const leadIds=new Set(projects.filter(project=>projectIds.has(project.id)).map(project=>project.leadId).filter(Boolean));
  const email=customer.email?.trim().toLowerCase();
  return leads.filter(lead=>leadIds.has(lead.id)||(!!lead.projectId&&projectIds.has(lead.projectId))||(!!email&&lead.email.trim().toLowerCase()===email)).map(lead=>lead.id);

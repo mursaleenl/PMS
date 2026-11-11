@@ -7,10 +7,11 @@ const invoices=load('lib/invoices.ts');
 const {workspaceChanges,rowToProposal}=load('lib/relational-sync.ts');
 const {isValidDateValue}=load('lib/dates.ts');
 global.window=new EventTarget();
-test('project cards show the company once and deduplicate service descriptions',()=>{
+test('project cards prioritize the project name and deduplicate service descriptions',()=>{
  const {getProjectDisplayTitle,getProjectDisplayServices}=load('lib/projects.ts');
  const project={title:'ZeroGrid LLC — Branding, Website',clientCompany:'ZeroGrid LLC',clientName:'Contact',services:['ZeroGrid LLC','ZeroGrid LLC · Branding, Website','CRM','Branding','Multiple']};
- assert.equal(getProjectDisplayTitle(project),'ZeroGrid LLC');
+ assert.equal(getProjectDisplayTitle(project),'ZeroGrid LLC — Branding, Website');
+ assert.equal(getProjectDisplayTitle({...project,title:'   '}),'ZeroGrid LLC');
  assert.equal(getProjectDisplayServices(project),'Branding, Website');
  assert.equal(getProjectDisplayServices({...project,title:'ZeroGrid LLC',services:['ZeroGrid LLC']}),'');
 });
@@ -156,4 +157,10 @@ test('task assignments retain a unique project team without duplicating the mana
  sync.applyRemoteCollection('projects',[legacy]);
  updateProject(base.id,{workItems:legacy.workItems.map(item=>({...item,status:'DONE'}))});
  assert.deepEqual(readProjects()[0].team,legacy.team,'status-only updates must not change team membership');
+});
+
+test('project client choices share contact details without copying another projects budget or scope',()=>{
+ const {existingProjectClients}=load('lib/client-projects.ts');
+ const clients=existingProjectClients([{id:'one',clientName:'Client',clientCompany:'Company',clientEmail:'client@example.com',enquiryDetails:{phone:'123',description:'Private scope',budgetNote:'Private budget'}}],[]);
+ assert.equal(clients[0].contactDetails.phone,'123');assert.equal(clients[0].contactDetails.description,undefined);assert.equal(clients[0].contactDetails.budgetNote,undefined);
 });
