@@ -37,6 +37,13 @@ export type ProjectWorkItem = {
 
 export type ProjectLinks = { staging?: string; repository?: string; design?: string; other?: string };
 
+export type ProjectEnquiryDetails = Partial<Pick<Lead, "phone" | "designation" | "companyWebsite" | "country" | "timezone" | "industry" | "description" | "referenceLinks" | "budgetRange" | "budgetShared" | "budgetNote" | "urgency" | "source" | "acquisitionSource">>;
+
+export function getProjectEnquiryDetails(project: {enquiryDetails?:ProjectEnquiryDetails}, lead?:Lead|null):ProjectEnquiryDetails {
+  const original:ProjectEnquiryDetails=lead?{phone:lead.phone,designation:lead.designation,companyWebsite:lead.companyWebsite,country:lead.country,timezone:lead.timezone,industry:lead.industry,description:lead.description,referenceLinks:lead.referenceLinks,budgetRange:lead.budgetRange,budgetShared:lead.budgetShared,budgetNote:lead.budgetNote,urgency:lead.urgency,source:lead.source,acquisitionSource:lead.acquisitionSource}:{};
+  return {...original,...Object.fromEntries(Object.entries(project.enquiryDetails??{}).filter(([,value])=>value!==undefined))};
+}
+
 export type Project = {
   id: string;
   leadId: string;
@@ -51,6 +58,7 @@ export type Project = {
   clientCompany: string;
   clientName: string;
   clientEmail: string;
+  enquiryDetails?: ProjectEnquiryDetails;
   operatingCompany?: OperatingCompany;
   services: string[];
   classification: ProjectClassification;
@@ -185,7 +193,7 @@ export function deleteProject(id: string) {
   writeProjects(readProjects().filter((project) => project.id !== id));
 }
 
-export function nextProjectId(): Promise<string> { return reserveWorkspaceNumber("project","Evecture"); }
+export function nextProjectId(company: OperatingCompany = "Evecture"): Promise<string> { return reserveWorkspaceNumber("project",company); }
 
 export async function projectFromLead(input: {
   lead: Lead;
@@ -209,6 +217,7 @@ export async function projectFromLead(input: {
     clientCompany: lead.companyName,
     clientName: lead.fullName,
     clientEmail: lead.email,
+    enquiryDetails: getProjectEnquiryDetails({},lead),
     operatingCompany: input.operatingCompany,
     services: getProjectServices({title: input.title, clientCompany: lead.companyName, clientName: lead.fullName, services: lead.services}),
     classification: input.classification,

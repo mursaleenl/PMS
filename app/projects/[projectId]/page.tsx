@@ -16,7 +16,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, Download, ExternalLink, FileText, FolderKanban, Handshake, Link2, Plus, Receipt, Trash2, Users, X } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
-import { deleteProject, readProjects, getProjectTeamMembers, getProjectDisplayTitle, getProjectDisplayServices, type Project, type ProjectWorkItem, updateProject, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
+import { deleteProject, readProjects, getProjectTeamMembers, getProjectDisplayTitle, getProjectDisplayServices, getProjectEnquiryDetails, type Project, type ProjectWorkItem, updateProject, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject } from "@/lib/post-sale";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 import { showToast } from "@/app/_components/toast-hub";
@@ -352,6 +352,8 @@ export default function ProjectWorkspacePage() {
   const teamMembers = getProjectTeamMembers(project);
   const services = getProjectDisplayServices(project);
 
+  const contactLead=linkedLead||(canEditRecordDetails(role)&&project.clientEmail?readLeads().find(lead=>lead.email?.trim().toLowerCase()===project.clientEmail.trim().toLowerCase()):undefined);
+  const enquiryDetails=getProjectEnquiryDetails(project,contactLead);
   const acceptedProposal=[...(linkedLead?.proposals??[])].filter(item=>item.status==="ACCEPTED").sort((a,b)=>b.version-a.version)[0];
   const sowUrl=linkedLead?.acceptanceDocumentDataUrl||project.signedContractDataUrl;
   const sowName=linkedLead?.acceptanceDocumentName||project.signedContractName;
@@ -449,6 +451,21 @@ export default function ProjectWorkspacePage() {
         {name:"clientCompany",label:"Client company",value:project.clientCompany},
         {name:"clientName",label:"Contact name",value:project.clientName,required:true},
         {name:"clientEmail",label:"Contact email",value:project.clientEmail,type:"email" as const},
+        {name:"phone",label:"Phone number",value:enquiryDetails.phone},
+        {name:"designation",label:"Designation",value:enquiryDetails.designation},
+        {name:"companyWebsite",label:"Company website",value:enquiryDetails.companyWebsite},
+        {name:"country",label:"Country",value:enquiryDetails.country},
+        {name:"timezone",label:"Timezone",value:enquiryDetails.timezone},
+        {name:"industry",label:"Industry",value:enquiryDetails.industry},
+        {name:"enquiryDescription",label:"Original enquiry goals",value:enquiryDetails.description,type:"textarea" as const},
+        {name:"referenceLinks",label:"Reference links",value:enquiryDetails.referenceLinks,type:"textarea" as const},
+        {name:"budgetRange",label:"Estimated budget range",value:enquiryDetails.budgetRange},
+        {name:"budgetShared",label:"Budget shared",value:enquiryDetails.budgetShared?"Yes":"No",options:["Yes","No"]},
+        {name:"budgetNote",label:"Budget notes",value:enquiryDetails.budgetNote,type:"textarea" as const},
+        {name:"urgency",label:"Urgency",value:enquiryDetails.urgency||"Standard",options:["Standard","Rush"]},
+        {name:"source",label:"Enquiry source",value:enquiryDetails.source},
+        {name:"acquisitionSource",label:"Acquisition source",value:enquiryDetails.acquisitionSource},
+        {name:"operatingCompany",label:"Operating company",value:project.operatingCompany||"Evecture",options:["Evecture","Servn"]},
         {name:"classification",label:"Classification",value:project.classification,options:["New Client","Repeat Client","Referral"]},
         {name:"billingStructure",label:"Billing structure",value:project.billingStructure,options:["Fixed","Hourly","Retainer"]},
         {name:"contractedValue",label:"Contract value",value:project.contractedValue,type:"number" as const,min:0,required:true},
@@ -464,7 +481,7 @@ export default function ProjectWorkspacePage() {
         const currency=values.currency.toUpperCase();
         if(!/^[A-Z]{3}$/.test(currency))throw new Error("Enter a three-letter currency code.");
         if(!Number.isInteger(Number(values.revisionRounds))||Number(values.revisionRounds)<0)throw new Error("Revision rounds must be a whole number.");
-        Object.assign(updates,{clientCompany:values.clientCompany,clientName:values.clientName,clientEmail:values.clientEmail,classification:values.classification,billingStructure:values.billingStructure,contractedValue:Number(values.contractedValue),currency,revisionRounds:Number(values.revisionRounds)});
+        Object.assign(updates,{enquiryDetails:{...enquiryDetails,phone:values.phone,designation:values.designation,companyWebsite:values.companyWebsite,country:values.country,timezone:values.timezone,industry:values.industry,description:values.enquiryDescription,referenceLinks:values.referenceLinks,budgetRange:values.budgetRange,budgetShared:values.budgetShared==="Yes",budgetNote:values.budgetNote,urgency:values.urgency as Lead["urgency"],source:values.source,acquisitionSource:values.acquisitionSource},operatingCompany:values.operatingCompany,clientCompany:values.clientCompany,clientName:values.clientName,clientEmail:values.clientEmail,classification:values.classification,billingStructure:values.billingStructure,contractedValue:Number(values.contractedValue),currency,revisionRounds:Number(values.revisionRounds)});
       }
       updateProject(project.id,updates);await flushWorkspaceChanges();showToast({message:"Project details saved."});
     }}/>}

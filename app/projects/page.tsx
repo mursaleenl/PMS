@@ -3,6 +3,7 @@ import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ClientProjectDrawer } from "@/app/_components/client-project-drawer";
 import { InternalProjectDrawer } from "@/app/_components/internal-project-drawer";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Check, ListTodo, FolderKanban, Handshake, Plus, Receipt, Trash2, User, X } from "lucide-react";
@@ -24,6 +25,7 @@ export default function ProjectsPage() {
     if (showProjectOptions) projectOptions.current?.showModal();
     else projectOptions.current?.close();
   }, [showProjectOptions]);
+  const [showClientProject,setShowClientProject]=useState(false);
   const [showInternalProject, setShowInternalProject] = useState(false);
   const { role, user, members } = useWorkspaceAuth();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -97,6 +99,7 @@ export default function ProjectsPage() {
       <header><h2 id="new-project-title">New project</h2><button className="icon-button" type="button" aria-label="Close project options" onClick={() => setShowProjectOptions(false)}><X size={18} /></button></header>
       <p>Choose the kind of project you want to create.</p>
       <div className="new-project-choices">
+        <button type="button" onClick={()=>{setShowProjectOptions(false);setShowClientProject(true);}}><strong>Existing client</strong><span>Add another project under the same client</span><ArrowRight size={16}/></button>
         <button type="button" onClick={() => { setShowProjectOptions(false); setShowInternalProject(true); }}><strong>Internal</strong><span>Start a project for your team</span><ArrowRight size={16} /></button>
         <Link href="/requests" onClick={() => setShowProjectOptions(false)}><strong>External</strong><span>Create a project from a lead</span><ArrowRight size={16} /></Link>
       </div>
@@ -125,6 +128,7 @@ export default function ProjectsPage() {
             <ProjectCardLogo src={project.logoDataUrl} title={getProjectDisplayTitle(project)} projectType={project.projectType} />
             <div className="portfolio-project-copy">
               <h2 className="portfolio-card-title">{getProjectDisplayTitle(project)}</h2>
+              {project.projectType!=="internal"&&project.title&&project.title!==getProjectDisplayTitle(project)&&<p className="portfolio-project-name">{project.title}</p>}
               {services && <p className="portfolio-card-subtitle">{services}</p>}
             </div>
           </div>
@@ -176,6 +180,7 @@ export default function ProjectsPage() {
         </div>
       </article>;
     })}</section>}
+    {(role === "admin" || role === "project_manager") && showClientProject && <ClientProjectDrawer onClose={()=>setShowClientProject(false)} onCreated={project=>{setShowClientProject(false);router.push(`/projects/${project.id}`);}}/>}
     {(role === "admin" || role === "project_manager") && showInternalProject && <InternalProjectDrawer onClose={() => setShowInternalProject(false)} onCreated={project => { setShowInternalProject(false); router.push(`/projects/${project.id}`); }} />}
     {(role === "admin" || role === "project_manager") && selectedProject && <ManagedPlanDrawer projects={[selectedProject]} initialProjectId={selectedProject.id} onClose={() => setSelectedProject(null)} onCreated={() => setManagedProjects(readManagedProjects())} />}
   </div>;

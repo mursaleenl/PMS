@@ -1,4 +1,5 @@
 "use client";
+import {ClientProjectDrawer} from "@/app/_components/client-project-drawer";
 import {EditDetailsDialog} from "@/app/_components/edit-details-dialog";
 import {canEditRecordDetails,linkedCustomerLeadIds} from "@/lib/record-editing";
 import {useWorkspaceAuth} from "@/lib/workspace-auth";
@@ -64,6 +65,7 @@ function clientSlug(value: string) {
 
 export default function ClientsPage() {
   const {role}=useWorkspaceAuth();
+  const [addingProject,setAddingProject]=useState<ClientRecord|null>(null);
   const [editingClient,setEditingClient]=useState<ClientRecord|null>(null);
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -232,11 +234,11 @@ export default function ClientsPage() {
       }
 
       const email = rawEmail || linkedLead?.email?.trim() || linkedInvoice?.clientEmail?.trim() || undefined;
-      const phone = linkedLead?.phone?.trim() || undefined;
-      const designation = linkedLead?.designation?.trim() || undefined;
-      const country = linkedLead?.country?.trim() || undefined;
-      const website = linkedLead?.companyWebsite?.trim() || undefined;
-      const industry = linkedLead?.industry?.trim() || undefined;
+      const phone = project.enquiryDetails?.phone ?? (linkedLead?.phone?.trim() || undefined);
+      const designation = project.enquiryDetails?.designation ?? (linkedLead?.designation?.trim() || undefined);
+      const country = project.enquiryDetails?.country ?? (linkedLead?.country?.trim() || undefined);
+      const website = project.enquiryDetails?.companyWebsite ?? (linkedLead?.companyWebsite?.trim() || undefined);
+      const industry = project.enquiryDetails?.industry ?? (linkedLead?.industry?.trim() || undefined);
 
       let client = findExisting(resolvedPersonName, email, resolvedCompany);
 
@@ -278,7 +280,7 @@ export default function ClientsPage() {
       if (!client.projects.some((p) => p.id === project.id)) {
         client.projects.push({
           id: project.id,
-          title: getProjectDisplayTitle(project),
+          title: project.title.trim() || getProjectDisplayTitle(project),
           displayServices: getProjectDisplayServices(project),
           logoDataUrl: project.logoDataUrl,
           status: project.status,
@@ -452,7 +454,7 @@ export default function ClientsPage() {
         if ((matchesCompany || matchesName || matchesEmail) && !client.projects.some((p) => p.id === project.id)) {
           client.projects.push({
             id: project.id,
-            title: getProjectDisplayTitle(project),
+            title: project.title.trim() || getProjectDisplayTitle(project),
             displayServices: getProjectDisplayServices(project),
             logoDataUrl: project.logoDataUrl,
             status: project.status,
@@ -747,7 +749,7 @@ export default function ClientsPage() {
 
                         {/* Section 2: Associated Projects */}
                         <section>
-                          <h2>Associated projects ({client.projects.length})</h2>
+                          <div className="client-projects-heading"><h2>Associated projects ({client.projects.length})</h2>{canEditRecordDetails(role)&&<button type="button" className="button button-quiet" onClick={()=>setAddingProject(client)}><Plus size={14}/>Add project</button>}</div>
                           {client.projects.length ? (
                             <div className="client-detail-links" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                               {client.projects.map((project) => (
@@ -857,6 +859,7 @@ export default function ClientsPage() {
           )}
         </>
       )}
+      {canEditRecordDetails(role)&&addingProject&&<ClientProjectDrawer initialClient={{name:addingProject.name,companyName:addingProject.companyName,email:addingProject.email,contactDetails:{phone:addingProject.phone,designation:addingProject.designation,country:addingProject.country,companyWebsite:addingProject.website,industry:addingProject.industry}}} onClose={()=>setAddingProject(null)} onCreated={()=>{setAddingProject(null);showToast({message:"Project added to client."});}}/>}
       {canEditRecordDetails(role)&&editingClient&&<EditDetailsDialog title="Edit customer details" onClose={()=>setEditingClient(null)} fields={[
         {name:"companyName",label:"Company name",value:editingClient.companyName||(!editingClient.projects.length?editingClient.name:""),required:!editingClient.projects.length},
         ...((editingClient.projects.length||linkedCustomerLeadIds(editingClient,projects,leads).length)?[
@@ -876,7 +879,7 @@ export default function ClientsPage() {
         const projectIds=new Set(editingClient.projects.map(project=>project.id));
         const linkedProjects=readProjects().filter(project=>projectIds.has(project.id)||leadIds.includes(project.leadId));
         for(const id of leadIds)updateLead(id,{fullName:values.name,companyName:values.companyName,email:values.email,phone:values.phone,designation:values.designation,country:values.country,companyWebsite:values.website,industry:values.industry});
-        for(const project of linkedProjects)updateProject(project.id,{clientName:values.name,clientCompany:values.companyName,clientEmail:values.email});
+        for(const project of linkedProjects)updateProject(project.id,{clientName:values.name,clientCompany:values.companyName,clientEmail:values.email,enquiryDetails:{...project.enquiryDetails,phone:values.phone??project.enquiryDetails?.phone,designation:values.designation??project.enquiryDetails?.designation,country:values.country??project.enquiryDetails?.country,companyWebsite:values.website??project.enquiryDetails?.companyWebsite,industry:values.industry??project.enquiryDetails?.industry}});
         for(const plan of editingClient.managedPlans)updateManagedProject(plan.id,{clientCompany:values.companyName||values.name});
         await flushWorkspaceChanges();setExpandedClient(null);showToast({message:"Customer details saved."});
       }}/>}

@@ -322,6 +322,9 @@ create table if not exists public.projects (
 alter table public.projects add column if not exists logo_data_url text;
 alter table public.projects drop constraint if exists projects_logo_check;
 alter table public.projects add constraint projects_logo_check check (logo_data_url is null or (length(logo_data_url) <= 700000 and logo_data_url ~ '^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$'));
+alter table public.projects add column if not exists enquiry_details jsonb not null default '{}'::jsonb;
+alter table public.projects drop constraint if exists projects_enquiry_details_check;
+alter table public.projects add constraint projects_enquiry_details_check check (jsonb_typeof(enquiry_details) = 'object');
 alter table public.projects add column if not exists objectives text;
 alter table public.projects add column if not exists deliverables text;
 alter table public.projects add column if not exists target_date date;

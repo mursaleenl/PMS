@@ -2,7 +2,7 @@
 
 import {useEffect,useRef,useState} from "react";
 import {useRouter} from "next/navigation";
-import {ScanLine} from "lucide-react";
+import {ScanLine,LogIn,LogOut,X} from "lucide-react";
 import {attendanceScanPath} from "@/lib/attendance-scan";
 
 type NativeQrDetector = {detect(source:CanvasImageSource):Promise<Array<{rawValue:string}>>};
@@ -13,6 +13,7 @@ export function AttendanceCamera({onClose}:{onClose:()=>void}) {
   const dialogRef=useRef<HTMLDialogElement>(null),videoRef=useRef<HTMLVideoElement>(null);
   const streamRef=useRef<MediaStream|null>(null),frameRef=useRef<number>(0),generation=useRef(0);
   const startRef=useRef<()=>void>(()=>{});
+  const [action,setAction]=useState<"check_in"|"check_out"|null>(null);
   const [active,setActive]=useState(false),[starting,setStarting]=useState(false),[error,setError]=useState("");
   function stop(){
     generation.current++;
@@ -23,19 +24,23 @@ export function AttendanceCamera({onClose}:{onClose:()=>void}) {
   useEffect(()=>{
     const dialog=dialogRef.current,previous=document.activeElement as HTMLElement|null;
     dialog?.showModal();
-    const cameraStartFrame=requestAnimationFrame(()=>startRef.current());
     const overflow=document.body.style.overflow;document.body.style.overflow="hidden";
     const visibility=()=>{
       if(document.hidden){stop();setActive(false);setStarting(false);}
       else if(dialog?.open)requestAnimationFrame(()=>{if(dialogRef.current?.open)startRef.current();});
     };
     document.addEventListener("visibilitychange",visibility);
-    return ()=>{cancelAnimationFrame(cameraStartFrame);stop();dialog?.close();document.body.style.overflow=overflow;document.removeEventListener("visibilitychange",visibility);previous?.focus();};
+    return ()=>{stop();dialog?.close();document.body.style.overflow=overflow;document.removeEventListener("visibilitychange",visibility);previous?.focus();};
   },[]);
+  useEffect(()=>{
+    if(!action)return;
+    const frame=requestAnimationFrame(()=>startRef.current());
+    return ()=>{cancelAnimationFrame(frame);stop();};
+  },[action]);
   function follow(value:string){
     const path=attendanceScanPath(value,window.location.origin);
     if(!path){setError("Use the attendance QR displayed by your office.");return false;}
-    stop();router.push(path);onClose();return true;
+    stop();router.push(`${path}?action=${action}`);onClose();return true;
   }
   async function start(){
     if(starting||active)return;
@@ -87,12 +92,17 @@ export function AttendanceCamera({onClose}:{onClose:()=>void}) {
       setError(cause instanceof DOMException&&cause.name==="NotAllowedError"?"Camera permission was denied. Allow camera access to scan attendance.":cause instanceof Error?cause.message:"Unable to open the camera.");
     }
   }
-  startRef.current=()=>void start();
-  return <dialog ref={dialogRef} className="attendance-camera-dialog" aria-labelledby="attendance-camera-title" onCancel={onClose} onClick={event=>{if(event.target===event.currentTarget)onClose();}}>
-    <div className="scanner-heading"><div><span className="section-kicker">Office attendance</span><h2 id="attendance-camera-title">Scan attendance QR</h2></div></div>
-    <p>Point your camera at the current office QR to record your attendance.</p>
+  startRef.current=()=>{if(action)void start();};
+  return <dialog ref={dialogRef} className="attendance-camera-dialog" aria-labelledby="attendance-camera-title" aria-describedby="attendance-camera-description" onCancel={onClose} onClick={event=>{if(event.target===event.currentTarget)onClose();}}>
+    <div className="scanner-heading"><div><span className="section-kicker">Office attendance</span><h2 id="attendance-camera-title">{action?`Scan QR to ${action==="check_in"?"check in":"check out"}`:"Scan attendance"}</h2></div><button type="button" className="scanner-close" aria-label="Close attendance scanner" onClick={onClose}><X size={18}/></button></div>
+    {!action?<><p id="attendance-camera-description">Arriving or heading out? Choose an option to scan the office QR.</p><div className="attendance-scan-options">
+      <div className="attendance-scan-option"><LogIn size={24} strokeWidth={1.5} aria-hidden="true"/><h3>Start your visit</h3><p>Record your arrival at the office.</p><button type="button" className="button button-primary" onClick={()=>setAction("check_in")}>Check In</button></div>
+      <div className="attendance-scan-option"><LogOut size={24} strokeWidth={1.5} aria-hidden="true"/><h3>Finish your visit</h3><p>Record your departure for this visit.</p><button type="button" className="button button-quiet" onClick={()=>setAction("check_out")}>Check Out</button></div>
+    </div></>:<>
+    <p id="attendance-camera-description">Point your camera at the current office QR to {action==="check_in"?"check in":"check out"}.</p>
     <div className={`camera-view ${active?"camera-active":""}`}><video ref={videoRef} muted playsInline aria-label="Attendance camera"/>{!active&&<div className="camera-placeholder"><ScanLine size={40}/><span>{starting?"Opening camera…":"Position the office QR inside the frame"}</span></div>}<span className="camera-frame" aria-hidden="true"/></div>
     <div className="scanner-actions"><span role="status">{active?"Looking for office QR…":starting?"Opening camera…":"Camera is unavailable."}</span></div>
-    {error&&<p role="alert" className="form-error">{error}</p>}
+    {error&&<p role="alert" className="form-error">{error}</p>}</>}
+    <div className="scanner-footer"><span><ScanLine size={14} aria-hidden="true"/>Use the current office QR</span><button type="button" className="button button-quiet" onClick={onClose}>Cancel</button></div>
   </dialog>;
 }

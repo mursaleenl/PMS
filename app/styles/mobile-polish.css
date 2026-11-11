@@ -44,7 +44,24 @@
   .attendance-camera-dialog h2 { color: #0f172a !important; }
   .scanner-heading { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
   .scanner-heading h2 { margin: 5px 0 0; font-size: 19px; font-weight: 600; }
-  .scanner-close { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid #cbd5e1; background: #ffffff; color: #475569; cursor: pointer; }
+  .attendance-camera-dialog > p { margin: 14px 0 22px; font-size: 13px; }
+  .attendance-camera-dialog .section-kicker { font-size: 10px; letter-spacing: .08em; }
+  html body .app-shell #workspace-content .attendance-camera-dialog :is(h2,h3,.button) { text-transform: none !important; }
+  html body .app-shell #workspace-content .attendance-camera-dialog .button { border-radius: 0 !important; text-decoration: none !important; font-size: 12px !important; font-weight: 550 !important; }
+  html body .app-shell #workspace-content .attendance-camera-dialog .button-primary { background: #0f172a !important; border: 1px solid #0f172a !important; color: #ffffff !important; }
+  html body .app-shell #workspace-content .attendance-camera-dialog .button-primary:hover { background: #1e293b !important; box-shadow: 0 2px 4px rgb(15 23 42 / 12%) !important; }
+  html body .app-shell #workspace-content .attendance-camera-dialog .button-quiet { background: #ffffff !important; border: 1px solid #e2e8f0 !important; color: #0f172a !important; }
+  html body .app-shell #workspace-content .attendance-camera-dialog .button-quiet:hover { background: #f4f4f5 !important; border-color: #94a3b8 !important; }
+  .attendance-camera-dialog .attendance-scan-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 0 0 24px; }
+  .attendance-camera-dialog .attendance-scan-option { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding: 20px 16px 16px; background: #f8fafc; border: 1px solid #e2e8f0; }
+  .attendance-camera-dialog .attendance-scan-option > svg { color: #0f172a; margin-bottom: 16px; }
+  .attendance-camera-dialog .attendance-scan-option h3 { margin: 0 0 6px; color: #0f172a; font-size: 14px; font-weight: 600; line-height: 1.4; }
+  .attendance-camera-dialog .attendance-scan-option p { margin: 0 0 20px; color: #64748b; font-size: 12px; line-height: 1.6; }
+  .attendance-camera-dialog .attendance-scan-option .button { width: 100%; height: 38px !important; min-height: 38px !important; margin-top: auto; padding: 0 10px !important; }
+  .attendance-camera-dialog .scanner-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 16px; margin-top: 20px; border-top: 1px solid #e2e8f0; }
+  .attendance-camera-dialog .scanner-footer > span { display: flex; align-items: center; gap: 7px; color: #64748b; font-size: 11px; line-height: 1.5; }
+  .attendance-camera-dialog .scanner-footer > span svg { flex-shrink: 0; }
+  .scanner-close { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; padding: 0; border: 1px solid #e2e8f0; background: #ffffff; color: #475569; cursor: pointer; }
   .scanner-close:hover { color: #0f172a; background: #f8fafc; border-color: #94a3b8; }
   .attendance-camera-dialog :is(button,input):focus-visible { outline: 2px solid #0f172a !important; outline-offset: 2px; box-shadow: none !important; }
   .camera-view { position: relative; margin: 20px 0 16px; aspect-ratio: 1; width: 100%; background: #101114; overflow: hidden; }
@@ -619,4 +636,12 @@
 .app-shell.sidebar-collapsed .sidebar .nav-link,
 .app-shell.sidebar-expanded .sidebar .nav-link {
   border-radius: 0 !important;
+}
+
+@media screen and (max-width: 380px) {
+  .attendance-camera-dialog .attendance-scan-options { grid-template-columns: 1fr; }
+  .attendance-camera-dialog .attendance-scan-option { display: grid; grid-template-columns: 24px minmax(0,1fr); column-gap: 12px; padding: 16px; }
+  .attendance-camera-dialog .attendance-scan-option > svg { grid-row: 1 / 3; margin: 0; }
+  .attendance-camera-dialog .attendance-scan-option p { margin-bottom: 14px; }
+  .attendance-camera-dialog .attendance-scan-option .button { grid-column: 1 / -1; }
 }

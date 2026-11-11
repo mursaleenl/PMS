@@ -103,10 +103,10 @@ test('performance shows completed duration without inventing hours for an open v
  await expect(table.getByRole('columnheader',{name:'Arrival',exact:true})).toBeVisible();
 });
 
-test('mobile camera decodes the office QR and records attendance automatically',async({page})=>{
+for(const action of ['check_in','check_out'])test(`mobile camera records the selected ${action} action`,async({page})=>{
  const QRCode=require('qrcode');
  const qr=await QRCode.toDataURL(`${new URL(process.env.PMS_TEST_URL||"http://localhost:3000").origin}/work/attendance/${token}`,{width:480,margin:4});
- const scans=await attendanceMocks(page);
+ const scans=await attendanceMocks(page,{open:action==='check_out'?visit:null});
  await page.addInitScript(({qr})=>{
   Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>{
    const canvas=document.createElement('canvas');canvas.width=480;canvas.height=480;
@@ -121,19 +121,26 @@ test('mobile camera decodes the office QR and records attendance automatically',
  await page.goto('/work/attendance');
  await expect(page.getByRole('region',{name:'My attendance profile'})).toContainText('Alex Morgan');
  await page.getByRole('button',{name:'Scan attendance',exact:true}).click();
- await expect(page).toHaveURL(new RegExp(`/work/attendance/${token}$`),{timeout:15000});
+ const dialog=page.getByRole('dialog',{name:'Scan attendance',exact:true});
+ await expect(dialog.getByRole('button',{name:'Check In',exact:true})).toBeVisible();
+ await expect(dialog.getByRole('button',{name:'Check Out',exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>window.attendanceCameraStopped)).toBeUndefined();
+ expect(scans).toHaveLength(0);
+ await dialog.getByRole('button',{name:action==='check_in'?'Check In':'Check Out',exact:true}).click();
+ await expect(page).toHaveURL(new RegExp(`/work/attendance/${token}\\?action=${action}$`),{timeout:15000});
  expect(await page.evaluate(()=>window.attendanceCameraStopped)).toBe(true);
- await expect(page.getByRole('status').filter({hasText:'Checked in at'})).toBeVisible();
- expect(scans).toHaveLength(1);
+ await expect(page.getByRole('status').filter({hasText:action==='check_in'?'Checked in at':'Checked out at'})).toBeVisible();
+ expect(scans).toEqual([{p_token:token,p_action:action}]);
 });
 test('camera denial shows the error without a fallback attendance form',async({page})=>{
  const scans=await attendanceMocks(page);
  await page.setViewportSize({width:390,height:844});
  await page.addInitScript(()=>Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>{throw new DOMException('Denied','NotAllowedError');}}));
  await page.goto('/work/attendance');await page.getByRole('button',{name:'Scan attendance',exact:true}).click();
- const dialog=page.getByRole('dialog',{name:'Scan attendance QR'});
+ await page.getByRole('button',{name:'Check In',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Scan QR to check in'});
  await expect(dialog.getByRole('alert')).toContainText('Camera permission was denied');
- await expect(dialog.locator('input, button')).toHaveCount(0);
+ await expect(dialog.getByRole('button',{name:'Cancel',exact:true})).toBeVisible();
  expect(scans).toHaveLength(0);
 });
 
@@ -303,4 +310,11 @@ test('office visits default to the signed-in account and allow explicit team fil
  await page.reload();
  await expect(select).toHaveValue(visit.user_id);
  await expect(table.locator('tr')).toHaveCount(1);
+});
+
+for(const action of ['check_in','check_out'])test(`an invalid ${action} choice never records the opposite action`,async({page})=>{
+ const scans=await attendanceMocks(page,{open:action==='check_in'?visit:null});
+ await page.goto(`/work/attendance/${token}?action=${action}`);
+ await expect(page.locator('.attendance-scan [role=alert]')).toContainText(action==='check_in'?'already checked in':'not checked in');
+ expect(scans).toHaveLength(0);
 });

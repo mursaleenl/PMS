@@ -1709,3 +1709,33 @@ html body .app-shell #workspace-content .enquiry-form .field > :is(input:not([ty
 html body .app-shell #workspace-content .enquiry-form .field > :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):is(:focus, :focus-visible) {
   border: 1px solid #94a3b8 !important; outline: none !important; box-shadow: none !important;
 }
+
+/* New work for an existing client. */
+html body dialog.client-project-dialog { width: min(560px,calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 0; background: #ffffff; color: #0f172a; box-shadow: 0 24px 80px rgb(15 23 42 / 22%); }
+.client-project-dialog::backdrop { background: rgb(15 23 42 / 48%); backdrop-filter: blur(4px); }
+.client-project-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+html body #workspace-content .client-project-dialog h2 { margin: 5px 0 0; font-size: 20px !important; line-height: 1.35; text-transform: none !important; }
+.client-project-dialog > p { margin: 12px 0 22px; color: #64748b; line-height: 1.6; }
+.client-project-dialog fieldset { display: grid; gap: 16px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.client-project-dialog .field { min-width: 0; margin: 0; }
+html body .app-shell #workspace-content .client-project-dialog :is(input,select,textarea) { border-color: #cbd5e1 !important; width: 100%; min-width: 0; border: 1px solid #cbd5e1; border-radius: 0; background: #ffffff; color: #0f172a; padding: 9px 10px; }
+.client-project-dialog :is(button,input,select,textarea):focus-visible { outline: 2px solid #0f172a !important; outline-offset: 2px; box-shadow: none !important; }
+.client-project-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.client-project-dialog .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+html body .app-shell #workspace-content .client-project-dialog .button { height: 38px !important; text-transform: none !important; border: 1px solid #e2e8f0 !important; background: #ffffff !important; color: #0f172a !important; }
+html body .app-shell #workspace-content .client-project-dialog .button-primary { border-color: #0f172a !important; background: #0f172a !important; color: #ffffff !important; }
+.client-projects-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.client-projects-heading h2 { margin: 0 !important; }
+.portfolio-project-name { margin: 5px 0; font-size: 13px; color: #475569; line-height: 1.5; }
+@media (max-width: 420px) {
+  html body dialog.client-project-dialog { padding: 20px 16px; }
+  .client-project-fields { grid-template-columns: 1fr; }
+}
+
+html body .app-shell #workspace-content .client-project-dialog :is(input,textarea)::placeholder { color: #71717a !important; }
+
+/* The optional client selector shares the contact form's inset and field styling. */
+html body #workspace-content .enquiry-form .enquiry-client-selection { margin: 0 0 24px; padding: 0; min-width: 0; }
+html body #workspace-content .enquiry-client-selection .field { margin: 0; }
+html body #workspace-content .enquiry-client-selection select { width: 100%; min-width: 0; border-radius: 0 !important; }
+html body #workspace-content .enquiry-client-selection .field-hint { margin: 8px 0 0; line-height: 1.6; color: #64748b; }
