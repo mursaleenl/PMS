@@ -1,4 +1,5 @@
 "use client";
+import {OperatingOrganizationField} from "@/app/_components/operating-organization-field";
 import { useState, type FormEvent } from "react";
 import { Check, Download, FileText, ShieldCheck } from "lucide-react";
 import { type Lead, type ProposalVersion, updateLead } from "@/lib/leads";
@@ -6,7 +7,6 @@ import { flushWorkspaceChanges } from "@/lib/workspace-sync";
 import { updateProject } from "@/lib/projects";
 import { ProposalGenerator } from "@/app/_components/proposal-generator";
 import { StatusBadge } from "@/app/_components/status-badge";
-import { operatingCompanies, type OperatingCompany } from "@/lib/companies";
 
 const MAX_DOCUMENT_BYTES = 1_200_000;
 
@@ -29,7 +29,6 @@ export function ProposalWorkspace({ lead }: { lead: Lead }) {
   const [savingSow,setSavingSow]=useState(false);
   const latest=[...(lead.proposals??[])].sort((a,b)=>b.version-a.version)[0];
   const workflowOpen=lead.status!=="LOST";
-  const companySelectionLocked=Boolean(lead.operatingCompany&&(lead.projectId||lead.invoice||(lead.proposals??[]).some(p=>["SENT","ACCEPTED","SUPERSEDED"].includes(p.status))));
   function saveLead(updates: Partial<Lead>) {
     if (!lead) return;
     updateLead(lead.id, updates);
@@ -103,8 +102,8 @@ export function ProposalWorkspace({ lead }: { lead: Lead }) {
 
   return <div className="proposal-workspace">
     {workflowOpen && <section className={`panel record-section operating-company-step ${lead.operatingCompany ? "is-selected" : "needs-selection"}`} id="workflow-company">
-      <div className="record-section-heading"><div><span className="section-icon"><ShieldCheck size={17} /></span><div><h2>Choose operating organization</h2><p>Choose the studio responsible for this lead and its project.</p></div></div><span className="workflow-state">{companySelectionLocked ? "Organization confirmed" : lead.operatingCompany ? "Selected" : "Required before project setup"}</span></div>
-      <label className="field required">Operating organization<select aria-label="Choose the operating organization for this lead" required disabled={companySelectionLocked} value={lead.operatingCompany ?? ""} onChange={(event) => { const value = event.target.value; if (operatingCompanies.some((company) => company === value)) saveLead({ operatingCompany: value as OperatingCompany }); }}><option value="" disabled>Select Evecture or Servn</option>{operatingCompanies.map((company) => <option key={company} value={company}>{company}</option>)}</select>{companySelectionLocked && <small>The organization is fixed once a proposal is sent, an invoice is created, or the lead becomes a project.</small>}</label>
+      <div className="record-section-heading"><div><span className="section-icon"><ShieldCheck size={17} /></span><div><h2>{lead.operatingCompany?"Operating organization":"Choose operating organization"}</h2><p>The studio responsible for this lead and its project.</p></div></div><span className="workflow-state">{lead.operatingCompany ? "Organization confirmed" : "Required before project setup"}</span></div>
+      <OperatingOrganizationField value={lead.operatingCompany} selectLabel="Choose the operating organization for this lead" required onChange={organization=>saveLead({operatingCompany:organization})}/>
     </section>}
 
 

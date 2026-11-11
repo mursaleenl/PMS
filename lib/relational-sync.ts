@@ -319,9 +319,12 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     const workItems: ProjectWorkItem[] = (workItemsByProject.get(dbId) ?? []).map((item) => ({
       id: text(item.external_id, text(item.id)),
       title: text(item.title),
+      description: text(item.description) || undefined,
+      deadline: text(item.deadline) || undefined,
       kind: item.kind,
       assignee: text(item.assignee_name),
       assigneeId: item.assignee_user_id || undefined,
+      assignees: Array.isArray(item.assignees) ? item.assignees : [],
       priority: item.priority,
       estimatedHours: number(item.estimated_hours),
       loggedHours: number(item.logged_hours),
@@ -516,7 +519,7 @@ export function serializeRecord(collection: WorkspaceCollection, value: unknown)
       created_at: project.createdAt || new Date().toISOString(),
     }, leadId: project.leadId || null, proposalVersion: project.proposalVersion,
       team: project.team.map(member => ({ role: member.role, name: nullable(member.name), user_id: nullable(member.userId), allocation_percent: number(member.allocationPercent) })),
-      workItems: (project.workItems ?? []).map(item => ({ external_id: item.id, title: item.title, kind: item.kind, assignee_name: nullable(item.assignee), assignee_user_id: nullable(item.assigneeId), priority: item.priority, estimated_hours: number(item.estimatedHours), logged_hours: number(item.loggedHours), status: item.status, blocker_reason: nullable(item.blockerReason), proof: item.proof ?? {}, review_notes: nullable(item.reviewNotes), revision_requested: Boolean(item.revisionRequested), timer_started_at: nullable(item.timerStartedAt), created_at: item.createdAt })),
+      workItems: (project.workItems ?? []).map(item => ({ external_id: item.id, title: item.title, description: nullable(item.description), deadline: nullable(item.deadline), kind: item.kind, assignee_name: nullable(item.assignee), assignee_user_id: nullable(item.assigneeId), assignees: item.assignees ?? [], priority: item.priority, estimated_hours: number(item.estimatedHours), logged_hours: number(item.loggedHours), status: item.status, blocker_reason: nullable(item.blockerReason), proof: item.proof ?? {}, review_notes: nullable(item.reviewNotes), revision_requested: Boolean(item.revisionRequested), timer_started_at: nullable(item.timerStartedAt), created_at: item.createdAt })),
       links: Object.entries(project.links ?? {}).filter(([,url]) => url).map(([link_type,url]) => ({ link_type, url })),
     };
   }

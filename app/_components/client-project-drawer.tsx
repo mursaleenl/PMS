@@ -1,6 +1,8 @@
 "use client";
 
 import {useEffect,useRef,useState,type FormEvent} from "react";
+import {CalendarPicker} from "@/app/_components/calendar-picker";
+import {SUPPORTED_CURRENCIES} from "@/lib/currency";
 import {X} from "lucide-react";
 import {createClientProject,existingProjectClients,type ExistingProjectClient} from "@/lib/client-projects";
 import {addProject,readProjects,type Project,type BillingStructure} from "@/lib/projects";
@@ -53,8 +55,8 @@ export function ClientProjectDrawer({initialClient,onClose,onCreated}:{initialCl
         <label className="field">Project name<input name="title" required maxLength={200} placeholder="e.g. Mobile app redesign"/></label>
         <label className="field">Scope / description<textarea name="description" rows={3} placeholder="Describe the work for this project"/></label>
         <label className="field">Services<input name="services" placeholder="e.g. UI/UX, Development"/></label>
-        <div className="client-project-fields"><label className="field">Operating organization<select name="operatingCompany" defaultValue="Evecture">{operatingCompanies.map(company=><option key={company}>{company}</option>)}</select></label><label className="field">Start date<input name="startDate" type="date"/></label></div>
-        <div className="client-project-fields"><label className="field">Billing structure<select name="billingStructure" defaultValue="Fixed"><option>Fixed</option><option>Hourly</option><option>Retainer</option></select></label><label className="field">Currency<select name="currency" defaultValue="USD"><option>USD</option><option>INR</option><option>EUR</option><option>GBP</option></select></label></div>
+        <div className="client-project-fields"><label className="field">Operating organization<select name="operatingCompany" defaultValue="Evecture">{operatingCompanies.map(company=><option key={company}>{company}</option>)}</select></label><label className="field">Start date<CalendarPicker name="startDate" ariaLabel="Start date"/></label></div>
+        <div className="client-project-fields"><label className="field">Billing structure<select name="billingStructure" defaultValue="Fixed"><option>Fixed</option><option>Hourly</option><option>Retainer</option></select></label><label className="field">Currency<select name="currency" defaultValue="USD">{SUPPORTED_CURRENCIES.map(currency=><option key={currency}>{currency}</option>)}</select></label></div>
         <label className="field">Project budget<input name="budget" type="number" min="0" step="0.01" defaultValue="0" required/></label>
         <label className="field">Project manager<select name="manager" defaultValue=""><option value="">Unassigned</option>{users.filter(person=>person.id&&person.role==="project_manager").map(person=><option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
       </fieldset>

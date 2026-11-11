@@ -1,5 +1,12 @@
 "use client";
+import {AssignTaskDialog} from "@/app/_components/assign-task-dialog";
+import {CalendarPicker} from "@/app/_components/calendar-picker";
+import {EditTaskDialog} from "@/app/_components/edit-task-dialog";
+import {TaskDeadline} from "@/app/_components/task-deadline";
+import {TaskTargetPicker} from "@/app/_components/task-target-picker";
+import {prepareTaskDispatch,persistTaskDispatch,type TaskDispatch} from "@/lib/task-dispatch";
 import {ProjectClientsDialog} from "@/app/_components/project-clients-dialog";
+import {SUPPORTED_CURRENCIES} from "@/lib/currency";
 import {EditDetailsDialog} from "@/app/_components/edit-details-dialog";
 import {canEditRecordDetails,parseServiceDetails} from "@/lib/record-editing";
 import {flushWorkspaceChanges} from "@/lib/workspace-sync";
@@ -8,7 +15,6 @@ import {flushWorkspaceChanges} from "@/lib/workspace-sync";
 import { getProjectLogoSrc } from "@/lib/project-logo";
 import { ProjectLogoUpload } from "@/app/_components/project-logo";
 import {readLeads,updateLead,type Lead} from "@/lib/leads";
-import { createUuid } from "@/lib/uuid";
 import Link from "next/link";
 import {StatusBadge} from "@/app/_components/status-badge";
 import { ProjectStatusBoard } from "@/app/_components/project-status-board";
@@ -17,7 +23,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, Download, ExternalLink, FileText, FolderKanban, Handshake, Link2, Plus, Receipt, Trash2, Users, X } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
-import { deleteProject, readProjects, getProjectTeamMembers, getProjectDisplayTitle, getProjectDisplayServices, getProjectEnquiryDetails, getProjectClientLabel, type Project, type ProjectWorkItem, updateProject, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
+import { deleteProject, readProjects, getProjectTeamMembers, getProjectDisplayTitle, getProjectDisplayServices, getProjectEnquiryDetails, getProjectClientLabel, getTaskAssigneeLabel, type Project, type ProjectWorkItem, updateProject, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, updateManagedProject, type ManagedProject } from "@/lib/post-sale";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 import { showToast } from "@/app/_components/toast-hub";
@@ -34,7 +40,7 @@ type AssigneeOption = {
   email?: string;
 };
 
-function TaskDispatchDialog({ project, onClose, onDispatch }: { project: Project; onClose: () => void; onDispatch: (task: ProjectWorkItem) => void }) {
+function TaskDispatchDialog({ project, onClose, onDispatch }: { project: Project; onClose: () => void; onDispatch: (batch:TaskDispatch[]) => Promise<void> }) {
   const { session, user, role: currentRole, members } = useWorkspaceAuth();
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -47,8 +53,13 @@ function TaskDispatchDialog({ project, onClose, onDispatch }: { project: Project
     };
   }, []);
   const [error, setError] = useState("");
-  const [kind, setKind] = useState<ProjectWorkItem["kind"]>("FEATURE_DEV");
   const [loadingAssignees, setLoadingAssignees] = useState(false);
+  const [availableProjects]=useState(()=>readProjects());
+  const [selectedProjects,setSelectedProjects]=useState(()=>new Set([project.id]));
+  const [selectedAssignees,setSelectedAssignees]=useState<Set<string>>(()=>new Set());
+  const [dispatching,setDispatching]=useState(false);
+  const dispatchingRef=useRef(false),pendingDispatch=useRef<TaskDispatch[]|null>(null);
+
 
   const [assignees, setAssignees] = useState<AssigneeOption[]>(() => {
     const list: AssigneeOption[] = [];
@@ -147,27 +158,18 @@ function TaskDispatchDialog({ project, onClose, onDispatch }: { project: Project
     };
   }, [session?.access_token, project.team]);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const selectedAssignee = String(data.get("assignee") || "").trim();
-    if (!selectedAssignee) {
-      setError("Assign this task to a workspace admin or employee.");
-      return;
-    }
-    const selectedUser = assignees.find((item) => item.id === selectedAssignee || item.name === selectedAssignee);
-    onDispatch({
-      id: createUuid(),
-      title: String(data.get("title") || "").trim(),
-      kind,
-      assignee: selectedUser?.name || selectedAssignee,
-      assigneeId: selectedUser?.id,
-      priority: String(data.get("priority")) as ProjectWorkItem["priority"],
-      estimatedHours: 0,
-      loggedHours: 0,
-      createdAt: new Date().toISOString(),
-      status: "TO_DO",
-    });
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();if(dispatchingRef.current)return;
+    dispatchingRef.current=true;setDispatching(true);setError("");
+    const data=new FormData(event.currentTarget);
+    try{
+      if(!pendingDispatch.current)pendingDispatch.current=prepareTaskDispatch({
+        projectIds:[...selectedProjects],assignees:assignees.filter(person=>person.id&&selectedAssignees.has(person.id)).map(person=>({name:person.name,userId:person.id})),
+        title:String(data.get("title")||""),description:String(data.get("description")||""),deadline:String(data.get("deadline")||""),kind:"FEATURE_DEV",priority:String(data.get("priority")) as ProjectWorkItem["priority"],
+      });
+      await onDispatch(pendingDispatch.current);
+    }catch(cause){setError(cause instanceof Error?cause.message:"Unable to dispatch the task.");}
+    finally{dispatchingRef.current=false;setDispatching(false);}
   }
 
   return (
@@ -175,9 +177,9 @@ function TaskDispatchDialog({ project, onClose, onDispatch }: { project: Project
       ref={dialog}
       className="task-drawer-backdrop task-dispatch-dialog"
       aria-labelledby="dispatch-title"
-      onCancel={event => { event.preventDefault(); onClose(); }}
+      onCancel={event => { event.preventDefault(); if(!dispatchingRef.current)onClose(); }}
       onClick={event => {
-        if (event.target !== event.currentTarget) return;
+        if (dispatchingRef.current || event.target !== event.currentTarget) return;
         const bounds = event.currentTarget.getBoundingClientRect();
         if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onClose();
       }}
@@ -190,44 +192,23 @@ function TaskDispatchDialog({ project, onClose, onDispatch }: { project: Project
               Assign work and dispatch it directly to the Tasks board.
             </p>
           </div>
-          <button className="icon-button" type="button" onClick={onClose} aria-label="Close dispatch form">
+          <button className="icon-button" type="button" onClick={onClose} disabled={dispatching} aria-label="Close dispatch form">
             <X size={18} />
           </button>
         </header>
         <form onSubmit={submit}>
-          <label className="field required">
-            Action type
-            <select name="kind" value={kind} onChange={(event) => setKind(event.target.value as ProjectWorkItem["kind"])}>
-              <option value="FEATURE_DEV">Feature development</option>
-              <option value="CLIENT_FEEDBACK_TODO">Client feedback to-do</option>
-              <option value="QA_BUG">QA bug</option>
-            </select>
-          </label>
+          <fieldset className="task-dispatch-fields" disabled={dispatching||Boolean(pendingDispatch.current)}>
+          <TaskTargetPicker label="Projects" options={availableProjects.map(item=>({id:item.id,label:getProjectDisplayTitle(item),detail:[getProjectClientLabel(item),item.id].filter(Boolean).join(" · ")}))} selected={selectedProjects} onChange={setSelectedProjects}/>
           <label className="field required">
             Task title
             <input name="title" required placeholder="Describe the work to be done" />
           </label>
-          <label className="field required">
-            Assignee
-            <select name="assignee" required defaultValue="">
-              <option value="" disabled>
-                {assignees.length
-                  ? "Select an assignee (Admin or Employee)"
-                  : loadingAssignees
-                  ? "Loading assignable team members…"
-                  : "No assignable members available"}
-              </option>
-              {assignees.map((item) => (
-                <option key={item.id || item.name} value={item.id || item.name}>
-                  {item.name}
-                  {item.role ? ` · ${item.role}` : ""}
-                </option>
-              ))}
-            </select>
-            <small className="field-hint">
-              Assignable to workspace administrators and employees.
-            </small>
+          <label className="field">
+            Description
+            <textarea name="description" rows={4} maxLength={5000} placeholder="Add requirements, context, and the expected outcome" />
           </label>
+          <TaskTargetPicker label="Assignees" options={assignees.filter(person=>person.id).map(person=>({id:person.id!,label:person.name,detail:person.role}))} selected={selectedAssignees} onChange={setSelectedAssignees}/>
+          {loadingAssignees&&<small role="status">Loading workspace assignees…</small>}
           <label className="field required">
             Priority
             <select name="priority" defaultValue="P3">
@@ -237,14 +218,16 @@ function TaskDispatchDialog({ project, onClose, onDispatch }: { project: Project
               <option value="P4">P4 · Low</option>
             </select>
           </label>
+          <label className="field">Deadline<CalendarPicker name="deadline" mode="datetime" ariaLabel="Deadline"/></label>
+          </fieldset>
           {error && <div className="form-error" role="alert">{error}</div>}
           <footer>
-            <button className="button button-quiet" type="button" onClick={onClose}>
+            <button className="button button-quiet" type="button" disabled={dispatching} onClick={onClose}>
               Cancel
             </button>
-            <button className="button button-primary dispatch-submit-button" type="submit">
+            <button className="button button-primary dispatch-submit-button" type="submit" disabled={dispatching}>
               <ArrowRight size={14} />
-              Dispatch to tasks
+              {dispatching?"Dispatching…":pendingDispatch.current?"Retry dispatch":"Dispatch to tasks"}
             </button>
           </footer>
         </form>
@@ -264,6 +247,7 @@ export default function ProjectWorkspacePage() {
   const [activeTab, setActiveTab] = useState<ProjectTab>("Overview");
   const [editingDetails,setEditingDetails]=useState(false);
   const [managingClients,setManagingClients]=useState(false);
+  const [editingTask,setEditingTask]=useState<ProjectWorkItem|null>(null);
   const [showDispatch, setShowDispatch] = useState(false);
   const [showManagedPlan, setShowManagedPlan] = useState(false);
   const [managedPlan, setManagedPlan] = useState<ManagedProject | null>(null);
@@ -319,12 +303,11 @@ export default function ProjectWorkspacePage() {
     router.push("/projects");
   }
 
-  function dispatchTask(task: ProjectWorkItem) {
-    if ((role !== "admin" && role !== "project_manager")) return;
-    save({ workItems: [task, ...(project?.workItems ?? [])] });
-    setShowDispatch(false);
-    setActiveTab("Overview");
-    showToast({ message: `Task "${task.title}" dispatched to Tasks` });
+  async function dispatchTask(batch:TaskDispatch[]) {
+    if(role!=="admin"&&role!=="project_manager")throw new Error("You do not have permission to dispatch tasks.");
+    await persistTaskDispatch(batch);
+    setShowDispatch(false);setActiveTab("Overview");
+    showToast({message:`Task dispatched to ${batch.length} ${batch.length===1?"project":"projects"}.`});
   }
 
   function setProjectLink(key: "staging" | "repository" | "design" | "other") {
@@ -356,6 +339,7 @@ export default function ProjectWorkspacePage() {
 
   const contactLead=linkedLead||(canEditRecordDetails(role)&&project.clientEmail?readLeads().find(lead=>lead.email?.trim().toLowerCase()===project.clientEmail.trim().toLowerCase()):undefined);
   const enquiryDetails=getProjectEnquiryDetails(project,contactLead);
+  const operatingOrganization=project.operatingCompany||linkedLead?.operatingCompany;
   const acceptedProposal=[...(linkedLead?.proposals??[])].filter(item=>item.status==="ACCEPTED").sort((a,b)=>b.version-a.version)[0];
   const sowUrl=linkedLead?.acceptanceDocumentDataUrl||project.signedContractDataUrl;
   const sowName=linkedLead?.acceptanceDocumentName||project.signedContractName;
@@ -366,6 +350,7 @@ export default function ProjectWorkspacePage() {
 
     <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{project.status === "COMPLETED" ? "Completed" : "Active"}</strong></div><div><small>OPEN WORK ITEMS</small><strong><Link href="/work" style={{ textDecoration: "none", color: "inherit" }}>{workItems.filter((task) => task.status !== "DONE").length} · In Tasks</Link></strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim() && !DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim())).length}</strong></div></section>
 
+    {role==="employee"&&<div className="project-dispatch-row"><button type="button" className="button button-primary" onClick={()=>setShowDispatch(true)}><Plus size={14}/>Create task</button></div>}
     {(role === "admin" || role === "project_manager") && <div className="project-dispatch-row"><button type="button" className="button button-primary room-dispatch-button" onClick={() => setShowDispatch(true)}><Plus size={14} />Dispatch task</button><ProjectLogoUpload compact value={project.logoDataUrl} onChange={logoDataUrl => save({logoDataUrl})} /></div>}
 
     <nav className="project-room-tabs" aria-label="Project room sections">
@@ -381,7 +366,7 @@ export default function ProjectWorkspacePage() {
               {project.title?.trim()&&<div className="project-scope-copy"><small>Project name</small><strong>{project.title}</strong></div>}
               {project.projectType!=="internal"&&getProjectClientLabel(project)&&<div className="project-scope-copy"><small>Clients</small><strong>{getProjectClientLabel(project)}</strong></div>}
               <div><small>Project type</small><strong>{project.projectType === "internal" ? "Internal" : "External"}</strong></div>
-              {project.projectType !== "internal" && project.operatingCompany && <div><small>Operating organization</small><strong data-company={project.operatingCompany}>{project.operatingCompany}</strong></div>}
+              {project.projectType !== "internal" && operatingOrganization && <div><small>Operating organization</small><strong data-company={operatingOrganization}>{operatingOrganization}</strong></div>}
               {project.projectType !== "internal" && <>
                 {services&&<div className="project-scope-copy"><small>Services required</small><p>{services}</p></div>}
                 {enquiryDetails.industry?.trim()&&<div><small>Industry</small><strong>{enquiryDetails.industry}</strong></div>}
@@ -413,8 +398,10 @@ export default function ProjectWorkspacePage() {
                   <div className="project-task-summary-item" key={task.id}>
                     <div>
                       <strong title={task.title}>{task.title}</strong>
-                      <small>{task.assignee || "Unassigned"} · {task.status.replaceAll("_", " ")}</small>
+                      <TaskDeadline deadline={task.deadline}/>
+                      <small>{getTaskAssigneeLabel(task) || "Unassigned"} · {task.status.replaceAll("_", " ")}</small>
                     </div>
+                    {(role==="admin"||role==="project_manager")&&<button className="button button-quiet button-micro" type="button" onClick={()=>setEditingTask(task)}>Edit task</button>}
                     <span className={`work-priority priority-${task.priority.toLowerCase()}`}>{task.priority}</span>
                   </div>
                 ))}
@@ -473,11 +460,11 @@ export default function ProjectWorkspacePage() {
         {name:"urgency",label:"Urgency",value:enquiryDetails.urgency||"Standard",options:["Standard","Rush"]},
         {name:"source",label:"Enquiry source",value:enquiryDetails.source},
         {name:"acquisitionSource",label:"Acquisition source",value:enquiryDetails.acquisitionSource},
-        {name:"operatingCompany",label:"Operating organization",value:project.operatingCompany||"Evecture",options:["Evecture","Servn"]},
+        ...(operatingOrganization?[]:[{name:"operatingCompany",label:"Operating organization",value:"",required:true,options:["","Evecture","Servn"]}]),
         {name:"classification",label:"Classification",value:project.classification,options:["New Client","Repeat Client","Referral"]},
         {name:"billingStructure",label:"Billing structure",value:project.billingStructure,options:["Fixed","Hourly","Retainer"]},
         {name:"contractedValue",label:"Contract value",value:project.contractedValue,type:"number" as const,min:0,required:true},
-        {name:"currency",label:"Currency",value:project.currency,required:true},
+        {name:"currency",label:"Currency",value:project.currency,required:true,options:[...new Set([...SUPPORTED_CURRENCIES,project.currency].filter(Boolean))]},
         {name:"revisionRounds",label:"Revision rounds",value:project.revisionRounds,type:"number" as const,min:0},
       ]:[]),
     ]} onSave={async values=>{
@@ -488,7 +475,7 @@ export default function ProjectWorkspacePage() {
         const currency=values.currency.toUpperCase();
         if(!/^[A-Z]{3}$/.test(currency))throw new Error("Enter a three-letter currency code.");
         if(!Number.isInteger(Number(values.revisionRounds))||Number(values.revisionRounds)<0)throw new Error("Revision rounds must be a whole number.");
-        Object.assign(updates,{enquiryDetails:{...enquiryDetails,projectName:values.title,projectNameOverride:values.title!==project.title?true:enquiryDetails.projectNameOverride,phone:values.phone,designation:values.designation,companyWebsite:values.companyWebsite,country:values.country,timezone:values.timezone,industry:values.industry,description:values.enquiryDescription,referenceLinks:values.referenceLinks,budgetRange:values.budgetRange,budgetShared:values.budgetShared==="Yes",budgetNote:values.budgetNote,urgency:values.urgency as Lead["urgency"],source:values.source,acquisitionSource:values.acquisitionSource},operatingCompany:values.operatingCompany,clientCompany:values.clientCompany,clientName:values.clientName,clientEmail:values.clientEmail,classification:values.classification,billingStructure:values.billingStructure,contractedValue:Number(values.contractedValue),currency,revisionRounds:Number(values.revisionRounds)});
+        Object.assign(updates,{enquiryDetails:{...enquiryDetails,projectName:values.title,projectNameOverride:values.title!==project.title?true:enquiryDetails.projectNameOverride,phone:values.phone,designation:values.designation,companyWebsite:values.companyWebsite,country:values.country,timezone:values.timezone,industry:values.industry,description:values.enquiryDescription,referenceLinks:values.referenceLinks,budgetRange:values.budgetRange,budgetShared:values.budgetShared==="Yes",budgetNote:values.budgetNote,urgency:values.urgency as Lead["urgency"],source:values.source,acquisitionSource:values.acquisitionSource},operatingCompany:operatingOrganization||values.operatingCompany,clientCompany:values.clientCompany,clientName:values.clientName,clientEmail:values.clientEmail,classification:values.classification,billingStructure:values.billingStructure,contractedValue:Number(values.contractedValue),currency,revisionRounds:Number(values.revisionRounds)});
       }
       updateProject(project.id,updates);
       if(updates.title!==project.title){
@@ -497,8 +484,10 @@ export default function ProjectWorkspacePage() {
       }
       await flushWorkspaceChanges();showToast({message:"Project details saved."});
     }}/>}
+    {role==="employee"&&showDispatch&&<AssignTaskDialog projects={[project]} onClose={()=>setShowDispatch(false)}/>}
     {(role === "admin" || role === "project_manager") && showDispatch && <TaskDispatchDialog project={project} onClose={() => setShowDispatch(false)} onDispatch={dispatchTask} />}
     {(role === "admin" || role === "project_manager") && showManagedPlan && <ManagedPlanDrawer projects={[project]} initialProjectId={project.id} onClose={() => setShowManagedPlan(false)} onCreated={(item) => setManagedPlan(item)} />}
+    {(role==="admin"||role==="project_manager")&&editingTask&&<EditTaskDialog projectId={project.id} task={editingTask} onClose={()=>setEditingTask(null)}/>}
     <p className="storage-note">Changes are saved to your workspace database.</p>
   </div>;
 }

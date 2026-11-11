@@ -189,7 +189,8 @@ test('unified proposal form autofills the selected lead and resets to manual det
  await expect(dialog.getByLabel('Contact name',{exact:true})).toHaveValue('Sam Taylor');
  await expect(dialog.getByLabel('Contact email',{exact:true})).toHaveValue('sam@example.com');
  await expect(dialog.getByLabel('Organization',{exact:true})).toHaveValue('Northstar Studio');
- await expect(dialog.getByLabel('Operating organization',{exact:true})).toHaveValue('Evecture');
+ await expect(dialog.locator('.operating-organization-value')).toHaveText('Evecture');
+ await expect(dialog.getByRole('combobox',{name:'Operating organization',exact:true})).toHaveCount(0);
  await expect(dialog.getByLabel('Scope of work')).toHaveValue('A clearer home for the next chapter of our business.');
  await expect(dialog.getByLabel('Deliverables')).toHaveValue('Website\nUI/UX');
  await expect(dialog.getByLabel('Proposal amount')).toHaveValue('');

@@ -1,4 +1,5 @@
 "use client";
+import {OperatingOrganizationField} from "@/app/_components/operating-organization-field";
 import {EditDetailsDialog} from "@/app/_components/edit-details-dialog";
 import {canEditRecordDetails,parseServiceDetails} from "@/lib/record-editing";
 import {showToast} from "@/app/_components/toast-hub";
@@ -14,7 +15,6 @@ import { addProject, projectFromLead, type Project, type ProjectClassification, 
 import { StatusBadge } from "@/app/_components/status-badge";
 import { useAssignableUsers } from "@/lib/assignees";
 import { CalendarPicker } from "@/app/_components/calendar-picker";
-import { operatingCompanies, type OperatingCompany } from "@/lib/companies";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
 export default function LeadWorkspacePage() {
@@ -60,6 +60,8 @@ export default function LeadWorkspacePage() {
     }
     const proposalForProject = [...(lead.proposals ?? [])].sort((a, b) => b.version - a.version).find((proposal) => proposal.status === "ACCEPTED")
       ?? [...(lead.proposals ?? [])].sort((a, b) => b.version - a.version)[0];
+    const projectName=lead.projectName?.trim()||proposalForProject?.projectTitle?.trim();
+    if(!projectName){setError("Add a project name in Edit lead details before moving this enquiry to Projects.");return;}
     const data = new FormData(event.currentTarget);
     const manager = assignableUsers.find(person => person.id === String(data.get("projectManager")) && person.role === "project_manager");
     if (data.get("projectManager") && !manager) { setError("Select a user with the Project Manager role."); return; }
@@ -72,7 +74,7 @@ export default function LeadWorkspacePage() {
         contractedValue: Number(data.get("contractedValue")),
         currency: String(data.get("currency") || "USD"),
         billingStructure: String(data.get("billingStructure") || "Fixed") as Project["billingStructure"],
-        title: String(data.get("projectTitle") || "").trim(),
+        title: projectName,
         classification: String(data.get("classification") || "New Client") as ProjectClassification,
         operatingCompany: lead.operatingCompany,
         startDate: String(data.get("startDate") || ""),
@@ -98,7 +100,6 @@ export default function LeadWorkspacePage() {
     <section className="panel record-section"><div className="record-section-heading"><div><h2>Enquiry details</h2><p>{lead.services.join(" · ") || "Project enquiry"}</p></div></div><div className="enquiry-summary-grid"><div><small>Organization</small><p>{lead.companyName || "Individual enquiry"}</p></div><div><small>Industry</small><p>{lead.industry || "Not recorded"}</p></div><div><small>Urgency</small><p>{lead.urgency || "Not recorded"}</p></div><div><small>Country</small><p>{lead.country || "Not recorded"}</p></div></div><p className="lead-description">{lead.description || "No enquiry description recorded."}</p>{lead.referenceLinks && <p><a href={lead.referenceLinks.startsWith("http") ? lead.referenceLinks : `https://${lead.referenceLinks}`} target="_blank" rel="noreferrer">Reference link</a></p>}</section>
   </div>;
   const workflowOpen = lead.status !== "LOST";
-  const companySelectionLocked = Boolean(lead.operatingCompany && (lead.projectId || lead.invoice || (lead.proposals ?? []).some((proposal) => ["SENT", "ACCEPTED", "SUPERSEDED"].includes(proposal.status))));
 
   return <div className="page-content lead-workspace-page">
     <Link className="back-link" href="/requests"><ArrowLeft size={15} />Leads</Link>
@@ -128,8 +129,8 @@ export default function LeadWorkspacePage() {
     }}/>}
 
     {workflowOpen && <section className={`panel record-section operating-company-step ${lead.operatingCompany ? "is-selected" : "needs-selection"}`} id="workflow-company">
-      <div className="record-section-heading"><div><span className="section-icon"><ShieldCheck size={17} /></span><div><h2>Choose operating organization</h2><p>Choose the studio responsible for this lead and its project.</p></div></div><span className="workflow-state">{companySelectionLocked ? "Organization confirmed" : lead.operatingCompany ? "Selected" : "Required before project setup"}</span></div>
-      <label className="field required">Operating organization<select aria-label="Choose the operating organization for this lead" required disabled={companySelectionLocked} value={lead.operatingCompany ?? ""} onChange={(event) => { const value = event.target.value; if (operatingCompanies.some((company) => company === value)) saveLead({ operatingCompany: value as OperatingCompany }); }}><option value="" disabled>Select Evecture or Servn</option>{operatingCompanies.map((company) => <option key={company} value={company}>{company}</option>)}</select>{companySelectionLocked && <small>The organization is fixed once a proposal is sent, an invoice is created, or the lead becomes a project.</small>}</label>
+      <div className="record-section-heading"><div><span className="section-icon"><ShieldCheck size={17} /></span><div><h2>{lead.operatingCompany?"Operating organization":"Choose operating organization"}</h2><p>The studio responsible for this lead and its project.</p></div></div><span className="workflow-state">{lead.operatingCompany ? "Organization confirmed" : "Required before project setup"}</span></div>
+      <OperatingOrganizationField value={lead.operatingCompany} selectLabel="Choose the operating organization for this lead" required onChange={organization=>saveLead({operatingCompany:organization})}/>
     </section>}
 
 
@@ -138,7 +139,7 @@ export default function LeadWorkspacePage() {
     {(["NEW", "PROPOSAL_SENT", "ACCEPTED"].includes(lead.status)) && !lead.projectId && <section className="panel record-section project-create-section"><div className="record-section-heading"><div><span className="section-icon"><Check size={17} /></span><div><h2>Move to Projects</h2><p>{lead.status === "ACCEPTED" ? "Set the project owner and setup details to create its workspace." : "Create a project workspace. Proposals can be managed separately on the Proposals page."} Deposit and SOW tracking can be completed separately.</p></div></div></div>
       <div className="commercial-proof"><span className={lead.acceptanceDocumentDataUrl ? "" : "commercial-proof-pending"}>{lead.acceptanceDocumentDataUrl ? <Check size={13} /> : <Clock3 size={13} />}Signed SOW · {lead.acceptanceDocumentDataUrl ? lead.acceptanceDocumentName : "not attached"}</span><span className={lead.invoice?.status === "CONFIRMED_PAID" ? "" : "commercial-proof-pending"}>{lead.invoice?.status === "CONFIRMED_PAID" ? <Check size={13} /> : <Clock3 size={13} />}Deposit · {lead.invoice ? lead.invoice.status.replaceAll("_", " ") : "not recorded"}</span></div>
       <form className="project-create-form" onSubmit={createProjectFromLead}>
-        <div className="proposal-fields-grid"><label className="field required">Project name<input name="projectTitle" required key={`${lead.id}:${lead.projectName||""}`} defaultValue={lead.projectName || ""} placeholder="Enter a project name" /></label><label className="field required">Project classification<select name="classification" required defaultValue={lead.acquisitionSource === "Referral" ? "Referral" : lead.acquisitionSource === "Repeat client" ? "Repeat Client" : "New Client"}><option>New Client</option><option>Repeat Client</option><option>Referral</option></select></label><label className="field required">Project start date<CalendarPicker name="startDate" required /></label></div>
+        <div className="proposal-fields-grid"><label className="field required">Project classification<select name="classification" required defaultValue={lead.acquisitionSource === "Referral" ? "Referral" : lead.acquisitionSource === "Repeat client" ? "Repeat Client" : "New Client"}><option>New Client</option><option>Repeat Client</option><option>Referral</option></select></label><label className="field required">Project start date<CalendarPicker name="startDate" required /></label></div>
         {!projectProposal && <div className="proposal-fields-grid"><label className="field">Contract amount (optional)<input name="contractedValue" type="number" min="0" step="0.01" placeholder="0.00" /></label><label className="field">Currency<select name="currency" defaultValue="USD">{["USD","INR","EUR","GBP","AED","AUD","CAD"].map(currency=><option key={currency}>{currency}</option>)}</select></label><label className="field">Billing structure<select name="billingStructure" defaultValue="Fixed"><option>Fixed</option><option>Hourly</option><option>Retainer</option></select></label></div>}
         <label className="field">Project manager (optional)
           <select name="projectManager" defaultValue="">

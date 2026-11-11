@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, BriefcaseBusiness, Check, Clock3, Inbox, ListTodo, Plus, ReceiptText } from "lucide-react";
 import { type Lead, readLeads } from "@/lib/leads";
-import { type Project, readProjects, getProjectDisplayTitle, getProjectDisplayServices, getProjectClientLabel, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
+import { type Project, readProjects, getTaskAssigneeLabel, getProjectDisplayTitle, getProjectDisplayServices, getProjectClientLabel, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
 import { readInvoices, type StoredInvoice } from "@/lib/invoices";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
@@ -184,7 +184,7 @@ export default function OverviewPage() {
                 </span>
                 <span className="overview-task-copy">
                   <strong>{task.title}</strong>
-                  <small>{getProjectDisplayTitle(project)}{getProjectDisplayServices(project) ? ` - ${getProjectDisplayServices(project)}` : ""} · {task.assignee || "Unassigned"}</small>
+                  <small>{getProjectDisplayTitle(project)}{getProjectDisplayServices(project) ? ` - ${getProjectDisplayServices(project)}` : ""} · {getTaskAssigneeLabel(task) || "Unassigned"}</small>
                 </span>
                 <StatusBadge status={task.status === "IN_PROGRESS" ? "IN_PROGRESS" : "TO_DO"}>
                   {task.status === "IN_PROGRESS" ? "In progress" : "To do"}

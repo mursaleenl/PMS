@@ -318,3 +318,13 @@ for(const action of ['check_in','check_out'])test(`an invalid ${action} choice n
  await expect(page.locator('.attendance-scan [role=alert]')).toContainText(action==='check_in'?'already checked in':'not checked in');
  expect(scans).toHaveLength(0);
 });
+
+test('attendance departure supports time subpanels and rejects future times',async({page})=>{
+ await attendanceMocks(page,{role:'admin',open:{...visit,work_date:'2026-01-01',checked_in_at:'2026-01-01T04:00:00Z'}});
+ await page.goto('/work/attendance');await page.getByRole('button',{name:'Correct departure',exact:true}).click();
+ const departure=page.getByLabel('Departure (device local time)',{exact:true});await departure.fill('2026-01-01T17:30');await departure.press('ArrowDown');
+ const calendar=page.getByRole('dialog',{name:'Choose a date',exact:true});await calendar.getByRole('button',{name:/Choose time/}).click();
+ await calendar.getByRole('button',{name:'Hour 18',exact:true}).click();await calendar.getByRole('button',{name:'Minute 45',exact:true}).click();
+ await expect(departure).toHaveValue('2026-01-01T18:45');await calendar.getByRole('button',{name:'Done',exact:true}).click();
+ await departure.fill('2099-01-01T12:00');expect(await departure.evaluate(input=>input.checkValidity())).toBe(false);
+});

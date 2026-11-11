@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { ClientProjectDrawer } from "@/app/_components/client-project-drawer";
 import { InternalProjectDrawer } from "@/app/_components/internal-project-drawer";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Check, ListTodo, FolderKanban, Handshake, Plus, Receipt, Trash2, User, X } from "lucide-react";
+import { ArrowRight, Check, ListTodo, FolderKanban, Handshake, Plus, Receipt, User, X } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
-import { deleteProject, readProjects, type Project, updateProject, getProjectDisplayTitle, getProjectDisplayServices, getProjectClientLabel, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
+import { readProjects, type Project, updateProject, getProjectDisplayTitle, getProjectDisplayServices, getProjectClientLabel, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, type ManagedProject } from "@/lib/post-sale";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
@@ -69,12 +69,6 @@ export default function ProjectsPage() {
     showToast({ message: `"${getProjectDisplayTitle(project)}" moved to active projects.` });
   }
 
-  function removeProject(project: Project) {
-    if ((role !== "admin" && role !== "project_manager")) return;
-    if (!window.confirm(`Delete “${getProjectDisplayTitle(project)}”? This will permanently remove its workspace and tasks.`)) return;
-    deleteProject(project.id);
-    setProjects(readProjects());
-  }
 
   return <div className="page-content projects-page">
     <section className="welcome-row">
@@ -171,11 +165,7 @@ export default function ProjectsPage() {
               <Handshake size={13} />Move to retainer
             </button>
           ) : null}
-          {(role === "admin" || role === "project_manager") && (
-            <button className="button button-quiet portfolio-lifecycle-button portfolio-delete-icon-button" type="button" title="Delete project" aria-label={`Delete ${getProjectDisplayTitle(project)}`} onClick={() => removeProject(project)}>
-              <Trash2 size={15} aria-hidden="true" />Delete
-            </button>
-          )}
+
         </div>
       </article>;
     })}</section>}

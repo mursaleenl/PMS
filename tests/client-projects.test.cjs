@@ -30,9 +30,11 @@ test('multiple independent projects persist under the same client and appear in 
   const input={client:{name:'Client',companyName:'Client Co',email:'client@example.com',contactDetails:{phone:'+91 1234567890',country:'India'}},description:'Independent scope',services:['Website'],startDate:'2026-11-11',operatingCompany:'Evecture',billingStructure:'Fixed',currency:'USD',team:[]};
   const first=await createClientProject({...input,title:'Website',contractedValue:1000});
   const second=await createClientProject({...input,title:'Mobile app',contractedValue:5000});
+  first.workItems=[{id:'TASK-DESCRIPTION',title:'Build website',description:'Implement booking.\nInclude confirmation.',kind:'FEATURE_DEV',assignee:'Admin',assigneeId:admin,priority:'P3',estimatedHours:0,loggedHours:0,createdAt:'2026-11-11T00:00:00Z',status:'TO_DO'}];
   const changes=[first,second].map(row=>({collection:'projects',id:row.id,expectedRevision:null,operation:'save',data:serializeRecord('projects',row)}));
   await db.query('select save_workspace_changes($1::jsonb)',[JSON.stringify(changes)]);
   const rows=(await db.query('select client_id,proposal_id,title,contracted_value,enquiry_details from projects order by external_id')).rows;
+  assert.equal((await db.query("select description from project_work_items where external_id='TASK-DESCRIPTION'")).rows[0].description,'Implement booking.\nInclude confirmation.');
   assert.equal(rows.length,2);assert.ok(rows[0].client_id);assert.equal(rows[0].client_id,rows[1].client_id);
   assert.equal(rows[0].enquiry_details.phone,'+91 1234567890');assert.equal(rows[1].enquiry_details.country,'India');
   second.enquiryDetails={...second.enquiryDetails,phone:'+91 9999999999',description:'Updated goals',budgetNote:'Confirmed'};

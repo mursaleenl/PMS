@@ -1,4 +1,5 @@
 "use client";
+import {OperatingOrganizationField} from "@/app/_components/operating-organization-field";
 
 import { useRef, useState, type FormEvent } from "react";
 import {sendProposalToClient} from "@/lib/proposal-delivery";
@@ -120,7 +121,7 @@ export function ProposalGenerator({ lead: sourceLead, forceCompose = false }: { 
           <label className="field required">Contact name<input name="contactName" required defaultValue={lead?.fullName || ""} placeholder="Contact full name" /></label>
           <label className="field required">Contact email<input name="contactEmail" type="email" required defaultValue={lead?.email || ""} placeholder="contact@example.com" /></label>
           <label className="field">Organization<input name="companyName" defaultValue={lead?.companyName || ""} placeholder="Organization name" /></label>
-          <label className="field required">Operating organization<select name="operatingCompany" aria-label="Operating organization" required disabled={!!lead?.operatingCompany} defaultValue={lead?.operatingCompany || ""}><option value="" disabled>Select an operating organization</option>{operatingCompanies.map(company=><option key={company}>{company}</option>)}</select></label>
+          <OperatingOrganizationField value={lead?.operatingCompany} name="operatingCompany" required/>
         </div>
         <label className="field required">Proposal title<input name="proposalTitle" required defaultValue={latest?.proposalTitle || (lead ? `Proposal for ${lead.projectName || lead.companyName || lead.fullName}` : "")} /></label>
         <label className="field">Executive summary<textarea name="executiveSummary" rows={3} defaultValue={latest?.executiveSummary || lead?.description || ""} placeholder="Summarize the client’s goals and your proposed solution" /></label>

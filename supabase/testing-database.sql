@@ -381,6 +381,17 @@ alter table public.projects add constraint internal_projects_no_sales check (
     and contracted_value=0 and deposit_amount is null and deposit_status is null
     and signed_contract_name is null and signed_contract_data_url is null and status <> 'AMC')
 );
+alter table public.project_work_items add column if not exists assignees jsonb not null default '[]'::jsonb;
+create or replace function public.is_task_assignee(p_task_id uuid)
+returns boolean language sql stable security definer set search_path=public
+as $$ select exists(select 1 from public.project_work_items w where w.id=p_task_id and (
+  w.assignee_user_id=auth.uid() or exists(select 1 from jsonb_array_elements(w.assignees) person where person->>'userId'=auth.uid()::text)
+)); $$;
+revoke all on function public.is_task_assignee(uuid) from public,anon;
+grant execute on function public.is_task_assignee(uuid) to authenticated;
+alter table public.project_work_items add column if not exists description text;
+alter table public.project_work_items drop constraint if exists project_work_items_description_check;
+alter table public.project_work_items add constraint project_work_items_description_check check (description is null or char_length(description)<=5000);
 alter table public.project_work_items add column if not exists external_id text;
 create unique index if not exists project_work_items_external_id_idx
   on public.project_work_items(project_id, external_id)
@@ -731,10 +742,10 @@ begin
     if old_item is null then return false; end if;
     for field_name in select jsonb_object_keys(item) loop
       mutable_field := field_name in ('status','logged_hours','blocker_reason','proof','review_notes','revision_requested','timer_started_at');
-      if mutable_field and (select assignee_user_id from public.project_work_items where id=row_id) = auth.uid() then
+      if mutable_field and public.is_task_assignee(row_id) then
         continue;
       end if;
-      if field_name='created_at' then
+      if field_name in ('created_at','deadline') then
         if (item->>field_name)::timestamptz is distinct from (old_item->>field_name)::timestamptz then return false; end if;
       elsif field_name='assignee_name' then
         if nullif(item->>field_name,'') is distinct from nullif(old_item->>field_name,'') then return false; end if;
@@ -780,7 +791,7 @@ begin
       if collection_name<>'projects' or change->>'operation'<>'save' or root_id is null
         or not exists(select 1 from public.projects p where p.id=root_id and (
           exists(select 1 from public.project_team_members t where t.project_id=p.id and t.user_id=auth.uid())
-          or exists(select 1 from public.project_work_items w where w.project_id=p.id and w.assignee_user_id=auth.uid())
+          or exists(select 1 from public.project_work_items w where w.project_id=p.id and public.is_task_assignee(w.id))
         )) or not public.employee_project_task_update_allowed(root_id,change->'data') then
         raise exception 'Employees can update only their own assigned task progress.';
       end if;
@@ -970,7 +981,7 @@ as $$
   select public.is_workspace_admin() or exists(
     select 1 from public.project_team_members t where t.project_id=p_project_id and t.user_id=auth.uid()
   ) or exists(
-    select 1 from public.project_work_items w where w.project_id=p_project_id and w.assignee_user_id=auth.uid()
+    select 1 from public.project_work_items w where w.project_id=p_project_id and public.is_task_assignee(w.id)
   );
 $$;
 revoke all on function public.employee_can_access_project(uuid) from public,anon;
@@ -1368,9 +1379,10 @@ create or replace function public.project_status_after_task_assignment()
 returns trigger language plpgsql security definer set search_path = public
 as $$
 begin
-  if (new.assignee_user_id is not null or nullif(trim(new.assignee_name),'') is not null)
+  if (new.assignee_user_id is not null or nullif(trim(new.assignee_name),'') is not null or jsonb_array_length(new.assignees)>0)
     and (tg_op='INSERT' or new.assignee_user_id is distinct from old.assignee_user_id
       or new.assignee_name is distinct from old.assignee_name
+      or new.assignees is distinct from old.assignees
       or new.project_id is distinct from old.project_id) then
     update public.projects set status='ON_TRACK' where id=new.project_id and status='ACTIVE';
   end if;
@@ -1380,7 +1392,7 @@ $$;
 revoke all on function public.project_status_after_task_assignment() from public,anon,authenticated;
 drop trigger if exists project_status_after_task_assignment on public.project_work_items;
 create trigger project_status_after_task_assignment
-  after insert or update of assignee_user_id,assignee_name,project_id on public.project_work_items
+  after insert or update of assignee_user_id,assignee_name,assignees,project_id on public.project_work_items
   for each row execute function public.project_status_after_task_assignment();
 
 -- Bring existing active projects with assigned work into the same state.
@@ -1439,11 +1451,15 @@ begin
     insert into public.workspace_notifications(recipient_id,type,title,message,link)
       select distinct user_id,'LEAD','New lead',row_data->>'full_name','/requests#'||coalesce(row_data->>'external_id',row_data->>'id')
       from public.workspace_members where role='admin' and user_id is not null;
-  elsif TG_TABLE_NAME='project_work_items' and TG_OP<>'DELETE'
-    and after_row->>'assignee_user_id' is not null
-    and (TG_OP='INSERT' or before_row->>'assignee_user_id' is distinct from after_row->>'assignee_user_id') then
+  elsif TG_TABLE_NAME='project_work_items' and TG_OP<>'DELETE' then
     insert into public.workspace_notifications(recipient_id,type,title,message,link)
-      values((after_row->>'assignee_user_id')::uuid,'TASK','Task assigned to you',after_row->>'title','/work');
+      select recipients.user_id,'TASK','Task assigned to you',after_row->>'title','/work'
+      from (select nullif(after_row->>'assignee_user_id','')::uuid user_id
+        union select (person->>'userId')::uuid from jsonb_array_elements(coalesce(after_row->'assignees','[]'::jsonb)) person) recipients
+      where recipients.user_id is not null and (TG_OP='INSERT' or not exists(
+        select 1 from (select nullif(before_row->>'assignee_user_id','')::uuid user_id
+          union select (person->>'userId')::uuid from jsonb_array_elements(coalesce(before_row->'assignees','[]'::jsonb)) person) previous
+        where previous.user_id=recipients.user_id));
   elsif TG_TABLE_NAME='projects' and TG_OP='UPDATE' and before_row->>'status' is distinct from after_row->>'status' then
     insert into public.workspace_notifications(recipient_id,type,title,message,link)
       select recipients.user_id,'PROJECT','Project status changed',new.title||': '||new.status,
@@ -1451,6 +1467,7 @@ begin
       from (
         select user_id from public.project_team_members where project_id=new.id
         union select assignee_user_id from public.project_work_items where project_id=new.id
+        union select (person->>'userId')::uuid from public.project_work_items w cross join lateral jsonb_array_elements(w.assignees) person where w.project_id=new.id
         union select client_user_id from public.clients where id=new.client_id
       ) recipients where recipients.user_id is not null;
   end if;
@@ -1787,5 +1804,204 @@ with recovered as (
 )
 update public.managed_projects m set project_title=r.title,revision=m.revision+1
 from recovered r where m.source_project_id=r.id and m.project_title is distinct from r.title;
+
+-- ===== Section: task-descriptions =====
+alter table public.project_work_items add column if not exists description text;
+alter table public.project_work_items drop constraint if exists project_work_items_description_check;
+alter table public.project_work_items add constraint project_work_items_description_check check (description is null or char_length(description)<=5000);
+
+-- ===== Section: multiple-task-assignees =====
+alter table public.project_work_items add column if not exists assignees jsonb not null default '[]'::jsonb;
+alter table public.project_work_items drop constraint if exists project_work_items_assignees_check;
+alter table public.project_work_items add constraint project_work_items_assignees_check check (jsonb_typeof(assignees)='array' and jsonb_array_length(assignees)<=100);
+create or replace function public.is_task_assignee(p_task_id uuid)
+returns boolean language sql stable security definer set search_path=public
+as $$ select exists(select 1 from public.project_work_items w where w.id=p_task_id and (
+  w.assignee_user_id=auth.uid() or exists(select 1 from jsonb_array_elements(w.assignees) person where person->>'userId'=auth.uid()::text)
+)); $$;
+revoke all on function public.is_task_assignee(uuid) from public,anon;
+grant execute on function public.is_task_assignee(uuid) to authenticated;
+
+create or replace function public.validate_task_assignees()
+returns trigger language plpgsql security definer set search_path=public
+as $$ declare person jsonb; target uuid;
+begin
+  if TG_OP='UPDATE' and new.assignees is not distinct from old.assignees and new.assignee_user_id is not distinct from old.assignee_user_id then return new; end if;
+  if new.assignees='[]'::jsonb then return new; end if;
+  if not coalesce(public.can_manage_workspace(),false) then raise exception 'Only administrators and project managers can change task assignees' using errcode='42501'; end if;
+  if jsonb_typeof(new.assignees)<>'array' then raise exception 'Task assignees must be a list'; end if;
+  for person in select value from jsonb_array_elements(new.assignees) loop
+    target=nullif(person->>'userId','')::uuid;
+    if target is null or nullif(trim(person->>'name'),'') is null or not exists(select 1 from public.workspace_members m where m.user_id=target and m.role in ('admin','employee','project_manager')) then raise exception 'Select assignees from the workspace directory'; end if;
+  end loop;
+  if (select count(distinct entry.value->>'userId') from jsonb_array_elements(new.assignees) as entry(value))<>jsonb_array_length(new.assignees) then raise exception 'Task assignees must be unique'; end if;
+  if new.assignee_user_id is distinct from (new.assignees->0->>'userId')::uuid then raise exception 'The primary task assignee must match the first selected assignee'; end if;
+  return new;
+end $$;
+revoke all on function public.validate_task_assignees() from public,anon,authenticated;
+drop trigger if exists validate_task_assignees on public.project_work_items;
+create trigger validate_task_assignees after insert or update of assignees,assignee_user_id on public.project_work_items for each row execute function public.validate_task_assignees();
+
+-- Upgrade installed progress and project-access checks without changing other permissions.
+do $$ declare signature text; definition text; upgraded text;
+begin
+  foreach signature in array array['public.employee_project_task_update_allowed(uuid,jsonb)','public.employee_can_access_project(uuid)','public.save_workspace_changes(jsonb,uuid)'] loop
+    definition=pg_get_functiondef(signature::regprocedure);
+    upgraded=replace(replace(definition,'(select assignee_user_id from public.project_work_items where id=row_id) = auth.uid()','public.is_task_assignee(row_id)'),'w.assignee_user_id=auth.uid()','public.is_task_assignee(w.id)');
+    if upgraded<>definition then execute upgraded; end if;
+  end loop;
+end $$;
+create or replace function public.project_status_after_task_assignment()
+returns trigger language plpgsql security definer set search_path = public
+as $$
+begin
+  if (new.assignee_user_id is not null or nullif(trim(new.assignee_name),'') is not null or jsonb_array_length(new.assignees)>0)
+    and (tg_op='INSERT' or new.assignee_user_id is distinct from old.assignee_user_id
+      or new.assignee_name is distinct from old.assignee_name
+      or new.assignees is distinct from old.assignees
+      or new.project_id is distinct from old.project_id) then
+    update public.projects set status='ON_TRACK' where id=new.project_id and status='ACTIVE';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists project_status_after_task_assignment on public.project_work_items;
+create trigger project_status_after_task_assignment after insert or update of assignee_user_id,assignee_name,assignees,project_id on public.project_work_items for each row execute function public.project_status_after_task_assignment();
+create or replace function public.record_workspace_activity() returns trigger
+language plpgsql security definer set search_path=public as $$
+declare before_row jsonb; after_row jsonb; row_data jsonb; changed text[]; project_row public.projects;
+begin
+  if TG_OP <> 'INSERT' then before_row=to_jsonb(old); end if;
+  if TG_OP <> 'DELETE' then after_row=to_jsonb(new); end if;
+  if TG_OP='UPDATE' and (before_row - 'updated_at' - 'revision')=(after_row - 'updated_at' - 'revision') then return new; end if;
+  row_data=coalesce(after_row,before_row);
+  select array_agg(key order by key) into changed from jsonb_object_keys(row_data) key
+    where key not in ('updated_at','revision') and before_row->key is distinct from after_row->key;
+  insert into public.audit_events(actor_user_id,entity_type,entity_id,action,metadata)
+    values(auth.uid(),TG_TABLE_NAME,(row_data->>'id')::uuid,TG_OP,jsonb_build_object(
+      'label',coalesce(row_data->>'title',row_data->>'full_name',row_data->>'display_name',row_data->>'email',row_data->>'id'),
+      'fields',changed,'previous_status',before_row->>'status','status',after_row->>'status',
+      'previous_role',before_row->>'role','role',after_row->>'role'));
+  if TG_TABLE_NAME='leads' and TG_OP='INSERT' then
+    insert into public.workspace_notifications(recipient_id,type,title,message,link)
+      select distinct user_id,'LEAD','New lead',row_data->>'full_name','/requests#'||coalesce(row_data->>'external_id',row_data->>'id')
+      from public.workspace_members where role='admin' and user_id is not null;
+  elsif TG_TABLE_NAME='project_work_items' and TG_OP<>'DELETE' then
+    insert into public.workspace_notifications(recipient_id,type,title,message,link)
+      select recipients.user_id,'TASK','Task assigned to you',after_row->>'title','/work'
+      from (select nullif(after_row->>'assignee_user_id','')::uuid user_id
+        union select (person->>'userId')::uuid from jsonb_array_elements(coalesce(after_row->'assignees','[]'::jsonb)) person) recipients
+      where recipients.user_id is not null and (TG_OP='INSERT' or not exists(
+        select 1 from (select nullif(before_row->>'assignee_user_id','')::uuid user_id
+          union select (person->>'userId')::uuid from jsonb_array_elements(coalesce(before_row->'assignees','[]'::jsonb)) person) previous
+        where previous.user_id=recipients.user_id));
+  elsif TG_TABLE_NAME='projects' and TG_OP='UPDATE' and before_row->>'status' is distinct from after_row->>'status' then
+    insert into public.workspace_notifications(recipient_id,type,title,message,link)
+      select recipients.user_id,'PROJECT','Project status changed',new.title||': '||new.status,
+        case when exists(select 1 from public.workspace_members m where m.user_id=recipients.user_id and m.role='client') then '/client/projects' else '/projects/'||coalesce(new.external_id,new.id::text) end
+      from (
+        select user_id from public.project_team_members where project_id=new.id
+        union select assignee_user_id from public.project_work_items where project_id=new.id
+        union select (person->>'userId')::uuid from public.project_work_items w cross join lateral jsonb_array_elements(w.assignees) person where w.project_id=new.id
+        union select client_user_id from public.clients where id=new.client_id
+      ) recipients where recipients.user_id is not null;
+  end if;
+  if TG_OP='DELETE' then return old; end if;
+  return new;
+end $$;
+
+-- ===== Section: task-deadlines =====
+alter table public.project_work_items add column if not exists deadline timestamptz;
+-- Preserve employee progress updates when the same instant uses a different UTC notation.
+do $upgrade$
+declare definition text;
+begin
+  select pg_get_functiondef('public.employee_project_task_update_allowed(uuid,jsonb)'::regprocedure) into definition;
+  definition := replace(definition, 'if field_name=''created_at'' then', 'if field_name in (''created_at'',''deadline'') then');
+  execute definition;
+end;
+$upgrade$;
+
+-- ===== Section: employee-self-service-tasks =====
+-- Keep the existing graph guard for progress updates; validate new self-assigned tasks separately.
+do $upgrade$
+declare definition text;
+begin
+  select pg_get_functiondef('public.employee_project_task_update_allowed(uuid,jsonb)'::regprocedure) into definition;
+  if position('employee_existing_task_update_allowed' in definition)=0 then
+    execute replace(definition,'employee_project_task_update_allowed','employee_existing_task_update_allowed');
+  end if;
+end;
+$upgrade$;
+revoke all on function public.employee_existing_task_update_allowed(uuid,jsonb) from public,anon,authenticated;
+
+create or replace function public.employee_project_task_update_allowed(p_project_id uuid,p_data jsonb)
+returns boolean language plpgsql stable security definer set search_path=public
+as $$
+declare item jsonb; field_name text; existing_items jsonb='[]'::jsonb; added integer=0; checked jsonb=p_data;
+begin
+  if public.current_workspace_role()<>'employee' or not public.employee_can_access_project(p_project_id) then return false; end if;
+  if jsonb_typeof(p_data->'workItems')<>'array' then return false; end if;
+  if (select count(distinct value->>'external_id') from jsonb_array_elements(p_data->'workItems'))<>jsonb_array_length(p_data->'workItems') then return false; end if;
+  for item in select value from jsonb_array_elements(p_data->'workItems') loop
+    if exists(select 1 from public.project_work_items w where w.project_id=p_project_id and w.external_id=item->>'external_id') then
+      existing_items=existing_items||jsonb_build_array(item);
+      continue;
+    end if;
+    added=added+1;
+    for field_name in select jsonb_object_keys(item) loop
+      if field_name not in ('external_id','title','description','deadline','kind','assignee_name','assignee_user_id','assignees','priority','estimated_hours','logged_hours','status','blocker_reason','proof','review_notes','revision_requested','timer_started_at','created_at') then return false; end if;
+    end loop;
+    if nullif(trim(item->>'external_id'),'') is null or nullif(trim(item->>'title'),'') is null or length(item->>'title')>1000
+      or length(coalesce(item->>'description',''))>5000
+      or (item->>'assignee_user_id')::uuid is distinct from auth.uid()
+      or nullif(trim(item->>'assignee_name'),'') is null
+      or jsonb_typeof(item->'assignees') is distinct from 'array'
+      or jsonb_array_length(item->'assignees')<>1
+      or (item->'assignees'->0->>'userId')::uuid is distinct from auth.uid()
+      or nullif(trim(item->'assignees'->0->>'name'),'') is null
+      or (item->>'status') is distinct from 'TO_DO'
+      or (item->>'logged_hours')::numeric is distinct from 0
+      or coalesce((item->>'estimated_hours')::numeric,-1)<0
+      or nullif(item->>'blocker_reason','') is not null
+      or coalesce(item->'proof','{}'::jsonb)<>'{}'::jsonb
+      or nullif(item->>'review_notes','') is not null
+      or coalesce((item->>'revision_requested')::boolean,false)
+      or nullif(item->>'timer_started_at','') is not null
+      then return false; end if;
+  end loop;
+  checked=jsonb_set(checked,'{workItems}',existing_items);
+  -- The assignment trigger advances an active project when its first task is created.
+  if added>0 and checked->'row'->>'status'='ON_TRACK' and exists(select 1 from public.projects where id=p_project_id and status='ACTIVE') then
+    checked=jsonb_set(checked,'{row,status}','"ACTIVE"'::jsonb);
+  end if;
+  return public.employee_existing_task_update_allowed(p_project_id,checked);
+exception when others then return false;
+end;
+$$;
+revoke all on function public.employee_project_task_update_allowed(uuid,jsonb) from public,anon,authenticated;
+
+create or replace function public.validate_task_assignees()
+returns trigger language plpgsql security definer set search_path=public
+as $$ declare person jsonb; target uuid; self_create boolean=false;
+begin
+  if TG_OP='UPDATE' and new.assignees is not distinct from old.assignees and new.assignee_user_id is not distinct from old.assignee_user_id then return new; end if;
+  if new.assignees='[]'::jsonb then return new; end if;
+  self_create=TG_OP='INSERT' and public.current_workspace_role()='employee'
+    and new.assignee_user_id=auth.uid() and jsonb_array_length(new.assignees)=1
+    and new.assignees->0->>'userId'=auth.uid()::text
+    and (exists(select 1 from public.project_team_members t where t.project_id=new.project_id and t.user_id=auth.uid())
+      or exists(select 1 from public.project_work_items w where w.project_id=new.project_id and w.id<>new.id and public.is_task_assignee(w.id)));
+  if not coalesce(public.can_manage_workspace(),false) and not coalesce(self_create,false) then raise exception 'Only administrators and project managers can change task assignees' using errcode='42501'; end if;
+  if jsonb_typeof(new.assignees)<>'array' then raise exception 'Task assignees must be a list'; end if;
+  for person in select value from jsonb_array_elements(new.assignees) loop
+    target=nullif(person->>'userId','')::uuid;
+    if target is null or nullif(trim(person->>'name'),'') is null or not exists(select 1 from public.workspace_members m where m.user_id=target and m.role in ('admin','employee','project_manager')) then raise exception 'Select assignees from the workspace directory'; end if;
+  end loop;
+  if (select count(distinct entry.value->>'userId') from jsonb_array_elements(new.assignees) as entry(value))<>jsonb_array_length(new.assignees) then raise exception 'Task assignees must be unique'; end if;
+  if new.assignee_user_id is distinct from (new.assignees->0->>'userId')::uuid then raise exception 'The primary task assignee must match the first selected assignee'; end if;
+  return new;
+end $$;
+revoke all on function public.validate_task_assignees() from public,anon,authenticated;
 
 commit;

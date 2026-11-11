@@ -17,12 +17,16 @@ export type ProjectTeamMember = {
   allocationPercent: number;
 };
 
+export type TaskAssignee = {name:string;userId?:string};
 export type ProjectWorkItem = {
   id: string;
   title: string;
+  description?: string;
+  deadline?: string;
   kind: "FEATURE_DEV" | "CLIENT_FEEDBACK_TODO" | "QA_BUG";
   assignee: string;
   assigneeId?: string;
+  assignees?: TaskAssignee[];
   priority: "P1" | "P2" | "P3" | "P4";
   estimatedHours: number;
   loggedHours: number;
@@ -110,19 +114,27 @@ export type Project = {
   status: "ACTIVE" | "ON_TRACK" | "COMPLETED" | "AMC";
 };
 
+export function getTaskAssignees(task:Pick<ProjectWorkItem,"assignee"|"assigneeId"|"assignees">):TaskAssignee[]{
+  const result:TaskAssignee[]=[];
+  for(const person of [...(task.assignee?[{name:task.assignee,userId:task.assigneeId}]:[]),...(task.assignees??[])]){
+    if(!person.name?.trim()||person.name.toLowerCase()==="unassigned")continue;
+    if(!result.some(item=>item.userId&&person.userId?item.userId===person.userId:item.name.trim().toLowerCase()===person.name.trim().toLowerCase()))result.push(person);
+  }
+  return result;
+}
+export function getTaskAssigneeLabel(task:Pick<ProjectWorkItem,"assignee"|"assigneeId"|"assignees">):string {return getTaskAssignees(task).map(person=>person.name).join(", ");}
+
 export function isProjectAssignedToUser(project: Project, userId?: string | null, userName?: string) {
   const normalizedName = userName?.trim().toLocaleLowerCase();
   const matches = (assignedId?: string, assignedName?: string) => assignedId
     ? Boolean(userId && assignedId === userId)
     : Boolean(normalizedName && assignedName?.trim().toLocaleLowerCase() === normalizedName);
   return project.team.some((member) => matches(member.userId, member.name))
-    || (project.workItems ?? []).some((task) => matches(task.assigneeId, task.assignee));
+    || (project.workItems ?? []).some((task) => isTaskAssignedToUser(task,userId,userName));
 }
 
 export function isTaskAssignedToUser(task: ProjectWorkItem, userId?: string | null, userName?: string) {
-  if (task.assigneeId) return Boolean(userId && task.assigneeId === userId);
-  const normalizedName = userName?.trim().toLocaleLowerCase();
-  return Boolean(normalizedName && task.assignee.trim().toLocaleLowerCase() === normalizedName);
+  return getTaskAssignees(task).some(person=>person.userId?Boolean(userId&&person.userId===userId):Boolean(userName?.trim()&&person.name.trim().toLowerCase()===userName.trim().toLowerCase()));
 }
 
 /** Managers oversee every task in projects they manage; other members see their own work. */
@@ -184,10 +196,10 @@ function sameTeamMember(left: Pick<ProjectTeamMember, "userId" | "name">, right:
 
 function addTaskAssignees(team: ProjectTeamMember[], tasks: ProjectWorkItem[]): ProjectTeamMember[] {
   const members = [...team];
-  for (const task of tasks) {
-    const name = task.assignee?.trim();
+  for (const task of tasks) for(const person of getTaskAssignees(task)){
+    const name = person.name.trim();
     if (!name || name.toLowerCase() === "unassigned" || DUMMY_ASSIGNABLE_NAMES.has(name.toLowerCase())) continue;
-    const candidate: ProjectTeamMember = { role: "Supporting team member", name, userId: task.assigneeId, allocationPercent: 0 };
+    const candidate: ProjectTeamMember = { role: "Supporting team member", name, userId: person.userId, allocationPercent: 0 };
     const existing = members.findIndex(member => sameTeamMember(member, candidate));
     if (existing < 0) members.push(candidate);
     else if (!members[existing].userId && candidate.userId) members[existing] = { ...members[existing], userId: candidate.userId };
@@ -206,15 +218,15 @@ export function getProjectTeamMembers(project: Project): ProjectTeamMember[] {
   return members;
 }
 
-export function updateProject(id: string, updates: Partial<Project>) {
+export function updateProject(id: string, updates: Partial<Project>, options: {syncTaskTeam?:boolean} = {}) {
   writeProjects(readProjects().map((project) => {
     if (project.id !== id) return project;
     const assignedTasks = updates.workItems?.filter(task => {
-      if (!task.assigneeId && !task.assignee?.trim()) return false;
+      if (!getTaskAssignees(task).length) return false;
       const previous = project.workItems?.find(item => item.id === task.id);
-      return !previous || (previous.assigneeId || "") !== (task.assigneeId || "") || previous.assignee.trim() !== task.assignee.trim();
+      return !previous || JSON.stringify(getTaskAssignees(previous))!==JSON.stringify(getTaskAssignees(task));
     }) ?? [];
-    const team = assignedTasks.length ? addTaskAssignees(updates.team ?? project.team, assignedTasks) : updates.team ?? project.team;
+    const team = assignedTasks.length && options.syncTaskTeam !== false ? addTaskAssignees(updates.team ?? project.team, assignedTasks) : updates.team ?? project.team;
     return { ...project, ...updates, team, ...(updates.status === undefined && project.status === "ACTIVE" && assignedTasks.length > 0 ? {status: "ON_TRACK" as const} : {}) };
   }));
 }
@@ -240,7 +252,7 @@ export async function projectFromLead(input: {
   const { lead, proposal } = input;
   const invoice = lead.invoice;
   return {
-    id: await nextProjectId(),
+    id: await nextProjectId(input.operatingCompany),
     leadId: lead.id,
     createdAt: new Date().toISOString(),
     title: resolveProjectName({title:input.title,clientCompany:lead.companyName,clientName:lead.fullName},lead.projectName) || "Untitled project",

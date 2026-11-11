@@ -1,5 +1,7 @@
 "use client";
 
+import {EditTaskDialog} from "@/app/_components/edit-task-dialog";
+import {TaskDeadline} from "@/app/_components/task-deadline";
 import Link from "next/link";
 import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 import { AssignTaskDialog } from "@/app/_components/assign-task-dialog";
@@ -8,7 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowDownUp, ArrowRight, Check, ChevronDown, CircleAlert, FileCheck2, Filter, GripVertical, Kanban, List, MoreHorizontal, Plus, Search, ShieldAlert, Users } from "lucide-react";
 import { EmptyState } from "@/app/_components/empty-state";
 import { StatusBadge } from "@/app/_components/status-badge";
-import { getProjectDisplayTitle, getProjectDisplayServices, canViewProjectTask, readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
+import { getTaskAssignees, getTaskAssigneeLabel, getProjectDisplayTitle, getProjectDisplayServices, canViewProjectTask, readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
 import { useAssignableUsers } from "@/lib/assignees";
@@ -50,6 +52,7 @@ export default function MyWorkPage() {
   const [viewMode, setViewMode] = useState<"LIST" | "BOARD">("LIST");
   const [draggingItem, setDraggingItem] = useState<{ projectId: string; taskId: string } | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<VisibleTaskStatus | null>(null);
+  const [editingTask,setEditingTask]=useState<{projectId:string;task:ProjectWorkItem}|null>(null);
   const [blockingTask, setBlockingTask] = useState<{ projectId: string; task: ProjectWorkItem } | null>(null);
 
   function updateTask(projectId: string, taskId: string, updates: Partial<ProjectWorkItem>) {
@@ -87,10 +90,11 @@ export default function MyWorkPage() {
 
   const employeeName=(members.find((member)=>member.user_id===user?.id)?.display_name||user?.user_metadata?.full_name||user?.email?.split("@")[0]||"").trim().toLowerCase();
   const allTasks = useMemo(() => projects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))).filter(({project, task}) => canViewProjectTask(project, task, role, user?.id, employeeName)), [projects,role,user?.id,employeeName]);
-  const canCreateTask = role === "admin" || role === "project_manager";
+  const canEditTask = role === "admin" || role === "project_manager";
+  const canCreateTask = canEditTask || role === "employee";
   const assignees = [...new Set([
     ...assignableUsers.map((member) => member.name),
-    ...allTasks.map(({ task }) => task.assignee),
+    ...allTasks.flatMap(({ task }) => getTaskAssignees(task).map(person=>person.name)),
   ].filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const selectedAssigneeId = assignableUsers.find((member) => member.name === assignee)?.id;
 
@@ -98,8 +102,8 @@ export default function MyWorkPage() {
     const needle = search.trim().toLowerCase();
     return allTasks.filter(({ project, task }) => {
       const matchesStatus = filter === "ALL" || task.status === filter;
-      const matchesAssignee = !assignee || (selectedAssigneeId && task.assigneeId ? task.assigneeId === selectedAssigneeId : task.assignee.trim().toLowerCase() === assignee.trim().toLowerCase());
-      const matchesSearch = !needle || [task.title, task.assignee, task.kind, project.title, project.clientCompany, project.id].some((value) => value.toLowerCase().includes(needle));
+      const matchesAssignee = !assignee || getTaskAssignees(task).some(person=>selectedAssigneeId&&person.userId?person.userId===selectedAssigneeId:person.name.trim().toLowerCase()===assignee.trim().toLowerCase());
+      const matchesSearch = !needle || [task.title, getTaskAssigneeLabel(task), task.description||"", task.kind, project.title, project.clientCompany, project.id].some((value) => value.toLowerCase().includes(needle));
       return matchesStatus && matchesAssignee && matchesSearch;
     }).sort((left, right) => (new Date(left.task.createdAt).getTime() - new Date(right.task.createdAt).getTime()) * (sortOldestFirst ? 1 : -1));
   }, [allTasks, assignee, selectedAssigneeId, filter, search, sortOldestFirst]);
@@ -107,8 +111,8 @@ export default function MyWorkPage() {
   const boardTasksByColumn = useMemo(() => {
     const needle = search.trim().toLowerCase();
     const filtered = allTasks.filter(({ project, task }) => {
-      const matchesAssignee = !assignee || (selectedAssigneeId && task.assigneeId ? task.assigneeId === selectedAssigneeId : task.assignee.trim().toLowerCase() === assignee.trim().toLowerCase());
-      const matchesSearch = !needle || [task.title, task.assignee, task.kind, project.title, project.clientCompany, project.id].some((value) => value.toLowerCase().includes(needle));
+      const matchesAssignee = !assignee || getTaskAssignees(task).some(person=>selectedAssigneeId&&person.userId?person.userId===selectedAssigneeId:person.name.trim().toLowerCase()===assignee.trim().toLowerCase());
+      const matchesSearch = !needle || [task.title, getTaskAssigneeLabel(task), task.description||"", task.kind, project.title, project.clientCompany, project.id].some((value) => value.toLowerCase().includes(needle));
       return matchesAssignee && matchesSearch;
     }).sort((left, right) => (new Date(left.task.createdAt).getTime() - new Date(right.task.createdAt).getTime()) * (sortOldestFirst ? 1 : -1));
 
@@ -247,8 +251,8 @@ export default function MyWorkPage() {
             <ChevronDown size={13} className="select-chevron" />
           </div>
         </div>
-        <button className="button button-primary" type="button" onClick={() => setShowAssignTask(true)}><Plus size={15} />Assign task</button>
         </>}
+        {canCreateTask&&<button className="button button-primary" type="button" onClick={() => setShowAssignTask(true)}><Plus size={15} />{role==="employee"?"Create task":"Assign task"}</button>}
       </div>
     </section>
 
@@ -420,6 +424,8 @@ export default function MyWorkPage() {
                         <td className="task-name-cell">
                           <div className="task-name-inner">
                             <strong>{task.title}</strong>
+                            <TaskDeadline deadline={task.deadline}/>
+                            {task.description?.trim()&&<details className="task-description"><summary>Description</summary><p>{task.description}</p></details>}
                             <div className="task-meta-row">
                               <span className="task-kind-pill">{task.kind.replaceAll("_", " ")}</span>
                               {task.revisionRequested && <span className="task-revision-pill">Revision requested</span>}
@@ -439,10 +445,10 @@ export default function MyWorkPage() {
                           </Link>
                         </td>
                         <td className="task-assignee-cell">
-                          {task.assignee ? (
+                          {getTaskAssignees(task).length ? (
                             <span className="task-assignee-badge">
                               <Users size={12} />
-                              <span>{task.assignee}</span>
+                              <span>{getTaskAssigneeLabel(task)}</span>
                             </span>
                           ) : (
                             <span className="task-unassigned">Unassigned</span>
@@ -457,6 +463,7 @@ export default function MyWorkPage() {
                           <details className="task-action-menu">
                             <summary aria-label={`Actions for ${task.title}`}><MoreHorizontal size={17} /></summary>
                             <div className="task-action-popover">
+                              {canEditTask&&<button type="button" onClick={event=>{event.currentTarget.closest("details")?.removeAttribute("open");setEditingTask({projectId:project.id,task});}}>Edit task</button>}
                               {task.status === "DONE" ? (
                                 <span className="task-action-muted">Completed</span>
                               ) : (
@@ -564,6 +571,8 @@ export default function MyWorkPage() {
                           </div>
 
                           <h3 className="task-kanban-card-title">{task.title}</h3>
+                          <TaskDeadline deadline={task.deadline}/>
+                          {task.description?.trim()&&<details className="task-description"><summary>Description</summary><p>{task.description}</p></details>}
 
                           {task.blockerReason && task.status === "BLOCKED" && (
                             <div className="task-kanban-blocker-note">
@@ -587,10 +596,11 @@ export default function MyWorkPage() {
                           <div className="task-kanban-card-footer">
                             <div className="task-kanban-assignee">
                               <Users size={12} />
-                              <span>{task.assignee || "Unassigned"}</span>
+                              <span>{getTaskAssigneeLabel(task) || "Unassigned"}</span>
                             </div>
 
                             <div className="task-kanban-actions">
+                              {canEditTask&&<button type="button" className="button button-quiet button-micro" onClick={event=>{event.stopPropagation();setEditingTask({projectId:project.id,task});}}>Edit task</button>}
                               {task.status === "BLOCKED" && <button type="button" className="button button-quiet button-micro" onClick={event => { event.stopPropagation(); raiseBlocker(project.id, task); }}>{task.blockerReason ? "Edit reason" : "Add reason"}</button>}
                               <button
                                 type="button"
@@ -650,6 +660,7 @@ export default function MyWorkPage() {
         )}
       </footer>
     </section>}
+    {canEditTask&&editingTask&&<EditTaskDialog projectId={editingTask.projectId} task={editingTask.task} onClose={()=>setEditingTask(null)}/>}
     {canCreateTask && showAssignTask && <AssignTaskDialog projects={projects} onClose={() => setShowAssignTask(false)} />}
     {blockingTask && <BlockTaskDialog title={blockingTask.task.title} initialReason={blockingTask.task.blockerReason} onClose={() => setBlockingTask(null)} onConfirm={blockerReason => {
       updateTask(blockingTask.projectId, blockingTask.task.id, {status: "BLOCKED", blockerReason});

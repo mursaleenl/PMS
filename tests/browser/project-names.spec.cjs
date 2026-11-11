@@ -8,7 +8,8 @@ test('the enquiry project name persists through project setup and becomes the wo
  await page.route('**/rest/v1/rpc/reserve_workspace_number',route=>route.fulfill({json:'EVE-2026-003'}));
  await page.goto('/requests/LEAD-TEST-001');
  const form=page.locator('.project-create-form');
- await expect(form.getByLabel('Project name',{exact:true})).toHaveValue('Northstar mobile app');
+ await expect(form.getByLabel('Project name',{exact:true})).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'Northstar mobile app',exact:true})).toBeVisible();
  await form.locator('input[name=startDate]').fill('2026-11-11');
  await form.getByRole('button',{name:'Move to Projects',exact:true}).click();
  await expect(page).toHaveURL(/\/projects\/EVE-2026-003$/);

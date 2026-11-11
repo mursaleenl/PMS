@@ -162,7 +162,7 @@ test('dispatching an assigned task changes an Active project to On track',async(
  await page.getByRole('button',{name:'Dispatch task',exact:true}).click();
  const drawer=page.getByRole('dialog',{name:'Dispatch task',exact:true});
  await drawer.getByRole('textbox',{name:'Task title',exact:true}).fill('Verify assignment status');
- await drawer.getByRole('combobox',{name:/^Assignee/}).selectOption('00000000-0000-0000-0000-000000000002');
+ await drawer.getByRole('group',{name:'Assignees',exact:true}).getByRole('checkbox',{name:'Jordan Lee',exact:true}).check();
  await drawer.getByRole('button',{name:'Dispatch to tasks',exact:true}).click();
  await expect(drawer).not.toBeVisible();
  await expect.poll(()=>calls.length).toBeGreaterThan(0);
@@ -193,7 +193,8 @@ test('new leads go straight to proposals and projects without contact or qualifi
  await expect(page.getByRole('button',{name:/Log first contact|Edit date & time|Log now/})).toHaveCount(0);
  await expect(page.getByText(/First contact pending|First contact logged/)).toHaveCount(0);
  await expect(page.locator('input[type="datetime-local"]')).toHaveCount(0);
- await expect(page.getByRole('combobox',{name:'Choose operating organization',exact:true})).toBeVisible();
+ await expect(page.getByRole('combobox',{name:'Choose operating organization',exact:true})).toHaveCount(0);
+ await expect(page.locator('.lead-expanded .operating-organization-value')).toHaveText('Evecture');
  await page.locator('.lead-expanded').getByRole('link',{name:'Open lead workspace',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Qualification',exact:true})).toHaveCount(0);
  await expect(page.getByRole('heading',{name:'Proposal & SOW',exact:true})).toHaveCount(0);
@@ -205,7 +206,7 @@ test('new leads go straight to proposals and projects without contact or qualifi
  await expect(page.locator('.project-create-form')).toBeVisible();
  await page.goto('/proposals');
  await page.getByRole('button',{name:'Generate proposal',exact:true}).click();
- await page.getByRole('combobox',{name:'Lead',exact:true}).selectOption('NEWEST');
+ await page.getByRole('combobox',{name:'Select lead',exact:true}).selectOption('NEWEST');
  await expect(page.getByRole('form',{name:'Basic proposal generator'})).toBeVisible();
  await expect(page.locator('body')).not.toContainText(/qualified/i);
 });
@@ -247,12 +248,11 @@ test('editing a retainer recalculates its end date without changing identity or 
 
 test('moving a lead to projects assigns only its manager and the manager can change later',async({page})=>{
  const {tables}=require('./fixtures.cjs');const {calls}=await mockWorkspace(page);
- await page.route('**/rest/v1/leads?*',route=>route.fulfill({json:tables.leads.map(lead=>({...lead,id:'10000000-0000-0000-0000-000000000099',external_id:'NEW-PROJECT-LEAD'}))}));
+ await page.route('**/rest/v1/leads?*',route=>route.fulfill({json:tables.leads.map(lead=>({...lead,id:'10000000-0000-0000-0000-000000000099',external_id:'NEW-PROJECT-LEAD',project_name:'Manager only project'}))}));
  await page.goto('/requests/NEW-PROJECT-LEAD');
  const form=page.locator('.project-create-form');
  await expect(form.locator('select[name="leadDesigner"]')).toHaveCount(0);
  await expect(form.getByText(/Allocation/)).toHaveCount(0);
- await form.locator('input[name="projectTitle"]').fill('Manager only project');
  await form.locator('input[name="startDate"]').fill('2026-11-04');
  await form.locator('input[name="contractedValue"]').fill('2400');
  await form.locator('select[name="projectManager"]').selectOption('00000000-0000-0000-0000-000000000001');

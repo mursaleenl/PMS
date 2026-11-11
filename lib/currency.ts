@@ -1,6 +1,7 @@
 "use client";
 
-export type SupportedCurrency = "USD" | "INR" | "EUR" | "GBP" | "AED" | "CAD" | "AUD";
+export const SUPPORTED_CURRENCIES = ["USD", "INR", "EUR", "GBP", "AED", "AUD", "CAD"] as const;
+export type SupportedCurrency = typeof SUPPORTED_CURRENCIES[number];
 
 export const DEFAULT_EXCHANGE_RATES: Record<string, number> = {
   USD: 1.0,

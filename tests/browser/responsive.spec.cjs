@@ -22,7 +22,7 @@ for(const width of [320,390,768]){
 test('expanded mobile lead forms fit without a floating navigation dock',async({page})=>{
  const {tables}=require('./fixtures.cjs');
  await page.setViewportSize({width:320,height:844});await mockWorkspace(page);
- await page.route('**/rest/v1/leads?*',route=>route.fulfill({json:tables.leads.map(lead=>({...lead,status:'NEW'}))}));
+ await page.route('**/rest/v1/leads?*',route=>route.fulfill({json:tables.leads.map(lead=>({...lead,status:'NEW',operating_company:null}))}));
  await page.goto('/requests');await page.locator('.lead-record-summary').first().click();
  await page.getByRole('combobox',{name:'Choose operating organization',exact:true}).focus();
  await expect(page.getByRole('button',{name:'Log first contact',exact:true})).toHaveCount(0);

@@ -1,4 +1,5 @@
 "use client";
+import {OperatingOrganizationField} from "@/app/_components/operating-organization-field";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -6,7 +7,6 @@ import { ArrowRight, ChevronDown, Clock3, ExternalLink, Mail, MapPin, Phone, Plu
 import { formatLeadId, type Lead, readLeads, updateLead } from "@/lib/leads";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
-import { operatingCompanies, type OperatingCompany } from "@/lib/companies";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
 function ageSince(value: string, now: number) {
@@ -105,7 +105,6 @@ export default function RequestsPage() {
 
     {visibleLeads.length === 0 ? <EmptyState icon={<Mail size={22} />} title={leads.length === 0 ? "No leads yet" : "No matching leads"} description={leads.length === 0 ? "Log a new enquiry to add it to your leads." : "Try another search or status filter."} action={leads.length === 0 ? <Link className="button button-primary" href="/requests/new">Log first enquiry <ArrowRight size={15} /></Link> : undefined} /> : <div className="lead-record-list">
       {visibleLeads.map((lead) => {
-        const companyLocked = Boolean(lead.operatingCompany && (lead.projectId || lead.invoice || (lead.proposals ?? []).some(proposal => ["SENT", "ACCEPTED", "SUPERSEDED"].includes(proposal.status))));
         return <article className={`lead-record panel ${expanded === lead.id ? "lead-expanded" : ""}`} id={lead.id} key={lead.id}>
           <button type="button" className="lead-record-summary" onClick={() => setExpanded(expanded === lead.id ? null : lead.id)} aria-expanded={expanded === lead.id}>
             <LeadSummary lead={lead} now={now} />
@@ -127,9 +126,8 @@ export default function RequestsPage() {
                       <span><b>Found via</b>{lead.acquisitionSource || "Not provided"}</span>
                     </div>
                     <section className="lead-company-section" aria-labelledby={`company-heading-${lead.id}`}>
-                      <div><h4 id={`company-heading-${lead.id}`}>Operating organization</h4><p>Choose the studio responsible for this lead and its project.</p></div>
-                      <label className="field">Choose operating organization<select value={lead.operatingCompany ?? ""} disabled={companyLocked} onChange={event=>{const value=event.target.value;if(operatingCompanies.some(company=>company===value))updateLead(lead.id,{operatingCompany:value as OperatingCompany});}}><option value="" disabled>Select an operating organization</option>{operatingCompanies.map(company=><option key={company} value={company}>{company}</option>)}</select></label>
-                      {companyLocked && <small>The organization is fixed once a proposal is sent, an invoice is created, or the lead becomes a project.</small>}
+                      <div><h4 id={`company-heading-${lead.id}`}>Operating organization</h4><p>The studio responsible for this lead and its project.</p></div>
+                      <OperatingOrganizationField value={lead.operatingCompany} label="Operating organization" selectLabel="Choose operating organization" onChange={organization=>updateLead(lead.id,{operatingCompany:organization})}/>
                     </section>
                     {lead.budgetNote && <p className="budget-note-display">{lead.budgetNote}</p>}
                   </div>

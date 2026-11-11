@@ -1762,3 +1762,86 @@ html body .app-shell #workspace-content .clients-page .client-card-main { min-wi
   html body .app-shell #workspace-content .clients-page .client-card-chevron { grid-column: 4; grid-row: 1; }
   html body .app-shell #workspace-content .clients-page .client-card-stat { min-width: 0; grid-row: 2; }
 }
+
+/* Edit forms keep their actions visible while long records scroll. */
+html body dialog.edit-details-dialog { width: min(800px,calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid #e2e8f0; border-radius: 0; background: #ffffff; color: #0f172a; overflow: hidden; box-shadow: 0 24px 80px rgb(15 23 42 / 22%); }
+.edit-details-dialog::backdrop { background: rgb(15 23 42 / 42%); backdrop-filter: blur(4px); }
+.edit-details-dialog[open] { display: flex; flex-direction: column; }
+.edit-details-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 22px 26px; border-bottom: 1px solid #e2e8f0; }
+html body #workspace-content .edit-details-heading h2 { margin: 5px 0 0; font-size: 20px !important; line-height: 1.3; text-transform: none !important; }
+.edit-details-heading .section-kicker { font-size: 10px; color: #64748b; letter-spacing: .08em; }
+.edit-details-dialog form { display: flex; flex-direction: column; min-height: 0; }
+html body #workspace-content .edit-details-dialog .edit-details-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; gap: 20px; min-width: 0; overflow-y: auto; max-height: calc(100dvh - 220px); margin: 0; padding: 24px 26px; border: 0; }
+.edit-details-fields .field { min-width: 0; margin: 0; }
+.edit-details-fields .edit-field-wide { grid-column: 1 / -1; }
+html body #workspace-content .edit-details-fields label { font-size: 12px; font-weight: 550; text-transform: none !important; }
+html body #workspace-content .edit-details-dialog .field > :is(input,select,textarea),html body #workspace-content .edit-details-dialog .calendar-input-wrapper { width: 100%; min-width: 0; border: 1px solid #cbd5e1 !important; background: #ffffff; border-radius: 0 !important; box-shadow: none !important; }
+html body #workspace-content .edit-details-dialog .calendar-input-wrapper input { border: 0 !important; min-width: 0; }
+html body #workspace-content .edit-details-dialog :is(input,select,textarea):focus-visible { outline: 1px solid #0f172a !important; outline-offset: 1px; box-shadow: none !important; }
+.edit-details-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 26px; border-top: 1px solid #e2e8f0; }
+.edit-details-error { margin: 0; padding: 12px 26px; background: #f8fafc; font-size: 12px; }
+html body .app-shell #workspace-content .edit-details-dialog :is(.button,.edit-details-close) { height: 38px !important; min-height: 38px !important; border: 1px solid #e2e8f0 !important; border-radius: 0 !important; background: #ffffff !important; color: #0f172a !important; text-transform: none !important; }
+html body .app-shell #workspace-content .edit-details-dialog .button-primary { background: #0f172a !important; border-color: #0f172a !important; color: #ffffff !important; }
+html body .app-shell #workspace-content .edit-details-dialog .edit-details-close { display: grid; place-items: center; flex: 0 0 36px; width: 36px; padding: 0; cursor: pointer; }
+@media (max-width: 600px) {
+  html body #workspace-content .edit-details-dialog .edit-details-fields { grid-template-columns: minmax(0,1fr); padding: 20px; gap: 16px; }
+  .edit-details-heading { padding: 18px 20px; }
+  .edit-details-actions { padding: 14px 20px; }
+}
+
+/* Calendar panels enter the browser's top layer, including inside scrolling dialogs. */
+html body .calendar-picker-root .calendar-popover-panel[popover] { position: fixed !important; width: min(340px,calc(100vw - 24px)); max-width: calc(100vw - 24px); right: auto !important; bottom: auto !important; margin: 0 !important; padding: 16px; overflow: auto; border: 1px solid #cbd5e1 !important; border-radius: 0 !important; background: #ffffff !important; color: #0f172a; box-shadow: 0 14px 44px rgb(15 23 42 / 18%); }
+.calendar-panel-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
+.calendar-panel-top > span { color: #64748b; font-size: 11px; }
+.calendar-period-controls { display: flex; align-items: center; gap: 4px; }
+.calendar-period-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.calendar-choice-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; padding: 6px 0; }
+.calendar-year-jump { display: grid; grid-template-columns: 1fr 90px 42px; gap: 8px; align-items: center; margin-bottom: 12px; font-size: 12px; }
+.calendar-year-jump input { width: 100%; min-width: 0; padding: 6px; border: 1px solid #cbd5e1; }
+.calendar-time-panel { display: grid; gap: 10px; }
+.calendar-time-panel > span { font-size: 11px; color: #64748b; }
+.calendar-time-grid { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 4px; }
+.calendar-time-toggle { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 12px; }
+.calendar-time-toggle strong { margin-left: auto; }
+html body :is(.app-shell #workspace-content,.user-modal-backdrop) .calendar-popover-panel button { height: 36px !important; min-height: 36px !important; padding: 0 8px !important; border: 1px solid transparent !important; border-radius: 0 !important; background: #ffffff !important; color: #0f172a !important; text-transform: none !important; letter-spacing: normal !important; font-size: 12px !important; cursor: pointer; }
+html body :is(.app-shell #workspace-content,.user-modal-backdrop) .calendar-popover-panel button:hover { background: #f4f4f5 !important; }
+html body :is(.app-shell #workspace-content,.user-modal-backdrop) .calendar-popover-panel :is(.calendar-days,.calendar-time-grid) button { padding: 0 !important; }
+html body :is(.app-shell #workspace-content,.user-modal-backdrop) .calendar-popover-panel .calendar-days .calendar-outside { color: #94a3b8 !important; }
+html body :is(.app-shell #workspace-content,.user-modal-backdrop) .calendar-popover-panel button[aria-current="date"] { border-color: #94a3b8 !important; }
+html body :is(.app-shell #workspace-content,.user-modal-backdrop) .calendar-popover-panel :is(button[aria-pressed="true"],.calendar-selected,.button-primary) { background: #0f172a !important; color: #ffffff !important; border-color: #0f172a !important; }
+html body :is(.app-shell #workspace-content,.user-modal-backdrop) .calendar-popover-panel :is(button,input):focus-visible { outline: 2px solid #0f172a !important; outline-offset: 1px; box-shadow: none !important; }
+.calendar-popover-panel .calendar-presets { gap: 5px; }
+@media (prefers-reduced-motion: no-preference) {
+  .edit-details-dialog[open],.calendar-popover-panel:popover-open { animation: calendar-panel-appear .15s ease-out; }
+  @keyframes calendar-panel-appear { from { opacity: 0; } to { opacity: 1; } }
+}
+
+html body .app-shell #workspace-content .edit-details-dialog .edit-details-heading h2 { font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; }
+html body .app-shell #workspace-content .edit-details-dialog .field .calendar-input-wrapper { display: flex; align-items: center; min-height: 42px; gap: 2px; padding: 0 8px 0 0; }
+html body .app-shell #workspace-content .edit-details-dialog .field .calendar-input-wrapper .calendar-text-input { flex: 1; width: 0; min-width: 0; height: 40px; min-height: 40px; padding: 0 12px !important; border: 0 !important; background: transparent !important; outline: none !important; box-shadow: none !important; }
+html body .app-shell #workspace-content .edit-details-dialog .field .calendar-input-wrapper .calendar-icon-button { display: grid; place-items: center; width: 28px; min-width: 28px; height: 36px !important; min-height: 36px !important; padding: 0 !important; border: 0 !important; background: #ffffff !important; color: #0f172a !important; }
+
+.operating-organization-summary { display: grid; gap: 8px; align-content: start; }
+.operating-organization-summary > span { color: #64748b; font-size: 12px; }
+.operating-organization-value { display: block; padding: 10px 0; font-size: 14px; line-height: 1.5; }
+
+.task-description { margin-top: 8px; min-width: 0; font-size: 12px; }
+.task-description summary { cursor: pointer; color: #64748b; font-weight: 500; }
+.task-description > p { margin: 8px 0 0; color: #334155; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.task-dispatch-fields { display: grid; gap: 18px; min-width: 0; padding: 0; margin: 0; border: 0; }
+.task-target-picker { min-width: 0; margin: 0; padding: 0; border: 0; }
+.task-target-picker legend { display: flex; justify-content: space-between; width: 100%; margin-bottom: 10px; font-size: 13px; font-weight: 600; }
+.task-target-picker legend > span { margin-left: 12px; font-size: 11px; font-weight: 400; color: #64748b; }
+.task-target-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.task-target-tools input { flex: 1; min-width: 0; }
+.task-target-options { display: grid; max-height: 160px; overflow-y: auto; padding: 0 10px; border: 1px solid #e2e8f0; }
+.task-target-options > label { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; cursor: pointer; }
+.task-target-options > label + label { border-top: 1px solid #e2e8f0; }
+.task-target-options label > span { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.task-target-options small { color: #64748b; font-size: 11px; }
+html body .app-shell #workspace-content :is(.task-dispatch-dialog,.assign-task-dialog) .task-target-options input[type=checkbox] { width: 16px !important; min-width: 16px !important; height: 16px !important; min-height: 16px !important; margin: 2px 0 0; padding: 0 !important; accent-color: #ffffff; }
+html body .app-shell #workspace-content :is(.task-dispatch-dialog,.assign-task-dialog) .task-target-tools button { height: 36px !important; min-height: 36px !important; padding: 0 10px !important; white-space: nowrap; text-transform: none !important; background: #ffffff !important; color: #0f172a !important; border: 1px solid #e2e8f0 !important; }
+@media (max-width: 420px) { .task-target-tools { flex-wrap: wrap; } .task-target-tools input { flex-basis: 100%; } }
+
+.task-deadline { display: block; color: #64748b; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
