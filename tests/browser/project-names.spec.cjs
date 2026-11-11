@@ -23,6 +23,7 @@ test('two projects for one client have distinct names on cards, boards and the c
  await page.goto('/projects');
  for(const name of ['Northstar website redesign','Northstar mobile app'])await expect(page.getByRole('heading',{name,exact:true})).toBeVisible();
  await expect(page.locator('.portfolio-card').filter({hasText:'Northstar Studio'})).toHaveCount(2);
+ await expect(page.locator('.portfolio-card-subtitle')).toHaveText(['Northstar Studio','Northstar Studio']);
  await page.goto('/projects/EVE-2026-001');await page.getByRole('button',{name:'Project status',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Northstar website redesign',exact:true})).toHaveCount(2);
  await page.goto('/clients');const client=page.locator('.client-card').filter({hasText:'Sam Taylor'});await client.locator('.client-card-summary').click();

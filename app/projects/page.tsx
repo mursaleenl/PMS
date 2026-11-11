@@ -128,8 +128,7 @@ export default function ProjectsPage() {
             <ProjectCardLogo src={project.logoDataUrl} title={getProjectDisplayTitle(project)} projectType={project.projectType} />
             <div className="portfolio-project-copy">
               <h2 className="portfolio-card-title">{getProjectDisplayTitle(project)}</h2>
-              {project.projectType!=="internal"&&(project.clientCompany||project.clientName)&&<p className="portfolio-project-name">{getProjectClientLabel(project)}</p>}
-              {services && <p className="portfolio-card-subtitle">{services}</p>}
+              {(getProjectClientLabel(project)||services)&&<p className="portfolio-card-subtitle">{project.projectType!=="internal" ? getProjectClientLabel(project)||services : services}</p>}
             </div>
           </div>
           <div className="portfolio-task-row">

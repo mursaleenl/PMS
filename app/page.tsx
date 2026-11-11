@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, BriefcaseBusiness, Check, Clock3, Inbox, ListTodo, Plus, ReceiptText } from "lucide-react";
 import { type Lead, readLeads } from "@/lib/leads";
-import { type Project, readProjects, getProjectDisplayTitle, getProjectDisplayServices, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
+import { type Project, readProjects, getProjectDisplayTitle, getProjectDisplayServices, getProjectClientLabel, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
 import { readInvoices, type StoredInvoice } from "@/lib/invoices";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
@@ -138,7 +138,7 @@ export default function OverviewPage() {
             <StatusBadge status={project.status} />
           </div>
           <div className="project-card-identity"><ProjectCardLogo src={project.logoDataUrl} title={getProjectDisplayTitle(project)} projectType={project.projectType} /><h3 className="overview-project-title">{getProjectDisplayTitle(project)}</h3></div>
-          <p className="overview-project-services">{getProjectDisplayServices(project) || "Project delivery"}</p>
+          <p className="overview-project-services">{(project.projectType!=="internal"&&getProjectClientLabel(project)) || getProjectDisplayServices(project) || "Project delivery"}</p>
           <div className="overview-progress-label">
             <span>Task progress</span>
             <strong>{progress}%</strong>
