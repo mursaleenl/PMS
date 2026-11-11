@@ -38,7 +38,7 @@ test('new project offers existing clients and keeps their workspaces distinct',a
  await expect(form.getByRole('combobox',{name:'Client',exact:true}).locator('option')).toHaveCount(3);
  await form.getByRole('combobox',{name:'Client',exact:true}).selectOption({label:'Northstar Studio · Sam Taylor (sam@example.com)'});
  await form.getByLabel('Project name').fill('Northstar analytics');
- await form.getByLabel('Operating company').selectOption('Servn');
+ await form.getByLabel('Operating organization').selectOption('Servn');
  await form.getByRole('button',{name:'Create project',exact:true}).click();
  await expect(page).toHaveURL(/\/projects\/SRV-2026-003$/);
  expect(numberRequest).toMatchObject({p_kind:'project',p_company:'Servn'});

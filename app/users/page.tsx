@@ -256,7 +256,7 @@ export default function UsersPage() {
                   required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="person@company.com"
+                  placeholder="person@organization.com"
                 />
               </label>
               <div className="field">

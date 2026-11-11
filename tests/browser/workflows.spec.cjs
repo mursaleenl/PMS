@@ -193,7 +193,7 @@ test('new leads go straight to proposals and projects without contact or qualifi
  await expect(page.getByRole('button',{name:/Log first contact|Edit date & time|Log now/})).toHaveCount(0);
  await expect(page.getByText(/First contact pending|First contact logged/)).toHaveCount(0);
  await expect(page.locator('input[type="datetime-local"]')).toHaveCount(0);
- await expect(page.getByRole('combobox',{name:'Choose operating company',exact:true})).toBeVisible();
+ await expect(page.getByRole('combobox',{name:'Choose operating organization',exact:true})).toBeVisible();
  await page.locator('.lead-expanded').getByRole('link',{name:'Open lead workspace',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Qualification',exact:true})).toHaveCount(0);
  await expect(page.getByRole('heading',{name:'Proposal & SOW',exact:true})).toHaveCount(0);

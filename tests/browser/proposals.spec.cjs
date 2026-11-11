@@ -115,8 +115,8 @@ test('custom proposal saves recipient details and retries without creating a sec
  const form=dialog.getByRole('form',{name:'Basic proposal generator'});
  await form.getByLabel('Contact name',{exact:true}).fill('Custom Contact');
  await form.getByLabel('Contact email',{exact:true}).fill('contact@custom.example');
- await form.getByLabel('Company / organization',{exact:true}).fill('Custom Organization');
- await form.getByLabel('Operating company',{exact:true}).selectOption('Servn');
+ await form.getByLabel('Organization',{exact:true}).fill('Custom Organization');
+ await form.getByLabel('Operating organization',{exact:true}).selectOption('Servn');
  await form.getByLabel('Proposal title').fill('Custom CRM proposal');
  await form.getByLabel('Scope of work').fill('Build a custom CRM and reporting workflow.');
  await form.getByLabel('Deliverables').fill('CRM, dashboard and training');
@@ -188,8 +188,8 @@ test('unified proposal form autofills the selected lead and resets to manual det
  await lead.selectOption('LEAD-TEST-001');
  await expect(dialog.getByLabel('Contact name',{exact:true})).toHaveValue('Sam Taylor');
  await expect(dialog.getByLabel('Contact email',{exact:true})).toHaveValue('sam@example.com');
- await expect(dialog.getByLabel('Company / organization',{exact:true})).toHaveValue('Northstar Studio');
- await expect(dialog.getByLabel('Operating company',{exact:true})).toHaveValue('Evecture');
+ await expect(dialog.getByLabel('Organization',{exact:true})).toHaveValue('Northstar Studio');
+ await expect(dialog.getByLabel('Operating organization',{exact:true})).toHaveValue('Evecture');
  await expect(dialog.getByLabel('Scope of work')).toHaveValue('A clearer home for the next chapter of our business.');
  await expect(dialog.getByLabel('Deliverables')).toHaveValue('Website\nUI/UX');
  await expect(dialog.getByLabel('Proposal amount')).toHaveValue('');
@@ -201,7 +201,7 @@ test('proposal A4 printing includes long content and acceptance across pages',as
  await mockWorkspace(page);
  const token='proposal-a4-layout-123456789';
  const proposal={shareToken:token,version:1,status:'ACCEPTED',preparedBy:'Servn',proposalTitle:'Website and CRM proposal',expiryDate:'2099-12-31',quotedAmount:20000,currency:'USD',billingStructure:'Fixed',depositPercent:25,executiveSummary:'A clear delivery plan for the website and client management platform.',scopeIncluded:Array.from({length:28},(_,i)=>`Work package ${i+1}: discovery, design, implementation, review, and delivery for the agreed platform requirements.`).join('\n'),deliverables:'Responsive website\nClient management platform\nTraining and handover',timeline:'Eight weeks from approval',paymentTerms:'Deposit before kickoff; remaining balance on delivery.',responseName:'Client Approver',respondedAt:'2026-11-05T07:00:00Z'};
- await page.route(`**/api/proposals/${token}`,route=>route.fulfill({json:{lead:{fullName:'Client Approver',companyName:'Client company',operatingCompany:'Servn',proposals:[proposal]}}}));
+ await page.route(`**/api/proposals/${token}`,route=>route.fulfill({json:{lead:{fullName:'Client Approver',companyName:'Client organization',operatingCompany:'Servn',proposals:[proposal]}}}));
  await page.goto(`/proposal/${token}`);
  await expect(page.getByRole('heading',{name:proposal.proposalTitle,exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Save A4 PDF'}).click();

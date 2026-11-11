@@ -38,7 +38,7 @@ export function ProposalGenerator({ lead: sourceLead, forceCompose = false }: { 
         const current = lead ? readLeads().find(item=>item.id===lead.id) : undefined;
         if (lead && (!current || !( ["NEW","PROPOSAL_SENT"].includes(current.status) || (current.status !== "LOST" && !current.proposals?.length)))) throw new Error("This record is no longer open for a new proposal.");
         const company=current?.operatingCompany || value("operatingCompany");
-        if (!operatingCompanies.includes(company as OperatingCompany)) throw new Error("Choose an operating company before generating a proposal.");
+        if (!operatingCompanies.includes(company as OperatingCompany)) throw new Error("Choose an operating organization before generating a proposal.");
         if (!value("contactName") || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value("contactEmail"))) throw new Error("Enter a contact name and valid email address.");
         const quotedAmount = Number(value("quotedAmount"));
         const depositPercent = Number(value("depositPercent"));
@@ -119,8 +119,8 @@ export function ProposalGenerator({ lead: sourceLead, forceCompose = false }: { 
         <div className="proposal-fields-grid">
           <label className="field required">Contact name<input name="contactName" required defaultValue={lead?.fullName || ""} placeholder="Contact full name" /></label>
           <label className="field required">Contact email<input name="contactEmail" type="email" required defaultValue={lead?.email || ""} placeholder="contact@example.com" /></label>
-          <label className="field">Company / organization<input name="companyName" defaultValue={lead?.companyName || ""} placeholder="Company or organization name" /></label>
-          <label className="field required">Operating company<select name="operatingCompany" aria-label="Operating company" required disabled={!!lead?.operatingCompany} defaultValue={lead?.operatingCompany || ""}><option value="" disabled>Select an operating company</option>{operatingCompanies.map(company=><option key={company}>{company}</option>)}</select></label>
+          <label className="field">Organization<input name="companyName" defaultValue={lead?.companyName || ""} placeholder="Organization name" /></label>
+          <label className="field required">Operating organization<select name="operatingCompany" aria-label="Operating organization" required disabled={!!lead?.operatingCompany} defaultValue={lead?.operatingCompany || ""}><option value="" disabled>Select an operating organization</option>{operatingCompanies.map(company=><option key={company}>{company}</option>)}</select></label>
         </div>
         <label className="field required">Proposal title<input name="proposalTitle" required defaultValue={latest?.proposalTitle || (lead ? `Proposal for ${lead.projectName || lead.companyName || lead.fullName}` : "")} /></label>
         <label className="field">Executive summary<textarea name="executiveSummary" rows={3} defaultValue={latest?.executiveSummary || lead?.description || ""} placeholder="Summarize the client’s goals and your proposed solution" /></label>

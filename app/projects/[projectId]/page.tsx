@@ -1,7 +1,7 @@
 "use client";
 import {ProjectClientsDialog} from "@/app/_components/project-clients-dialog";
 import {EditDetailsDialog} from "@/app/_components/edit-details-dialog";
-import {canEditRecordDetails,parseServiceDetails,validateProjectServiceDetails} from "@/lib/record-editing";
+import {canEditRecordDetails,parseServiceDetails} from "@/lib/record-editing";
 import {flushWorkspaceChanges} from "@/lib/workspace-sync";
 
 
@@ -381,7 +381,7 @@ export default function ProjectWorkspacePage() {
               {project.title?.trim()&&<div className="project-scope-copy"><small>Project name</small><strong>{project.title}</strong></div>}
               {project.projectType!=="internal"&&getProjectClientLabel(project)&&<div className="project-scope-copy"><small>Clients</small><strong>{getProjectClientLabel(project)}</strong></div>}
               <div><small>Project type</small><strong>{project.projectType === "internal" ? "Internal" : "External"}</strong></div>
-              {project.projectType !== "internal" && project.operatingCompany && <div><small>Operating company</small><strong data-company={project.operatingCompany}>{project.operatingCompany}</strong></div>}
+              {project.projectType !== "internal" && project.operatingCompany && <div><small>Operating organization</small><strong data-company={project.operatingCompany}>{project.operatingCompany}</strong></div>}
               {project.projectType !== "internal" && <>
                 {services&&<div className="project-scope-copy"><small>Services required</small><p>{services}</p></div>}
                 {enquiryDetails.industry?.trim()&&<div><small>Industry</small><strong>{enquiryDetails.industry}</strong></div>}
@@ -456,12 +456,12 @@ export default function ProjectWorkspacePage() {
       {name:"targetDate",label:"Target date",value:project.targetDate,type:"date"},
       {name:"priority",label:"Priority",value:project.priority||"Normal",options:["Low","Normal","High","Urgent"]},
       ...(project.projectType!=="internal"?[
-        {name:"clientCompany",label:"Client company",value:project.clientCompany},
+        {name:"clientCompany",label:"Client organization",value:project.clientCompany},
         {name:"clientName",label:"Contact name",value:project.clientName,required:true},
         {name:"clientEmail",label:"Contact email",value:project.clientEmail,type:"email" as const},
         {name:"phone",label:"Phone number",value:enquiryDetails.phone},
         {name:"designation",label:"Designation",value:enquiryDetails.designation},
-        {name:"companyWebsite",label:"Company website",value:enquiryDetails.companyWebsite},
+        {name:"companyWebsite",label:"Organization website",value:enquiryDetails.companyWebsite},
         {name:"country",label:"Country",value:enquiryDetails.country},
         {name:"timezone",label:"Timezone",value:enquiryDetails.timezone},
         {name:"industry",label:"Industry",value:enquiryDetails.industry},
@@ -473,7 +473,7 @@ export default function ProjectWorkspacePage() {
         {name:"urgency",label:"Urgency",value:enquiryDetails.urgency||"Standard",options:["Standard","Rush"]},
         {name:"source",label:"Enquiry source",value:enquiryDetails.source},
         {name:"acquisitionSource",label:"Acquisition source",value:enquiryDetails.acquisitionSource},
-        {name:"operatingCompany",label:"Operating company",value:project.operatingCompany||"Evecture",options:["Evecture","Servn"]},
+        {name:"operatingCompany",label:"Operating organization",value:project.operatingCompany||"Evecture",options:["Evecture","Servn"]},
         {name:"classification",label:"Classification",value:project.classification,options:["New Client","Repeat Client","Referral"]},
         {name:"billingStructure",label:"Billing structure",value:project.billingStructure,options:["Fixed","Hourly","Retainer"]},
         {name:"contractedValue",label:"Contract value",value:project.contractedValue,type:"number" as const,min:0,required:true},
@@ -485,11 +485,10 @@ export default function ProjectWorkspacePage() {
       if(values.targetDate&&values.targetDate<values.startDate)throw new Error("Target date must be on or after the start date.");
       const updates:Partial<Project>={title:values.title,services:parseServiceDetails(values.services),...(project.projectType==="internal"?{scopeIncluded:values.scopeIncluded,objectives:values.objectives,deliverables:values.deliverables}:{}),startDate:values.startDate,targetDate:values.targetDate||undefined,priority:values.priority as Project["priority"]};
       if(project.projectType!=="internal"){
-        validateProjectServiceDetails(values.title, updates.services ?? []);
         const currency=values.currency.toUpperCase();
         if(!/^[A-Z]{3}$/.test(currency))throw new Error("Enter a three-letter currency code.");
         if(!Number.isInteger(Number(values.revisionRounds))||Number(values.revisionRounds)<0)throw new Error("Revision rounds must be a whole number.");
-        Object.assign(updates,{enquiryDetails:{...enquiryDetails,phone:values.phone,designation:values.designation,companyWebsite:values.companyWebsite,country:values.country,timezone:values.timezone,industry:values.industry,description:values.enquiryDescription,referenceLinks:values.referenceLinks,budgetRange:values.budgetRange,budgetShared:values.budgetShared==="Yes",budgetNote:values.budgetNote,urgency:values.urgency as Lead["urgency"],source:values.source,acquisitionSource:values.acquisitionSource},operatingCompany:values.operatingCompany,clientCompany:values.clientCompany,clientName:values.clientName,clientEmail:values.clientEmail,classification:values.classification,billingStructure:values.billingStructure,contractedValue:Number(values.contractedValue),currency,revisionRounds:Number(values.revisionRounds)});
+        Object.assign(updates,{enquiryDetails:{...enquiryDetails,projectName:values.title,projectNameOverride:values.title!==project.title?true:enquiryDetails.projectNameOverride,phone:values.phone,designation:values.designation,companyWebsite:values.companyWebsite,country:values.country,timezone:values.timezone,industry:values.industry,description:values.enquiryDescription,referenceLinks:values.referenceLinks,budgetRange:values.budgetRange,budgetShared:values.budgetShared==="Yes",budgetNote:values.budgetNote,urgency:values.urgency as Lead["urgency"],source:values.source,acquisitionSource:values.acquisitionSource},operatingCompany:values.operatingCompany,clientCompany:values.clientCompany,clientName:values.clientName,clientEmail:values.clientEmail,classification:values.classification,billingStructure:values.billingStructure,contractedValue:Number(values.contractedValue),currency,revisionRounds:Number(values.revisionRounds)});
       }
       updateProject(project.id,updates);
       if(updates.title!==project.title){

@@ -24,7 +24,7 @@ test('expanded mobile lead forms fit without a floating navigation dock',async({
  await page.setViewportSize({width:320,height:844});await mockWorkspace(page);
  await page.route('**/rest/v1/leads?*',route=>route.fulfill({json:tables.leads.map(lead=>({...lead,status:'NEW'}))}));
  await page.goto('/requests');await page.locator('.lead-record-summary').first().click();
- await page.getByRole('combobox',{name:'Choose operating company',exact:true}).focus();
+ await page.getByRole('combobox',{name:'Choose operating organization',exact:true}).focus();
  await expect(page.getByRole('button',{name:'Log first contact',exact:true})).toHaveCount(0);
  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
  if(overflow>1)console.log(await page.evaluate(()=>Array.from(document.querySelectorAll('main *')).map(el=>({name:el.className,right:el.getBoundingClientRect().right,width:el.getBoundingClientRect().width})).filter(el=>el.right>innerWidth+1).slice(-12)));

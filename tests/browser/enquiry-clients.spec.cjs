@@ -8,8 +8,8 @@ test('an existing client can log an enquiry for a different organization',async(
  await select.selectOption({label:'Northstar Studio · Sam Taylor (sam@example.com)'});
  await expect(page.getByLabel('Full name')).toHaveValue('Sam Taylor');
  await expect(page.getByLabel('Email address (optional)',{exact:true})).toHaveValue('sam@example.com');
- await expect(page.getByLabel('Company / organization name',{exact:true})).toHaveValue('Northstar Studio');
- await page.getByLabel('Company / organization name',{exact:true}).fill('Northstar Ventures');
+ await expect(page.getByLabel('Organization name',{exact:true})).toHaveValue('Northstar Studio');
+ await page.getByLabel('Organization name',{exact:true}).fill('Northstar Ventures');
  await page.locator('label.choice-card').filter({hasText:/^Website$/}).click();
  await page.getByLabel('Project name',{exact:true}).fill('Northstar product website');
  await page.getByLabel('Project goals').fill('A second website for our new product.');

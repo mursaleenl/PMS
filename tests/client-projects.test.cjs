@@ -73,6 +73,18 @@ test('multiple independent projects persist under the same client and appear in 
   assert.equal((await db.query('select count(*)::int total from project_messages')).rows[0].total,0);
   await db.exec('reset role');await identity(client,'client@example.com');await db.exec('set role authenticated');
   assert.equal((await db.query('select read_client_projects() result')).rows[0].result.length,2);
+  await db.exec('reset role');await identity(admin,'admin@example.com');
+  const legacy={...first,id:'LEGACY-AUTO',title:'Branding, Website',leadId:enquiry.id,enquiryDetails:{}};
+  const manual={...legacy,id:'LEGACY-MANUAL',enquiryDetails:{projectNameOverride:true}};
+  const custom={...legacy,id:'LEGACY-CUSTOM',title:'Custom delivery name'};
+  await db.query('select save_workspace_changes($1::jsonb)',[JSON.stringify([legacy,manual,custom].map(project=>({collection:'projects',id:project.id,expectedRevision:null,operation:'save',data:serializeRecord('projects',project)})))]);
+  await db.exec(readDatabaseSection('recover-enquiry-project-names'));
+  const recovered=(await db.query("select external_id,title,revision from projects where external_id like 'LEGACY-%' order by external_id")).rows;
+  assert.equal(recovered[0].title,'Client mobile app');assert.equal(Number(recovered[0].revision),1);
+  assert.equal(recovered[1].title,'Custom delivery name');assert.equal(recovered[2].title,'Branding, Website');
+  await db.exec(readDatabaseSection('recover-enquiry-project-names'));
+  assert.deepEqual((await db.query("select external_id,title,revision from projects where external_id like 'LEGACY-%' order by external_id")).rows,recovered);
+
 
  }finally{await db.close();}
 });

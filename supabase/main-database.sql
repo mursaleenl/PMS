@@ -1771,4 +1771,23 @@ create policy "project participants send messages" on public.project_messages fo
   sender_id=auth.uid() and (exists(select 1 from public.projects p where p.id=project_id) or public.client_can_access_project(project_id))
 );
 
+
+-- ===== Section: recover-enquiry-project-names =====
+-- Repair old service-label titles without changing named projects or explicit overrides.
+with recovered as (
+  update public.projects p set title=btrim(l.project_name),
+    enquiry_details=p.enquiry_details||jsonb_build_object('projectName',btrim(l.project_name)),revision=p.revision+1
+  from public.leads l
+  where p.lead_id=l.id and p.project_type<>'internal' and nullif(btrim(l.project_name),'') is not null
+    and coalesce(p.enquiry_details->>'projectNameOverride','false')<>'true'
+    and p.title is distinct from btrim(l.project_name)
+    and (nullif(btrim(p.title),'') is null or lower(btrim(p.title)) in ('untitled project','none','n/a')
+      or lower(btrim(p.title))=lower(btrim(p.client_company)||' Delivery')
+      or lower(btrim(p.title))=lower(btrim(p.client_name)||' Delivery')
+      or lower(btrim(p.title)) ~ '^(branding|website|e-commerce|ui/ux|crm|custom request|multiple)([[:space:]]*(,|&|\+|[[:space:]]and[[:space:]])[[:space:]]*(branding|website|e-commerce|ui/ux|crm|custom request|multiple))*$')
+  returning p.id,p.title
+)
+update public.managed_projects m set project_title=r.title,revision=m.revision+1
+from recovered r where m.source_project_id=r.id and m.project_title is distinct from r.title;
+
 commit;

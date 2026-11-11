@@ -327,7 +327,7 @@ export default function InvoicesPage() {
       const currency = String(data.get("currency") || customCurrency || "USD").trim().toUpperCase();
 
       if (!billTo) {
-        setError("Please enter a client / company name to bill.");
+        setError("Please enter a client / organization name to bill.");
         return;
       }
 
@@ -551,9 +551,9 @@ export default function InvoicesPage() {
               onChange={(e) => setCompanyFilter(e.target.value as "ALL" | OperatingCompany)}
               className="button button-quiet"
               style={{ height: 38 }}
-              aria-label="Filter by operating company"
+              aria-label="Filter by operating organization"
             >
-              <option value="ALL">All companies</option>
+              <option value="ALL">All organizations</option>
               <option value="Evecture">Evecture</option>
               <option value="Servn">Servn</option>
             </select>
@@ -615,7 +615,7 @@ export default function InvoicesPage() {
                 <tr>
                   <th>Invoice #</th>
                   <th>Client / Bill To</th>
-                  <th>Company</th>
+                  <th>Organization</th>
                   <th>Description</th>
                   <th>Issue / Due</th>
                   <th>Amount</th>
@@ -950,7 +950,7 @@ export default function InvoicesPage() {
                                     {company}
                                   </span>
                                 ) : (
-                                  <span className="proposal-pill-warning">Company unassigned</span>
+                                  <span className="proposal-pill-warning">Organization unassigned</span>
                                 )}
                                 {hasInvoice && (
                                   <span className="proposal-pill-success">
@@ -993,7 +993,7 @@ export default function InvoicesPage() {
                           <div className="invoice-company-assign-banner">
                             <div className="assign-header">
                               <Building2 size={15} />
-                              <strong>Select issuing company for this invoice:</strong>
+                              <strong>Select issuing organization for this invoice:</strong>
                             </div>
                             <div className="invoice-company-picker" style={{ maxWidth: 360, marginTop: 8 }}>
                               <button
@@ -1041,7 +1041,7 @@ export default function InvoicesPage() {
                               />
                             </label>
                             <label className="field">
-                              Issuing company
+                              Issuing organization
                               <input
                                 disabled
                                 value={activeProject.operatingCompany || assigningCompany}
@@ -1150,7 +1150,7 @@ export default function InvoicesPage() {
                 <div className="invoice-config-section" style={{ marginTop: 0, paddingTop: 0, borderTop: "none" }}>
                   <div className="company-selection-group">
                     <label className="field-label" style={{ display: "block", marginBottom: 6, fontWeight: 600, fontSize: 13 }}>
-                      Issuing company
+                      Issuing organization
                     </label>
                     <div className="invoice-company-picker" style={{ maxWidth: 440 }}>
                       <button
@@ -1199,7 +1199,7 @@ export default function InvoicesPage() {
                       </select>
                     </label>
                     <label className="field required">
-                      Bill to (Company / Client name)
+                      Bill to (Organization / Client name)
                       <input name="billTo" required placeholder="e.g. Acme Corporation" />
                     </label>
                     <label className="field">

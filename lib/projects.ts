@@ -37,11 +37,23 @@ export type ProjectWorkItem = {
 
 export type ProjectLinks = { staging?: string; repository?: string; design?: string; other?: string };
 
-export type ProjectEnquiryDetails = Partial<Pick<Lead, "phone" | "designation" | "companyWebsite" | "country" | "timezone" | "industry" | "description" | "referenceLinks" | "budgetRange" | "budgetShared" | "budgetNote" | "urgency" | "source" | "acquisitionSource">>;
+export type ProjectEnquiryDetails = Partial<Pick<Lead, "projectName" | "phone" | "designation" | "companyWebsite" | "country" | "timezone" | "industry" | "description" | "referenceLinks" | "budgetRange" | "budgetShared" | "budgetNote" | "urgency" | "source" | "acquisitionSource">> & {projectNameOverride?:boolean};
 
 export function getProjectEnquiryDetails(project: {enquiryDetails?:ProjectEnquiryDetails}, lead?:Lead|null):ProjectEnquiryDetails {
-  const original:ProjectEnquiryDetails=lead?{phone:lead.phone,designation:lead.designation,companyWebsite:lead.companyWebsite,country:lead.country,timezone:lead.timezone,industry:lead.industry,description:lead.description,referenceLinks:lead.referenceLinks,budgetRange:lead.budgetRange,budgetShared:lead.budgetShared,budgetNote:lead.budgetNote,urgency:lead.urgency,source:lead.source,acquisitionSource:lead.acquisitionSource}:{};
+  const original:ProjectEnquiryDetails=lead?{projectName:lead.projectName,phone:lead.phone,designation:lead.designation,companyWebsite:lead.companyWebsite,country:lead.country,timezone:lead.timezone,industry:lead.industry,description:lead.description,referenceLinks:lead.referenceLinks,budgetRange:lead.budgetRange,budgetShared:lead.budgetShared,budgetNote:lead.budgetNote,urgency:lead.urgency,source:lead.source,acquisitionSource:lead.acquisitionSource}:{};
   return {...original,...Object.fromEntries(Object.entries(project.enquiryDetails??{}).filter(([,value])=>value!==undefined))};
+}
+
+/** Recover legacy automatic titles while retaining deliberate project names. */
+export function resolveProjectName(project:{title:string;clientCompany?:string;clientName?:string;enquiryDetails?:ProjectEnquiryDetails},enquiryName?:string):string {
+  const title=project.title?.trim()||"";
+  const name=enquiryName?.trim()||project.enquiryDetails?.projectName?.trim();
+  if(!name||project.enquiryDetails?.projectNameOverride)return title;
+  const serviceNames=new Set(["branding","website","e-commerce","ui/ux","crm","custom request","multiple"]);
+  const parts=title.toLowerCase().split(/\s*(?:,|&|\+|\band\b)\s*/).filter(Boolean);
+  const automatic=!title||/^(untitled project|none|n\/a)$/i.test(title)||(parts.length>0&&parts.every(part=>serviceNames.has(part)))
+    ||[project.clientCompany,project.clientName].some(client=>client?.trim()&&`${client.trim()} Delivery`.toLowerCase()===title.toLowerCase());
+  return automatic?name:title;
 }
 
 export type ProjectClient = {name:string;companyName?:string;email?:string;contactDetails?:ProjectEnquiryDetails};
@@ -137,8 +149,10 @@ export function readProjects(): Project[] {
             return member;
           })
         : [];
+      const lead=(localCollectionValue("leads").value as Lead[]|undefined)?.find(lead=>lead.id===project.leadId);
       return {
         ...project,
+        title:resolveProjectName(project,lead?.projectName),
         team,
         operatingCompany: (project.operatingCompany as string | undefined) === "Servyn" ? "Servn" : project.operatingCompany,
         invoice: project.invoice ? {
@@ -229,7 +243,7 @@ export async function projectFromLead(input: {
     id: await nextProjectId(),
     leadId: lead.id,
     createdAt: new Date().toISOString(),
-    title: input.title.trim() || lead.projectName?.trim() || "Untitled project",
+    title: resolveProjectName({title:input.title,clientCompany:lead.companyName,clientName:lead.fullName},lead.projectName) || "Untitled project",
     clientCompany: lead.companyName,
     clientName: lead.fullName,
     clientEmail: lead.email,
@@ -273,8 +287,8 @@ export async function createInternalProject(input: { title: string; description:
   };
 }
 
-export function getProjectDisplayTitle(project: { title: string; clientCompany?: string; clientName?: string }): string {
-  return [project.title, project.clientCompany, project.clientName]
+export function getProjectDisplayTitle(project: { title: string; clientCompany?: string; clientName?: string; enquiryDetails?:ProjectEnquiryDetails }): string {
+  return [resolveProjectName(project), project.clientCompany, project.clientName]
     .map(value => value?.trim())
     .find(value => value && !/^(none|n\/a|null|undefined|-)$/i.test(value)) || "Untitled Project";
 }

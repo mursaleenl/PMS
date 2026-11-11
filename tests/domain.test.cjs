@@ -164,3 +164,15 @@ test('project client choices share contact details without copying another proje
  const clients=existingProjectClients([{id:'one',clientName:'Client',clientCompany:'Company',clientEmail:'client@example.com',enquiryDetails:{phone:'123',description:'Private scope',budgetNote:'Private budget'}}],[]);
  assert.equal(clients[0].contactDetails.phone,'123');assert.equal(clients[0].contactDetails.description,undefined);assert.equal(clients[0].contactDetails.budgetNote,undefined);
 });
+
+test('enquiry names replace legacy service labels while deliberate project names are preserved',()=>{
+ const {resolveProjectName,readProjects}=load('lib/projects.ts');
+ const legacy={title:'Branding, Website',clientCompany:'Harmukh Houseboats'};
+ assert.equal(resolveProjectName(legacy,'Harmukh booking platform'),'Harmukh booking platform');
+ assert.equal(resolveProjectName({...legacy,title:'Harmukh redesign'},'Different enquiry name'),'Harmukh redesign');
+ assert.equal(resolveProjectName({...legacy,enquiryDetails:{projectNameOverride:true}},'Harmukh booking platform'),'Branding, Website');
+ assert.equal(resolveProjectName(legacy,''),'Branding, Website');
+ sync.clearWorkspaceMemory();sync.applyRemoteCollection('leads',[{id:'source',projectName:'Harmukh booking platform'}]);
+ sync.applyRemoteCollection('projects',[{...legacy,id:'legacy',leadId:'source',team:[]}]);
+ assert.equal(readProjects()[0].title,'Harmukh booking platform');
+});

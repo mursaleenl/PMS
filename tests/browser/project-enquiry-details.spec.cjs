@@ -8,11 +8,11 @@ for(const role of ['admin','project_manager'])test(`${role} can edit previously 
  const form=page.getByRole('dialog',{name:'Edit project details'});
  await expect(form.getByLabel('Phone number',{exact:true})).toHaveValue('+1 555 0100');
  await expect(form.getByLabel('Designation',{exact:true})).toHaveValue('Founder');
- await expect(form.getByLabel('Company website',{exact:true})).toHaveValue('https://northstar.example');
+ await expect(form.getByLabel('Organization website',{exact:true})).toHaveValue('https://northstar.example');
  await expect(form.getByLabel('Project goals',{exact:true})).toHaveValue(tables.leads[0].description);
  await form.getByLabel('Phone number',{exact:true}).fill('+91 9000000000');
  await form.getByLabel('Designation',{exact:true}).fill('Director');
- await form.getByLabel('Company website',{exact:true}).fill('https://updated.example');
+ await form.getByLabel('Organization website',{exact:true}).fill('https://updated.example');
  await form.getByLabel('Country',{exact:true}).fill('India');
  await form.getByLabel('Timezone',{exact:true}).fill('Asia/Kolkata');
  await form.getByLabel('Industry',{exact:true}).fill('Technology');

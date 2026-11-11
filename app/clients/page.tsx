@@ -49,6 +49,7 @@ type ClientRecord = {
   key: string;
   name: string;
   companyName?: string;
+  organizations?: string[];
   email?: string;
   phone?: string;
   designation?: string;
@@ -478,7 +479,20 @@ export default function ClientsPage() {
       if(!client.projects.some(item=>item.id===project.id))client.projects.push({id:project.id,title:getProjectDisplayTitle(project),displayServices:getProjectDisplayServices(project),logoDataUrl:project.logoDataUrl,status:project.status,operatingCompany:project.operatingCompany});
     }
 
-    return [...clientMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+    return [...clientMap.values()].map(client=>{
+      const organizations=new Map<string,string>();
+      const add=(value?:string)=>{const name=value?.trim();if(name)organizations.set(name.toLocaleLowerCase(),organizations.get(name.toLocaleLowerCase())||name);};
+      const matches=(person:{name:string;email?:string})=>client.email&&person.email
+        ? client.email.trim().toLowerCase()===person.email.trim().toLowerCase()
+        : client.name.trim().toLowerCase()===person.name.trim().toLowerCase();
+      add(client.companyName);
+      const projectIds=new Set(client.projects.map(project=>project.id));
+      for(const project of projects.filter(project=>projectIds.has(project.id)))for(const participant of getProjectClients(project))if(matches(participant))add(participant.companyName);
+      for(const lead of leads)if(matches({name:lead.fullName,email:lead.email}))add(lead.companyName);
+      for(const plan of client.managedPlans)add(plan.clientCompany);
+      for(const invoice of invoices)if(invoice.clientName&&matches({name:invoice.clientName,email:invoice.clientEmail}))add(invoice.billTo);
+      return {...client,organizations:[...organizations.values()]};
+    }).sort((a, b) => a.name.localeCompare(b.name));
   }, [projects, plans, leads, invoices]);
 
   const filteredClients = useMemo(() => {
@@ -487,7 +501,7 @@ export default function ClientsPage() {
     return clients.filter((client) => {
       return (
         client.name.toLowerCase().includes(q) ||
-        (client.companyName && client.companyName.toLowerCase().includes(q)) ||
+        client.organizations?.some(name=>name.toLowerCase().includes(q)) ||
         (client.email && client.email.toLowerCase().includes(q)) ||
         (client.phone && client.phone.toLowerCase().includes(q)) ||
         (client.designation && client.designation.toLowerCase().includes(q)) ||
@@ -550,7 +564,7 @@ export default function ClientsPage() {
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search clients, companies, or projects…"
+                placeholder="Search clients, organizations, or projects…"
                 style={{
                   width: "100%",
                   height: 36,
@@ -595,7 +609,7 @@ export default function ClientsPage() {
             <div className="panel" style={{ padding: "48px 24px", textAlign: "center", justifyItems: "center" }}>
               <Users size={24} color="#94a3b8" />
               <strong style={{ display: "block", marginTop: 10, fontSize: 15, color: "var(--ws-text, #0f172a)" }}>No clients match "{search}"</strong>
-              <p style={{ margin: "4px 0 12px", fontSize: 13, color: "var(--ws-muted, #64748b)" }}>Try searching by client name, company, email, or project title.</p>
+              <p style={{ margin: "4px 0 12px", fontSize: 13, color: "var(--ws-muted, #64748b)" }}>Try searching by client name, organization, email, or project title.</p>
               <button type="button" className="button button-quiet" onClick={() => setSearch("")}>
                 Clear filter
               </button>
@@ -619,16 +633,20 @@ export default function ClientsPage() {
                           {client.email ? (
                             <>
                               <span>{client.email}</span>
-                              {client.companyName && (
-                                <span style={{ color: "var(--ws-muted, #64748b)" }}> · {client.companyName}</span>
+                              {!!client.organizations?.length && (
+                                <span style={{ color: "var(--ws-muted, #64748b)" }}> · {client.organizations.join(" · ")}</span>
                               )}
                             </>
-                          ) : client.companyName ? (
-                            <span>{client.companyName}</span>
+                          ) : client.organizations?.length ? (
+                            <span>{client.organizations.join(" · ")}</span>
                           ) : (
                             <span style={{ color: "var(--ws-muted, #94a3b8)" }}>No email recorded</span>
                           )}
                         </small>
+                      </span>
+                      <span className="client-card-stat client-card-organization-count">
+                        <strong>{client.organizations?.length||0}</strong>
+                        <small>{client.organizations?.length===1?"Organization":"Organizations"}</small>
                       </span>
                       <span className="client-card-stat">
                         <strong>{client.projects.length}</strong>
@@ -656,15 +674,10 @@ export default function ClientsPage() {
                               </strong>
                             </div>
 
-                            {client.companyName && (
+                            {!!client.organizations?.length && (
                               <div>
-                                <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--ws-muted, #64748b)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
-                                  Company
-                                </span>
-                                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--ws-text, #0f172a)", fontSize: 13, fontWeight: 500 }}>
-                                  <Building2 size={13} style={{ color: "var(--ws-muted, #64748b)", flexShrink: 0 }} />
-                                  <span>{client.companyName}</span>
-                                </div>
+                                <span className="client-organizations-label">Organizations ({client.organizations.length})</span>
+                                <ul className="client-organizations" aria-label="Associated organizations">{client.organizations.map(organization=><li key={organization}><Building2 size={13} aria-hidden="true"/><span>{organization}</span></li>)}</ul>
                               </div>
                             )}
 
@@ -872,7 +885,7 @@ export default function ClientsPage() {
       )}
       {canEditRecordDetails(role)&&addingProject&&<ClientProjectDrawer initialClient={{name:addingProject.name,companyName:addingProject.companyName,email:addingProject.email,contactDetails:{phone:addingProject.phone,designation:addingProject.designation,country:addingProject.country,companyWebsite:addingProject.website,industry:addingProject.industry}}} onClose={()=>setAddingProject(null)} onCreated={()=>{setAddingProject(null);showToast({message:"Project added to client."});}}/>}
       {canEditRecordDetails(role)&&editingClient&&<EditDetailsDialog title="Edit customer details" onClose={()=>setEditingClient(null)} fields={[
-        {name:"companyName",label:"Company name",value:editingClient.companyName||(!editingClient.projects.length?editingClient.name:""),required:!editingClient.projects.length},
+        {name:"companyName",label:"Organization name",value:editingClient.companyName||(!editingClient.projects.length?editingClient.name:""),required:!editingClient.projects.length},
         ...((editingClient.projects.length||linkedCustomerLeadIds(editingClient,projects,leads).length)?[
           {name:"name",label:"Contact name",value:editingClient.name,required:true},
           {name:"email",label:"Contact email",value:editingClient.email,type:"email" as const},

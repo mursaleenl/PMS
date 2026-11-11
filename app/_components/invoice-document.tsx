@@ -35,7 +35,7 @@ export function InvoiceDocument({invoice:activeInvoice}:{invoice:InvoiceDocument
                   <div className="invoice-meta-right">
                     <small>INVOICE DATE</small>
                     <strong>{activeInvoice.issueDate}</strong>
-                    <small>COMPANY</small>
+                    <small>ORGANIZATION</small>
                     <strong>{invoiceLegalName}</strong>
                   </div>
                 </div>

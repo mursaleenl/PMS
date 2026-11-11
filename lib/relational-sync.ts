@@ -2,7 +2,7 @@ import { createUuid } from "@/lib/uuid";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeLeadStatus, type Lead, type LeadInvoice, type ProposalVersion } from "@/lib/leads";
 import type { ManagedProject } from "@/lib/post-sale";
-import type { Project, ProjectTeamMember, ProjectWorkItem } from "@/lib/projects";
+import { resolveProjectName, type Project, type ProjectTeamMember, type ProjectWorkItem } from "@/lib/projects";
 import type { StoredInvoice } from "@/lib/invoices";
 import { type WorkspaceCollection } from "@/lib/workspace-sync";
 import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignee-names";
@@ -344,7 +344,7 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
       projectType: row.project_type === "internal" ? "internal" : "client",
       leadId: leadExternalId || text(row.lead_id),
       createdAt: text(row.created_at),
-      title: text(row.title),
+      title: resolveProjectName({title:text(row.title),clientCompany:text(row.client_company),clientName:text(row.client_name),enquiryDetails:row.enquiry_details},text(lead?.project_name)),
       clientCompany: text(row.client_company),
       clientName: text(row.client_name),
       clientEmail: text(row.client_email),
