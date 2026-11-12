@@ -3,6 +3,7 @@ node_modules/
 out/
 dist/
 .env*
+.env.disable
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
@@ -20,3 +21,8 @@ supabase/migration-state.json.tmp
 supabase/targets.local.json
 supabase/environments/**/.temp/
 supabase/environments/**/.branches/
+
+DATABASE_WORKFLOW.md
+PAGE_INDEPENDENCE_PLAN.md
+
+supabase/

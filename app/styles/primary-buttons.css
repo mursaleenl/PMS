@@ -1,0 +1,48 @@
+:root {
+  --primary-button-color: #2563eb;
+  --primary-button-hover: #1d4ed8;
+  --primary-button-active: #1e40af;
+}
+
+/* Layered important declarations take priority over legacy page-specific
+   important rules, keeping primary buttons consistent in every surface. */
+@layer primary-button-theme {
+  :is(
+    .button-primary,
+    .room-dispatch-button,
+    .settings-submit-button,
+    .client-proposal-accept,
+    .view-switcher-button.active,
+    .task-list-tabs button.selected,
+    .status-filter-btn.active,
+    .invoice-drawer-tab[aria-selected="true"],
+    .invoice-company-btn:is(.selected,.selected-servn,.selected-evecture),
+    .calendar-popover-panel button:is(.calendar-selected,[aria-pressed="true"])
+  ) {
+    --control-bg: var(--primary-button-color) !important;
+    --control-ink: #ffffff !important;
+    --control-border: var(--primary-button-color) !important;
+    background: var(--primary-button-color) !important;
+    border-color: var(--primary-button-color) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+
+    &:hover:not(:disabled):not([aria-disabled="true"]) {
+      --control-bg: var(--primary-button-hover) !important;
+      --control-border: var(--primary-button-hover) !important;
+      background: var(--primary-button-hover) !important;
+      border-color: var(--primary-button-hover) !important;
+    }
+
+    &:active:not(:disabled):not([aria-disabled="true"]) {
+      --control-bg: var(--primary-button-active) !important;
+      --control-border: var(--primary-button-active) !important;
+      background: var(--primary-button-active) !important;
+      border-color: var(--primary-button-active) !important;
+    }
+
+    & svg {
+      color: inherit !important;
+    }
+  }
+}
