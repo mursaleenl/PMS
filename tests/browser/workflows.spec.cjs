@@ -248,6 +248,8 @@ test('editing a retainer recalculates its end date without changing identity or 
 
 test('moving a lead to projects assigns only its manager and the manager can change later',async({page})=>{
  const {tables}=require('./fixtures.cjs');const {calls}=await mockWorkspace(page);
+ const managerId='00000000-0000-0000-0000-000000000003';
+ await page.route('**/api/assignees',route=>route.fulfill({json:{assignees:[{id:'00000000-0000-0000-0000-000000000001',name:'Alex Morgan',role:'admin'},{id:'00000000-0000-0000-0000-000000000002',name:'Jordan Lee',role:'employee'},{id:managerId,name:'Casey Parker',role:'project_manager'}]}}));
  await page.route('**/rest/v1/leads?*',route=>route.fulfill({json:tables.leads.map(lead=>({...lead,id:'10000000-0000-0000-0000-000000000099',external_id:'NEW-PROJECT-LEAD',project_name:'Manager only project'}))}));
  await page.goto('/requests/NEW-PROJECT-LEAD');
  const form=page.locator('.project-create-form');
@@ -264,9 +266,10 @@ test('moving a lead to projects assigns only its manager and the manager can cha
  expect(created.data.team).toHaveLength(1);
  expect(created.data.team[0].role).toBe('Project Manager');
  expect(created.data.team[0].user_id).toBe('00000000-0000-0000-0000-000000000001');
- await manager.selectOption('00000000-0000-0000-0000-000000000002');
- await expect(manager).toHaveValue('00000000-0000-0000-0000-000000000002');
- await expect.poll(()=>calls.flatMap(call=>call.p_changes).filter(change=>change.collection==='projects').at(-1)?.data.team[0]?.user_id).toBe('00000000-0000-0000-0000-000000000002');
+ await expect(manager.locator('option[value="00000000-0000-0000-0000-000000000002"]')).toHaveCount(0);
+ await manager.selectOption(managerId);
+ await expect(manager).toHaveValue(managerId);
+ await expect.poll(()=>calls.flatMap(call=>call.p_changes).filter(change=>change.collection==='projects').at(-1)?.data.team[0]?.user_id).toBe(managerId);
  await expect(page.locator('.project-detail-side')).not.toContainText(/Allocation|%/);
 });
 

@@ -1,0 +1,140 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Database main: Log in",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "db:login"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Database main: Show configuration",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "db:targets"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Database main: Configure project",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "db:target",
+        "--",
+        "main",
+        "${input:projectReference}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Database main: Pull baseline",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "db:pull"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Database main: Prepare migration",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "db:prepare",
+        "--",
+        "${input:migrationName}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Database main: Preview changes",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "db:preview"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Database main: Apply migrations",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "db:push"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Database main: Migration history",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "db:history"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Database: Run isolated database tests",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "db:test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "projectReference",
+      "type": "promptString",
+      "description": "Main Supabase project reference or URL"
+    },
+    {
+      "id": "migrationName",
+      "type": "promptString",
+      "description": "Migration name (lowercase letters, numbers and underscores)",
+      "default": "update_workspace"
+    }
+  ]
+}

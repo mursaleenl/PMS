@@ -1,4 +1,5 @@
 "use client";
+import {getRoleLabel} from "@/lib/roles";
 import {useEffect,useRef,useState,type FormEvent} from "react";
 import {GENERAL_TASKS_ID} from "@/lib/general-tasks";
 import {CalendarPicker} from "@/app/_components/calendar-picker";
@@ -33,15 +34,15 @@ export function AssignTaskDialog({projects,onClose}:{projects:Project[];onClose:
  return <dialog ref={dialog} className="assign-task-dialog" aria-labelledby="assign-task-title" onCancel={event=>{if(busyRef.current)event.preventDefault();else onClose();}}>
   <header><h2 id="assign-task-title">{selfService?"Create task":"Assign task"}</h2><button className="icon-button" type="button" aria-label="Close task form" disabled={busy} onClick={onClose}><X size={18}/></button></header>
   <p>{selfService?"Create a task for yourself, with or without a project.":"Assign general work or tasks for selected projects."}</p>
-  <form onSubmit={submit}><fieldset disabled={busy||Boolean(pending.current)}>
+  <form onSubmit={submit}><div className="assign-task-fields"><fieldset disabled={busy||Boolean(pending.current)}>
    <label className="field">Task scope<select aria-label="Task scope" value={scope} onChange={event=>setScope(event.target.value)}><option value="PROJECT">Project task</option><option value="GENERAL">General task — no project</option></select></label>
    {scope==="PROJECT"&&<TaskTargetPicker label="Projects" options={allowedProjects.map(project=>({id:project.id,label:getProjectDisplayTitle(project),detail:getProjectClientLabel(project)}))} selected={selectedProjects} onChange={setSelectedProjects}/>}
    <label className="field required">Task title<textarea name="title" required rows={3} maxLength={1000} placeholder="Describe the work to be done"/></label>
    <label className="field">Description<textarea name="description" rows={4} maxLength={5000} placeholder="Add requirements and the expected outcome"/></label>
-   {selfService?<p>Assigned to you · {selfName}</p>:<TaskTargetPicker label="Assignees" options={users.filter(person=>person.id).map(person=>({id:person.id!,label:person.name,detail:person.role}))} selected={selectedAssignees} onChange={setSelectedAssignees}/>}
+   {selfService?<p>Assigned to you · {selfName}</p>:<TaskTargetPicker label="Assignees" options={users.filter(person=>person.id).map(person=>({id:person.id!,label:person.name,detail:getRoleLabel(person.role)}))} selected={selectedAssignees} onChange={setSelectedAssignees}/>}
    <label className="field">Task type<select name="kind" defaultValue="FEATURE_DEV"><option value="FEATURE_DEV">Feature / development</option><option value="CLIENT_FEEDBACK_TODO">Client feedback</option><option value="QA_BUG">QA / bug</option></select></label>
    <div className="assign-task-columns"><label className="field">Priority<select name="priority" defaultValue="P3"><option value="P1">Critical</option><option value="P2">High</option><option value="P3">Normal</option><option value="P4">Low</option></select></label><label className="field">Estimated hours<input name="estimatedHours" type="number" min="0" step="0.25" defaultValue="0"/></label></div>
    <label className="field">Deadline<CalendarPicker name="deadline" mode="datetime" ariaLabel="Deadline"/></label>
-  </fieldset>{error&&<p className="form-error" role="alert">{error}</p>}<div className="form-actions"><button className="button button-quiet" type="button" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-primary" disabled={busy||loading||(scope==="PROJECT"&&!allowedProjects.length)}>{busy?"Saving…":pending.current?"Retry saving":selfService?"Create task":"Assign task"}</button></div></form>
+  </fieldset></div>{error&&<p className="form-error" role="alert">{error}</p>}<div className="form-actions"><button className="button button-quiet" type="button" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-primary" disabled={busy||loading||(scope==="PROJECT"&&!allowedProjects.length)}>{busy?"Saving…":pending.current?"Retry saving":selfService?"Create task":"Assign task"}</button></div></form>
  </dialog>;
 }

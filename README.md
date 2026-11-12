@@ -9,6 +9,8 @@ pnpm dev
 
 Open http://localhost:3000. Configure authentication and apply database migrations as described in [SETUP_AUTH_DATABASE.md](SETUP_AUTH_DATABASE.md). Use `supabase/main-database.sql` for the main database; it includes all schema updates in dependency order.
 
+For database changes from VS Code, use the configured [Supabase CLI migration workflow](DATABASE_WORKFLOW.md), including terminal commands and VS Code tasks.
+
 Checks:
 
 ```sh

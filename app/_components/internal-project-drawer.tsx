@@ -1,4 +1,5 @@
 "use client";
+import {canBeAssignedProjectManager} from "@/lib/roles";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ProjectLogoUpload } from "@/app/_components/project-logo";
@@ -27,8 +28,8 @@ export function InternalProjectDrawer({ onClose, onCreated }: { onClose: () => v
     if (busy||logoBusy) return;
     const data = new FormData(event.currentTarget);
     const managerId = String(data.get("manager") || "");
-    const manager = users.find(person => person.id === managerId && person.role === "project_manager");
-    if (managerId && !manager) { setError("Select a user with the Project Manager role."); return; }
+    const manager = users.find(person => person.id === managerId && canBeAssignedProjectManager(person.role));
+    if (managerId && !manager) { setError("Select an admin or project manager."); return; }
     setBusy(true); setError("");
     try {
       if (!pending.current) {
@@ -70,7 +71,7 @@ export function InternalProjectDrawer({ onClose, onCreated }: { onClose: () => v
           <label className="field">Objectives<textarea name="objectives" rows={3} placeholder="What should this project achieve?" /></label>
           <label className="field">Priority<select name="priority" defaultValue="Normal"><option>Low</option><option>Normal</option><option>High</option><option>Urgent</option></select></label>
           <label className="field">Start date<CalendarPicker name="startDate" /></label>
-          <label className="field">Project manager<select name="manager" defaultValue=""><option value="">Unassigned</option>{users.filter(person => person.id && person.role === "project_manager").map(person => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
+          <label className="field">Project manager<select name="manager" defaultValue=""><option value="">Unassigned</option>{users.filter(person => person.id && canBeAssignedProjectManager(person.role)).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
           <div className="internal-project-team"><h3>Team members</h3><p>Select the people working on this project.</p>{users.filter(person => person.id).map(person => <label key={person.id}><input type="checkbox" name="team" value={person.id} />{person.name}</label>)}</div>
         </fieldset>
         {error && <p className="form-error" role="alert">{error}</p>}

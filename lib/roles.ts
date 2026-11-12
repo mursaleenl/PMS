@@ -1,5 +1,10 @@
 export type WorkspaceRole = "admin" | "employee" | "project_manager" | "client";
 
+/** Workspace admins can also serve as the assigned manager of a project. */
+export function canBeAssignedProjectManager(role:unknown):boolean {
+  return role === "admin" || role === "project_manager";
+}
+
 export const roleLabels: Record<WorkspaceRole, string> = {
   admin: "Admin",
   employee: "Employee",
@@ -10,6 +15,11 @@ export const roleLabels: Record<WorkspaceRole, string> = {
 export function normalizeRole(value: unknown): WorkspaceRole | undefined {
   if (value === "admin" || value === "employee" || value === "project_manager" || value === "client") return value;
   return undefined;
+}
+
+export function getRoleLabel(value?:string):string|undefined {
+  const role=normalizeRole(value);
+  return role?roleLabels[role]:value;
 }
 
 type AuthUserLike = {

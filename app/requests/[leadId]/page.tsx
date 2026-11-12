@@ -1,4 +1,5 @@
 "use client";
+import {canBeAssignedProjectManager} from "@/lib/roles";
 import {OperatingOrganizationField} from "@/app/_components/operating-organization-field";
 import {EditDetailsDialog} from "@/app/_components/edit-details-dialog";
 import {canEditRecordDetails,parseServiceDetails} from "@/lib/record-editing";
@@ -63,8 +64,8 @@ export default function LeadWorkspacePage() {
     const projectName=lead.projectName?.trim()||proposalForProject?.projectTitle?.trim();
     if(!projectName){setError("Add a project name in Edit lead details before moving this enquiry to Projects.");return;}
     const data = new FormData(event.currentTarget);
-    const manager = assignableUsers.find(person => person.id === String(data.get("projectManager")) && person.role === "project_manager");
-    if (data.get("projectManager") && !manager) { setError("Select a user with the Project Manager role."); return; }
+    const manager = assignableUsers.find(person => person.id === String(data.get("projectManager")) && canBeAssignedProjectManager(person.role));
+    if (data.get("projectManager") && !manager) { setError("Select an admin or project manager."); return; }
     const team: ProjectTeamMember[] = manager ? [{ role: "Project Manager", name: manager.name, userId: manager.id, allocationPercent: 0 }] : [];
     converting.current = true;
     try {
@@ -144,7 +145,7 @@ export default function LeadWorkspacePage() {
         <label className="field">Project manager (optional)
           <select name="projectManager" defaultValue="">
             <option value="">Unassigned</option>
-            {assignableUsers.filter(person=>person.id && person.role === "project_manager").map(person=><option key={person.id} value={person.id}>{person.name}</option>)}
+            {assignableUsers.filter(person=>person.id && canBeAssignedProjectManager(person.role)).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}
           </select>
           <small>A project manager can be assigned or changed in the project workspace.</small>
         </label>

@@ -31,10 +31,17 @@ test('main database installs fresh, preserves populated records on rerun, and up
     await db.query("insert into project_team_members(project_id,user_id,role,name) values($1,$2,'Project Manager','Manager')", [project, manager]);
     await db.query("insert into project_work_items(project_id,external_id,title,kind,assignee_user_id,assignee_name) values($1,'KEEP-TASK','Keep this task','FEATURE_DEV',$2,'Employee')", [project, employee]);
     await db.query("insert into attendance_sessions(user_id,work_date,checked_in_at,checked_out_at,checkin_token,checkout_token) values($1,'2026-11-03','2026-11-03T08:00:00Z','2026-11-03T10:00:00Z',gen_random_uuid(),gen_random_uuid())", [employee]);
-    for (const ineligible of [admin, employee, null]) {
-      await assert.rejects(db.query("insert into project_team_members(project_id,user_id,role,name) values($1,$2,'Project Manager','Invalid')", [project, ineligible]), /Only users with the Project Manager role/);
+    for (const ineligible of [employee, null]) {
+      await assert.rejects(db.query("insert into project_team_members(project_id,user_id,role,name) values($1,$2,'Project Manager','Invalid')", [project, ineligible]), /Only administrators and users with the Project Manager role/);
     }
-    await assert.rejects(db.query("update project_team_members set user_id=$1 where project_id=$2 and role='Project Manager'", [employee, project]), /Only users with the Project Manager role/);
+    await assert.rejects(db.query("update project_team_members set user_id=$1 where project_id=$2 and role='Project Manager'", [employee, project]), /Only administrators and users with the Project Manager role/);
+    await db.query("insert into project_team_members(project_id,user_id,role,name) values($1,$2,'Project Manager','Admin')",[project,admin]);
+    assert.equal((await db.query('select role from workspace_members where user_id=$1',[admin])).rows[0].role,'admin');
+    // Eligible role changes must preserve the project assignment.
+    await db.query("update workspace_members set role='admin' where user_id=$1",[manager]);
+    assert.equal((await db.query("select * from project_team_members where user_id=$1 and role='Project Manager'",[manager])).rows.length,1);
+    await db.query("update workspace_members set role='project_manager' where user_id=$1",[manager]);
+    assert.equal((await db.query("select * from project_team_members where user_id=$1 and role='Project Manager'",[manager])).rows.length,1);
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [manager]);
     await db.exec('set role authenticated');
     assert.equal((await db.query('select id from projects')).rows.length, 1);
@@ -90,8 +97,10 @@ test('main database installs fresh, preserves populated records on rerun, and up
     assert.equal(updated.qualification.proposalAttachment.name, 'scope.pdf');
     for (const table of tables) assert.equal((await db.query(`select count(*)::int n from public.${table}`)).rows[0].n, before[table].length);
     await assert.rejects(db.query("update leads set status='QUALIFIED' where external_id='KEEP-LEAD'"), /leads_status_check/);
+    await db.query("update workspace_members set role='admin' where user_id=$1",[manager]);
     await db.query("update workspace_members set role='employee' where user_id=$1", [manager]);
-    assert.equal((await db.query("select * from project_team_members where role='Project Manager'")).rows.length, 0);
+    const remainingManagers=(await db.query("select * from project_team_members where role='Project Manager'")).rows;
+    assert.equal(remainingManagers.length,1);assert.equal(remainingManagers[0].user_id,admin);
   } finally {
     await db.close();
   }

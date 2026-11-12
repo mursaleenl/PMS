@@ -11,6 +11,7 @@ test('add another project from the client without changing the original project 
  const form=page.getByRole('dialog',{name:'Add project for existing client'});
  await expect(form.getByRole('combobox',{name:'Client',exact:true})).toHaveValue('0');
  await form.getByLabel('Project name',{exact:true}).fill('Northstar mobile app');
+ await form.getByRole('combobox',{name:'Project manager',exact:true}).selectOption('00000000-0000-0000-0000-000000000001');
  await form.getByLabel('Scope / description').fill('Design and develop a mobile app.');
  await form.getByLabel('Project budget').fill('5000');
  await form.getByLabel('Services',{exact:true}).fill('UI/UX, Development');
@@ -26,6 +27,7 @@ test('add another project from the client without changing the original project 
  expect(changes[0].data.row).toMatchObject({title:'Northstar mobile app',client_name:'Sam Taylor',client_company:'Northstar Studio',client_email:'sam@example.com',classification:'Repeat Client',contracted_value:5000,scope_included:'Design and develop a mobile app.'});
  expect(changes[0].data.proposalVersion).toBe(0);
  expect(changes[0].data.workItems).toEqual([]);
+ expect(changes[0].data.team).toEqual([expect.objectContaining({user_id:'00000000-0000-0000-0000-000000000001',role:'Project Manager'})]);
 });
 
 test('new project offers existing clients and keeps their workspaces distinct',async({page})=>{

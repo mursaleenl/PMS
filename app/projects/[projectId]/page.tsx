@@ -1,4 +1,5 @@
 "use client";
+import {canBeAssignedProjectManager,getRoleLabel} from "@/lib/roles";
 import {AssignTaskDialog} from "@/app/_components/assign-task-dialog";
 import {CalendarPicker} from "@/app/_components/calendar-picker";
 import {EditTaskDialog} from "@/app/_components/edit-task-dialog";
@@ -207,7 +208,7 @@ function TaskDispatchDialog({ project, onClose, onDispatch }: { project: Project
             Description
             <textarea name="description" rows={4} maxLength={5000} placeholder="Add requirements, context, and the expected outcome" />
           </label>
-          <TaskTargetPicker label="Assignees" options={assignees.filter(person=>person.id).map(person=>({id:person.id!,label:person.name,detail:person.role}))} selected={selectedAssignees} onChange={setSelectedAssignees}/>
+          <TaskTargetPicker label="Assignees" options={assignees.filter(person=>person.id).map(person=>({id:person.id!,label:person.name,detail:getRoleLabel(person.role)}))} selected={selectedAssignees} onChange={setSelectedAssignees}/>
           {loadingAssignees&&<small role="status">Loading workspace assignees…</small>}
           <label className="field required">
             Priority
@@ -413,11 +414,11 @@ export default function ProjectWorkspacePage() {
           <div className="panel-heading"><div><h2>Project Team</h2><p>Project manager and assigned team members</p></div></div>
           {(role === "admin" || role === "project_manager") ? <label className="field">Assigned project manager<select aria-label="Assigned project manager" value={project.team.find(member=>member.role==="Project Manager")?.userId||managerOptions.find(person=>person.name===project.team.find(member=>member.role==="Project Manager")?.name)?.id||""} onChange={event=>{
             if(role!=="admin")return;
-            const manager=managerOptions.find(person=>person.id===event.target.value && person.role === "project_manager");
+            const manager=managerOptions.find(person=>person.id===event.target.value && canBeAssignedProjectManager(person.role));
             if(!manager)return;
             updateProject(project.id,{team:[...project.team.filter(member=>member.role!=="Project Manager"),{role:"Project Manager",name:manager.name,userId:manager.id,allocationPercent:0}]});
             showToast({message:"Project manager updated."});
-          }}><option value="" disabled>Select a project manager</option>{managerOptions.filter(person=>person.id && person.role === "project_manager").map(person=><option key={person.id} value={person.id}>{person.name}</option>)}</select></label> : <div className="field"><span>Assigned project manager</span><p>{project.team.find(member=>member.role==="Project Manager")?.name||"Unassigned"}</p></div>}
+          }}><option value="" disabled>Select a project manager</option>{managerOptions.filter(person=>person.id && canBeAssignedProjectManager(person.role)).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}</select></label> : <div className="field"><span>Assigned project manager</span><p>{project.team.find(member=>member.role==="Project Manager")?.name||"Unassigned"}</p></div>}
           <div className="project-team-roster"><h3>Team members</h3>
             {teamMembers.length ? <ul>{teamMembers.map(member=><li key={member.userId||member.name.trim().toLowerCase()}><span>{member.name}</span><small>Team member</small></li>)}</ul> : <p>Team members appear here when tasks are assigned.</p>}
           </div>

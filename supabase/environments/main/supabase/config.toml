@@ -1,0 +1,10 @@
+# Remote migration context; use the root config for the local stack.
+project_id = "PMS_main"
+[db]
+major_version = 17
+[db.migrations]
+enabled = true
+schema_paths = []
+[db.seed]
+enabled = false
+sql_paths = []

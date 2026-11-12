@@ -30,7 +30,7 @@ function AttendanceScanContent({params}:{params:Promise<{token:string}>}){
         if(action==="check_in"&&current)throw new Error("You are already checked in. Choose Check Out to end your current visit.");
         if(action==="check_out"&&!current)throw new Error("You are not checked in. Choose Check In to start a visit.");
         const result=await attendanceRpc<AttendanceSession>("scan_attendance",{p_token:token,p_action:action});
-        if(action==="check_in"&&result.checked_out_at)throw new Error("This QR already recorded a completed visit. Scan the current office QR to start another visit.");
+        if(action==="check_in"&&result.checked_out_at)throw new Error("This QR already recorded a completed visit. You can check in again on the next work day.");
         if(action==="check_out"&&result.id!==current?.id)throw new Error("This QR was already used for an earlier departure. Scan the current office QR to check out of this visit.");
         return {office,message:`${action==="check_in"?"Checked in":"Checked out"} at ${attendanceTime((action==="check_in"?result.checked_in_at:result.checked_out_at)!,office.timezone)}.`};
       })();

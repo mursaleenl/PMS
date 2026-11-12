@@ -1,5 +1,7 @@
 # Supabase setup
 
+For ongoing changes from VS Code, follow [DATABASE_WORKFLOW.md](DATABASE_WORKFLOW.md). It sets up tracked migrations for an existing Supabase project; the SQL Editor installer below remains available for initial setup.
+
 The workspace uses Supabase Auth and PostgreSQL with Administrator, Employee, and Client roles.
 
 1. Configure `.env.local` using the variable names in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` is server-only; never prefix it with `NEXT_PUBLIC_`.

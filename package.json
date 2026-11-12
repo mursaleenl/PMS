@@ -9,7 +9,28 @@
     "lint": "eslint .",
     "test": "node --test tests/*.test.cjs",
     "typecheck": "tsc --noEmit --incremental false",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "supabase": "node scripts/supabase.cjs",
+    "db:login": "node scripts/supabase.cjs login",
+    "db:link": "node scripts/database-targets.cjs link",
+    "db:pull": "node scripts/database-targets.cjs pull",
+    "db:prepare": "node scripts/create-database-migration.cjs",
+    "db:check": "node scripts/create-database-migration.cjs --check",
+    "db:preview": "node scripts/database-targets.cjs preview",
+    "db:push": "node scripts/database-targets.cjs push",
+    "db:history": "node scripts/database-targets.cjs history",
+    "db:start": "node scripts/supabase.cjs start",
+    "db:stop": "node scripts/supabase.cjs stop",
+    "db:apply:local": "node scripts/supabase.cjs migration up",
+    "db:test": "node --test tests/main-database.test.cjs tests/testing-database.test.cjs tests/migration-locks.test.cjs tests/database-migrations.test.cjs tests/database-targets.test.cjs tests/container-runtime.test.cjs",
+    "db:build-testing": "node scripts/build-testing-database.cjs",
+    "db:link:main": "node scripts/database-targets.cjs link --target main",
+    "db:pull:main": "node scripts/database-targets.cjs pull --target main",
+    "db:preview:main": "node scripts/database-targets.cjs preview --target main",
+    "db:push:main": "node scripts/database-targets.cjs push --target main",
+    "db:history:main": "node scripts/database-targets.cjs history --target main",
+    "db:target": "node scripts/database-targets.cjs configure",
+    "db:targets": "node scripts/database-targets.cjs list"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
@@ -32,6 +53,7 @@
     "@types/react-dom": "^19.0.2",
     "eslint": "^4.0.0",
     "eslint-config-next": "^0.2.4",
+    "supabase": "3.1.0",
     "typescript": "^5.7.2"
   }
 }

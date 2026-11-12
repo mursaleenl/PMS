@@ -36,11 +36,13 @@ test('admin creates internal work without commercial fields', async ({ page }) =
   await form.getByLabel('Project name').fill('Internal design system');
   await form.getByLabel('Description').fill('Build reusable patterns for our team.');
   await expect(form.getByLabel('Project manager')).toHaveValue('');
-  await expect(form.getByLabel('Project manager').locator('option')).toHaveCount(1);
+  await expect(form.getByLabel('Project manager').locator('option')).toHaveCount(2);
+  await form.getByLabel('Project manager').selectOption('00000000-0000-0000-0000-000000000001');
   await form.getByRole('button', { name: 'Create internal project', exact: true }).click();
   await expect.poll(() => calls.flatMap(call => call.p_changes).filter(change => change.collection === 'projects').length).toBe(1);
   const change = calls.flatMap(call => call.p_changes).find(change => change.collection === 'projects');
   expect(change.data.row.project_type).toBe('internal');
+  expect(change.data.team).toEqual([expect.objectContaining({user_id:'00000000-0000-0000-0000-000000000001',role:'Project Manager'})]);
   expect(change.data.leadId).toBeNull();
   expect(change.data.row.client_email).toBeNull();
   await expect(page.getByRole('heading', { name: 'Internal design system', exact: true })).toBeVisible();

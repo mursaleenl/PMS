@@ -1,4 +1,5 @@
 "use client";
+import {canBeAssignedProjectManager} from "@/lib/roles";
 
 import {useEffect,useRef,useState,type FormEvent} from "react";
 import {CalendarPicker} from "@/app/_components/calendar-picker";
@@ -30,7 +31,8 @@ export function ClientProjectDrawer({initialClient,onClose,onCreated}:{initialCl
     if(role!=="admin"&&role!=="project_manager"){setError("You do not have permission to create projects.");return;}
     const data=new FormData(event.currentTarget),client=clients[Number(data.get("client"))];
     if(!client){setError("Choose an existing client.");return;}
-    const manager=users.find(person=>person.id===data.get("manager")&&person.role==="project_manager");
+    const manager=users.find(person=>person.id===data.get("manager")&&canBeAssignedProjectManager(person.role));
+    if(data.get("manager")&&!manager){setError("Select an admin or project manager.");return;}
     setBusy(true);setError("");
     try{
       if(!pending.current){
@@ -58,7 +60,7 @@ export function ClientProjectDrawer({initialClient,onClose,onCreated}:{initialCl
         <div className="client-project-fields"><label className="field">Operating organization<select name="operatingCompany" defaultValue="Evecture">{operatingCompanies.map(company=><option key={company}>{company}</option>)}</select></label><label className="field">Start date<CalendarPicker name="startDate" ariaLabel="Start date"/></label></div>
         <div className="client-project-fields"><label className="field">Billing structure<select name="billingStructure" defaultValue="Fixed"><option>Fixed</option><option>Hourly</option><option>Retainer</option></select></label><label className="field">Currency<select name="currency" defaultValue="USD">{SUPPORTED_CURRENCIES.map(currency=><option key={currency}>{currency}</option>)}</select></label></div>
         <label className="field">Project budget<input name="budget" type="number" min="0" step="0.01" defaultValue="0" required/></label>
-        <label className="field">Project manager<select name="manager" defaultValue=""><option value="">Unassigned</option>{users.filter(person=>person.id&&person.role==="project_manager").map(person=><option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
+        <label className="field">Project manager<select name="manager" defaultValue=""><option value="">Unassigned</option>{users.filter(person=>person.id&&canBeAssignedProjectManager(person.role)).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
       </fieldset>
       {error&&<p className="form-error" role="alert">{error}</p>}
       <div className="form-actions"><button type="button" className="button button-quiet" onClick={onClose} disabled={busy}>Cancel</button><button type="submit" className="button button-primary" disabled={busy}>{busy?"Saving…":pending.current?"Retry saving":"Create project"}</button></div>

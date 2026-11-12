@@ -37,7 +37,8 @@ test('employee history has no admin actions and office QR is admin-only',async({
  await expect(page.getByRole('heading',{name:'Office visits',exact:true})).toBeVisible();
  await expect(page.getByRole('cell',{name:'Checked in',exact:true})).toBeVisible();
  await expect(page.getByRole('link',{name:'Display office QR'})).toHaveCount(0);
- await expect(page.getByRole('button',{name:'Correct departure'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Edit times'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Delete',exact:true})).toHaveCount(0);
  await page.goto('/work/attendance/office');
  await expect(page.getByText('Only administrators can display the office QR.')).toBeVisible();
 });
@@ -54,21 +55,29 @@ test('admin office display generates a local QR and refreshes an expired code',a
  await page.clock.install();await page.clock.fastForward(61000);
  await expect.poll(()=>issued).toBeGreaterThan(1);
 });
-test('admin can correct a missing checkout with a reason',async({page})=>{
+test('admin can edit both arrival and departure with a reason',async({page})=>{
  await attendanceMocks(page,{role:'admin',open:{...visit,work_date:'2026-01-01',checked_in_at:'2026-01-01T04:00:00Z'}});
  let correction;
- await page.route('**/rest/v1/attendance_audit?*',route=>route.fulfill({json:correction?[{id:'new-correction',changed_at:new Date().toISOString(),actor_id:visit.user_id,old_record:visit,new_record:{...visit,reason:correction.p_reason,checked_out_at:correction.p_checkout}}]:[]}));
- await page.route('**/rest/v1/rpc/correct_attendance_checkout',route=>{
+ await page.route('**/rest/v1/attendance_audit?*',route=>route.fulfill({json:correction?[{id:'new-correction',changed_at:new Date().toISOString(),actor_id:visit.user_id,old_record:visit,new_record:{...visit,reason:correction.p_reason,checked_in_at:correction.p_checkin,checked_out_at:correction.p_checkout}}]:[]}));
+ await page.route('**/rest/v1/rpc/correct_attendance_session',route=>{
   correction=route.request().postDataJSON();return route.fulfill({json:null});
  });
  await page.goto('/work/attendance');
- await page.getByRole('button',{name:'Correct departure'}).click();
+ await page.getByRole('button',{name:'Edit times'}).click();
+ await expect(page.getByLabel('Arrival (device local time)')).not.toHaveValue('');
+ await page.getByLabel('Arrival (device local time)').fill('2026-01-01T10:00');
  await page.getByLabel('Departure (device local time)').fill('2026-01-01T17:30');
  await page.getByLabel('Reason',{exact:true}).fill('Forgot to scan at departure');
  await page.getByRole('button',{name:'Save correction',exact:true}).click();
  await expect.poll(()=>correction?.p_reason).toBe('Forgot to scan at departure');
  expect(correction.p_session).toBe('visit-1');
+ expect(correction.p_checkin).toBe(new Date('2026-01-01T10:00').toISOString());
+ expect(correction.p_checkout).toBe(new Date('2026-01-01T17:30').toISOString());
  await expect(page.locator('#attendance-change-history .attendance-record-count')).toHaveText('1 change');
+ await page.locator('#attendance-change-history summary').click();
+ await page.locator('.attendance-change-toggle').click();
+ await expect(page.getByText('Previous arrival',{exact:true})).toBeVisible();
+ await expect(page.getByText('Corrected arrival',{exact:true})).toBeVisible();
 });
 test('signed-out QR links preserve their token on the sign-in redirect',async({page})=>{
  await page.goto(`/work/attendance/${token}`);
@@ -120,13 +129,8 @@ for(const action of ['check_in','check_out'])test(`mobile camera records the sel
  await page.setViewportSize({width:390,height:844});
  await page.goto('/work/attendance');
  await expect(page.getByRole('region',{name:'My attendance profile'})).toContainText('Alex Morgan');
- await page.getByRole('button',{name:'Scan attendance',exact:true}).click();
- const dialog=page.getByRole('dialog',{name:'Scan attendance',exact:true});
- await expect(dialog.getByRole('button',{name:'Check In',exact:true})).toBeVisible();
- await expect(dialog.getByRole('button',{name:'Check Out',exact:true})).toBeVisible();
- expect(await page.evaluate(()=>window.attendanceCameraStopped)).toBeUndefined();
  expect(scans).toHaveLength(0);
- await dialog.getByRole('button',{name:action==='check_in'?'Check In':'Check Out',exact:true}).click();
+ await page.getByRole('button',{name:action==='check_in'?'Check in':'Check out',exact:true}).click();
  await expect(page).toHaveURL(new RegExp(`/work/attendance/${token}\\?action=${action}$`),{timeout:15000});
  expect(await page.evaluate(()=>window.attendanceCameraStopped)).toBe(true);
  await expect(page.getByRole('status').filter({hasText:action==='check_in'?'Checked in at':'Checked out at'})).toBeVisible();
@@ -136,12 +140,23 @@ test('camera denial shows the error without a fallback attendance form',async({p
  const scans=await attendanceMocks(page);
  await page.setViewportSize({width:390,height:844});
  await page.addInitScript(()=>Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>{throw new DOMException('Denied','NotAllowedError');}}));
- await page.goto('/work/attendance');await page.getByRole('button',{name:'Scan attendance',exact:true}).click();
- await page.getByRole('button',{name:'Check In',exact:true}).click();
+ await page.goto('/work/attendance');
+ await page.getByRole('button',{name:'Check in',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Scan QR to check in'});
  await expect(dialog.getByRole('alert')).toContainText('Camera permission was denied');
  await expect(dialog.getByRole('button',{name:'Cancel',exact:true})).toBeVisible();
  expect(scans).toHaveLength(0);
+});
+
+test('completed attendance disables scanning after reload',async({page})=>{
+ await attendanceMocks(page);
+ const completed={...visit,checked_out_at:new Date().toISOString()};
+ await page.route('**/rest/v1/attendance_sessions?*',route=>route.fulfill({json:route.request().url().includes('checked_out_at=is.null')?null:[completed]}));
+ await page.goto('/work/attendance');
+ await expect(page.getByRole('button',{name:'Checked out',exact:true})).toBeDisabled();
+ await page.reload();
+ await expect(page.getByRole('button',{name:'Checked out',exact:true})).toBeDisabled();
+ await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('personal attendance totals stay attached to the authenticated user',async({page})=>{
@@ -321,10 +336,69 @@ for(const action of ['check_in','check_out'])test(`an invalid ${action} choice n
 
 test('attendance departure supports time subpanels and rejects future times',async({page})=>{
  await attendanceMocks(page,{role:'admin',open:{...visit,work_date:'2026-01-01',checked_in_at:'2026-01-01T04:00:00Z'}});
- await page.goto('/work/attendance');await page.getByRole('button',{name:'Correct departure',exact:true}).click();
+ await page.goto('/work/attendance');await page.getByRole('button',{name:'Edit times',exact:true}).click();
  const departure=page.getByLabel('Departure (device local time)',{exact:true});await departure.fill('2026-01-01T17:30');await departure.press('ArrowDown');
  const calendar=page.getByRole('dialog',{name:'Choose a date',exact:true});await calendar.getByRole('button',{name:/Choose time/}).click();
  await calendar.getByRole('button',{name:'Hour 18',exact:true}).click();await calendar.getByRole('button',{name:'Minute 45',exact:true}).click();
  await expect(departure).toHaveValue('2026-01-01T18:45');await calendar.getByRole('button',{name:'Done',exact:true}).click();
  await departure.fill('2099-01-01T12:00');expect(await departure.evaluate(input=>input.checkValidity())).toBe(false);
+});
+
+test('admin arrival-only edits keep checkout blank and server errors keep the form open',async({page})=>{
+ await attendanceMocks(page,{role:'admin',open:visit});
+ let correction;
+ await page.route('**/rest/v1/rpc/correct_attendance_session',route=>{
+  correction=route.request().postDataJSON();return route.fulfill({status:400,json:{message:'Arrival must be on the visit date and not in the future.'}});
+ });
+ await page.goto('/work/attendance');
+ await page.getByRole('button',{name:'Edit times',exact:true}).click();
+ await expect(page.getByLabel('Departure (device local time)')).toHaveValue('');
+ await page.getByLabel('Reason',{exact:true}).fill('Correct arrival only');
+ await page.getByRole('button',{name:'Save correction',exact:true}).click();
+ await expect(page.locator('.attendance-correction [role=alert]')).toContainText('Arrival must be on the visit date');
+ expect(correction.p_checkout).toBe(null);
+ await expect(page.getByLabel('Arrival (device local time)')).toBeVisible();
+ await expect(page.getByLabel('Reason',{exact:true})).toHaveValue('Correct arrival only');
+ await expect(page.getByRole('button',{name:'Save correction',exact:true})).toBeEnabled();
+});
+
+test('admin can cancel or confirm deletion and see its audit snapshot',async({page})=>{
+ await attendanceMocks(page,{role:'admin',open:visit});
+ let deleted=false,requests=[];
+ await page.route('**/rest/v1/attendance_sessions?*',route=>route.fulfill({json:route.request().url().includes('checked_out_at=is.null')?(deleted?null:visit):(deleted?[]:[visit])}));
+ await page.route('**/rest/v1/rpc/delete_attendance_session',route=>{
+  requests.push(route.request().postDataJSON());deleted=true;return route.fulfill({json:null});
+ });
+ await page.route('**/rest/v1/attendance_audit?*',route=>route.fulfill({json:deleted?[{id:'deleted-visit',actor_id:visit.user_id,changed_at:new Date().toISOString(),old_record:visit,new_record:{id:visit.id,user_id:visit.user_id,work_date:visit.work_date,action:'deleted',reason:requests[0].p_reason}}]:[]}));
+ await page.goto('/work/attendance');
+ await page.getByRole('button',{name:'Delete',exact:true}).click();
+ await expect(page.getByText(/This cannot be undone/)).toBeVisible();
+ expect(requests).toHaveLength(0);
+ await page.getByRole('button',{name:'Cancel',exact:true}).click();
+ expect(requests).toHaveLength(0);
+ await page.getByRole('button',{name:'Delete',exact:true}).click();
+ await page.getByRole('button',{name:'Confirm deletion',exact:true}).click();
+ expect(requests).toHaveLength(0); // A reason is required before deletion.
+ await page.getByLabel('Deletion reason',{exact:true}).fill('Incorrect office scan');
+ await page.getByRole('button',{name:'Confirm deletion',exact:true}).click();
+ await expect(page.getByText('No visits recorded for this period.',{exact:true})).toBeVisible();
+ expect(requests).toEqual([{p_session:visit.id,p_reason:'Incorrect office scan'}]);
+ await expect(page.getByRole('button',{name:'Check in',exact:true})).toBeEnabled();
+ const history=page.locator('#attendance-change-history');
+ await expect(history.locator('.attendance-record-count')).toHaveText('1 change');
+ await history.locator('summary').click();
+ await history.getByRole('button',{name:/Attendance deleted · Incorrect office scan/}).click();
+ await expect(history.getByText('Deleted',{exact:true})).toBeVisible();
+ await expect(history.getByText('Arrival',{exact:true})).toBeVisible();
+});
+test('failed attendance deletion leaves the record and confirmation available for retry',async({page})=>{
+ await attendanceMocks(page,{role:'admin',open:visit});
+ await page.route('**/rest/v1/rpc/delete_attendance_session',route=>route.fulfill({status:400,json:{message:'Unable to delete attendance. Please retry.'}}));
+ await page.goto('/work/attendance');
+ await page.getByRole('button',{name:'Delete',exact:true}).click();
+ await page.getByLabel('Deletion reason',{exact:true}).fill('Incorrect office scan');
+ await page.getByRole('button',{name:'Confirm deletion',exact:true}).click();
+ await expect(page.locator('.attendance-correction [role=alert]')).toContainText('Unable to delete attendance');
+ await expect(page.getByRole('button',{name:'Confirm deletion',exact:true})).toBeEnabled();
+ await expect(page.getByLabel('Deletion reason',{exact:true})).toHaveValue('Incorrect office scan');
 });

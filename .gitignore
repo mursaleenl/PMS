@@ -9,3 +9,14 @@ pnpm-debug.log*
 
 test-results/
 playwright-report/
+
+# Supabase CLI local state and credentials
+supabase/.temp/
+supabase/.branches/
+supabase/.env*
+supabase/migration-state.json.tmp
+
+# Named Supabase deployment targets
+supabase/targets.local.json
+supabase/environments/**/.temp/
+supabase/environments/**/.branches/

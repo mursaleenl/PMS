@@ -133,7 +133,7 @@ export function CommandPalette() {
           dialog.current?.querySelectorAll<HTMLAnchorElement>(".command-result")[next]?.scrollIntoView({block: "nearest"});
         }
         if (event.key === "Enter") { event.preventDefault(); dialog.current?.querySelectorAll<HTMLAnchorElement>(".command-result")[Math.min(activeIndex, results.length - 1)]?.click(); }
-      }} placeholder={(role === "employee") ? "Search assigned projects…" : "Search requests, clients, projects, retainers…"} /><kbd>ESC</kbd><button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="Close search"><X size={17} /></button></div>
+      }} placeholder="Search workspace…" /><kbd>ESC</kbd><button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="Close search"><X size={17} /></button></div>
       {term.trim() ? <div className="command-results">{results.length ? results.map((item, index) => {
         const Icon = item.kind === "Request" ? Inbox : item.kind === "Project" ? FolderKanban : item.kind === "Client" ? Users : Handshake;
         return <Link href={item.href} className={`command-result${index === Math.min(activeIndex, results.length - 1) ? " is-active" : ""}`} onMouseEnter={() => setActiveIndex(index)} key={`${item.kind}-${item.href}-${item.title}`} onClick={() => setOpen(false)}><span className="command-result-icon">{item.logoSrc ? <img className="command-project-logo" src={item.logoSrc} alt={`${item.title} logo`} width={28} height={28} /> : <Icon size={16} />}</span><span className="command-result-copy"><strong>{item.title}</strong><small>{item.detail}</small></span><span className="command-result-kind">{item.kind}</span><ArrowRight size={15} /></Link>;

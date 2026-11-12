@@ -9,7 +9,7 @@ export type AttendanceChallenge = {token:string; expiresAt:string; serverTime:st
 export async function attendanceRpc<T>(name:string, args:Record<string,unknown> = {}):Promise<T> {
   if (!supabase) throw new Error("Database is not configured.");
   const {data,error} = await supabase.rpc(name,args);
-  if (error) throw new Error(error.code === "PGRST202" || error.code === "42P01" ? "Attendance setup is incomplete. Ask an administrator to apply the QR attendance migration." : error.message);
+  if (error) throw new Error(error.code === "PGRST202" || error.code === "42P01" ? "Attendance setup is incomplete. Ask an administrator to apply the latest attendance migration." : error.message);
   return data as T;
 }
 export async function readAttendanceSettings():Promise<AttendanceSettings> {

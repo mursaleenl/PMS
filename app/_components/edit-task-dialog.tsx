@@ -1,4 +1,5 @@
 "use client";
+import {getRoleLabel} from "@/lib/roles";
 import {useEffect,useRef,useState,type FormEvent} from "react";
 import {GENERAL_TASKS_ID,updateGeneralTask} from "@/lib/general-tasks";
 import {X} from "lucide-react";
@@ -20,7 +21,7 @@ export function EditTaskDialog({projectId,task,onClose}:{projectId:string;task:P
  const personKey=(person:TaskAssignee)=>person.userId||users.find(user=>user.name.trim().toLowerCase()===person.name.trim().toLowerCase())?.id||`legacy:${person.name}`;
  useEffect(()=>{if(!loading&&selected===null)setSelected(new Set(original.map(personKey)));},[loading,users,selected]); // Initialize once the directory is available.
  useEffect(()=>{const node=dialog.current;const previous=document.activeElement;node?.showModal();return()=>{node?.close();if(previous instanceof HTMLElement&&previous.isConnected)previous.focus();};},[]);
- const options=[...users.filter(user=>user.id).map(user=>({id:user.id!,label:user.name,detail:user.role})),...original.filter(person=>personKey(person).startsWith("legacy:")).map(person=>({id:personKey(person),label:person.name,detail:"Existing assignment"}))];
+ const options=[...users.filter(user=>user.id).map(user=>({id:user.id!,label:user.name,detail:getRoleLabel(user.role)})),...original.filter(person=>personKey(person).startsWith("legacy:")).map(person=>({id:personKey(person),label:person.name,detail:"Existing assignment"}))];
  async function submit(event:FormEvent<HTMLFormElement>){
   event.preventDefault();if(busyRef.current)return;
   const data=new FormData(event.currentTarget);busyRef.current=true;setBusy(true);setError("");
@@ -53,12 +54,12 @@ export function EditTaskDialog({projectId,task,onClose}:{projectId:string;task:P
  }
  return <dialog ref={dialog} className="assign-task-dialog" aria-labelledby="edit-task-title" onCancel={event=>{if(busyRef.current)event.preventDefault();else onClose();}}>
   <header><h2 id="edit-task-title">Edit task</h2><button type="button" className="icon-button" aria-label="Close task form" disabled={busy} onClick={onClose}><X size={18}/></button></header>
-  <form onSubmit={submit}><fieldset disabled={busy||Boolean(pending.current)}>
+  <form onSubmit={submit}><div className="assign-task-fields"><fieldset disabled={busy||Boolean(pending.current)}>
    <label className="field required">Task title<textarea name="title" required rows={2} maxLength={1000} defaultValue={task.title}/></label>
    <label className="field">Description<textarea name="description" rows={4} maxLength={5000} defaultValue={task.description}/></label>
    <TaskTargetPicker label="Assignees" options={options} selected={selected??new Set()} onChange={setSelected}/>
    <div className="assign-task-columns"><label className="field">Priority<select name="priority" defaultValue={task.priority}><option value="P1">Critical</option><option value="P2">High</option><option value="P3">Normal</option><option value="P4">Low</option></select></label><label className="field">Estimated hours<input name="estimatedHours" type="number" min="0" step="0.25" defaultValue={task.estimatedHours}/></label></div>
    <label className="field">Deadline<CalendarPicker name="deadline" mode="datetime" ariaLabel="Deadline" defaultValue={taskDeadlineInput(task.deadline)}/></label>
-  </fieldset>{error&&<p className="form-error" role="alert">{error}</p>}<div className="form-actions"><button className="button button-quiet" type="button" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-primary" disabled={busy||loading||selected===null}>{busy?"Saving…":pending.current?"Retry saving":"Save changes"}</button></div></form>
+  </fieldset></div>{error&&<p className="form-error" role="alert">{error}</p>}<div className="form-actions"><button className="button button-quiet" type="button" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-primary" disabled={busy||loading||selected===null}>{busy?"Saving…":pending.current?"Retry saving":"Save changes"}</button></div></form>
  </dialog>;
 }
