@@ -11,18 +11,12 @@ pnpm-debug.log*
 test-results/
 playwright-report/
 
-# Supabase CLI local state and credentials
-supabase/.temp/
-supabase/.branches/
-supabase/.env*
-supabase/migration-state.json.tmp
+# Local database files and workspace documentation
+/supabase/
+/DATABASE_WORKFLOW.md
+/PAGE_INDEPENDENCE_PLAN.md
+/SETUP_AUTH_DATABASE.md
+/TESTING_DATABASE.md
 
-# Named Supabase deployment targets
-supabase/targets.local.json
-supabase/environments/**/.temp/
-supabase/environments/**/.branches/
-
-DATABASE_WORKFLOW.md
-PAGE_INDEPENDENCE_PLAN.md
-
-supabase/
+# Tests retained locally after removal from the remote repository
+/tests/
