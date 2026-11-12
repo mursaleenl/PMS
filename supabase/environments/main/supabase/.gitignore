@@ -1,5 +1,0 @@
-# CLI state and generated application migration copies
-.temp/
-.branches/
-migrations/*
-!migrations/??????????????_main_baseline*.sql
