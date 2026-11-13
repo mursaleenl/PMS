@@ -1939,14 +1939,16 @@ html body .app-shell #workspace-content .qa-dialog > header { position:sticky; t
 html body .app-shell #workspace-content .qa-dialog h2 { margin:0; font-size:20px; line-height:1.4; text-transform:none !important; }
 .qa-dialog header p { margin:6px 0 0; font-size:13px; line-height:1.5; color:#64748b; }
 html body .app-shell #workspace-content .qa-dialog header .icon-button { display:grid; place-items:center; flex:none; width:36px; min-width:36px; height:36px; padding:0 !important; border:1px solid #e2e8f0; background:#ffffff; color:#475569; }
-html body .app-shell #workspace-content .qa-dialog .qa-form-fields { display:grid; gap:20px; min-width:0; margin:0; padding:24px; border:0; }
+html body .app-shell #workspace-content .qa-dialog .qa-form-fields { display:grid; flex:1 1 auto; min-height:0; overflow-y:auto; gap:20px; min-width:0; margin:0; padding:24px; border:0; }
 .qa-form-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; }
 html body .app-shell #workspace-content .qa-dialog .field { display:grid; align-content:start; gap:8px; min-width:0; margin:0; font-size:13px; font-weight:500; line-height:1.5; color:#0f172a !important; }
 html body .app-shell #workspace-content .qa-dialog :is(input,textarea,select) { box-sizing:border-box; width:100%; min-width:0; min-height:44px; margin:0; padding:10px 12px; border:1px solid #cbd5e1 !important; border-radius:0 !important; background:#ffffff !important; color:#0f172a !important; font:inherit; font-size:14px; font-weight:400; line-height:1.5; box-shadow:none; }
 html body .app-shell #workspace-content .qa-dialog textarea { min-height:140px; resize:vertical; }
 html body .app-shell #workspace-content .qa-dialog ::placeholder { color:#71717a; }
-html body .app-shell #workspace-content .qa-dialog .qa-form-actions { position:sticky; bottom:0; z-index:1; display:flex; justify-content:flex-end; gap:10px; margin:0; padding:18px 24px; border-top:1px solid #e2e8f0; background:#ffffff; }
-.qa-dialog .qa-form-error { margin:0 24px 20px; }
+html body .app-shell #workspace-content .qa-dialog .qa-form-actions { position:sticky; bottom:0; z-index:1; display:flex; flex-direction:column; flex-shrink:0; align-items:stretch; gap:12px; margin:0; padding:18px 24px; border-top:1px solid #e2e8f0; background:#ffffff; }
+.qa-form-buttons { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; }
+html body .app-shell #workspace-content .qa-dialog .qa-form-error { flex-shrink:0; margin:0; padding:10px 12px; border:1px solid #e2e8f0; background:#f8fafc; color:#0f172a; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+.qa-dialog { --primary-button-color:#0f172a; --primary-button-hover:#111827; --primary-button-active:#000000; }
 html body .app-shell #workspace-content .qa-page button { text-transform:none !important; letter-spacing:normal; }
 html body .app-shell #workspace-content .qa-page .button-primary { background:#0f172a !important; color:#ffffff !important; border-color:#0f172a !important; }
 html body .app-shell #workspace-content .qa-page .button-quiet { background:#ffffff !important; color:#0f172a !important; border-color:#e2e8f0 !important; }
@@ -1957,7 +1959,6 @@ html body .app-shell #workspace-content .qa-page :is(input,textarea,select,butto
  .qa-report,.qa-empty { padding:20px; }
  html body .app-shell #workspace-content .qa-dialog > header,html body .app-shell #workspace-content .qa-dialog .qa-form-fields { padding:20px; }
  html body .app-shell #workspace-content .qa-dialog .qa-form-actions { padding:16px 20px; }
- .qa-dialog .qa-form-error { margin:0 20px 16px; }
  html body .app-shell #workspace-content .qa-dialog :is(input,textarea,select) { font-size:16px; }
 }
 html body .app-shell #workspace-content .assign-task-dialog .field { color:#0f172a !important; }
@@ -1969,14 +1970,18 @@ html body .app-shell #workspace-content .qa-page h2 { text-transform:none !impor
 html body .app-shell #workspace-content .qa-page .button { min-height:38px; font-size:13px !important; }
 html body .app-shell #workspace-content .qa-dialog h2 { font-size:20px !important; }
 html body .app-shell #workspace-content .qa-dialog :is(input,textarea)::placeholder { color:#71717a !important; }
-.qa-image-upload { display:grid; gap:12px; min-width:0; }
-.qa-image-upload .field small { color:#64748b; font-size:12px; font-weight:400; }
-.qa-image-preview { display:flex; align-items:center; gap:16px; min-width:0; padding:12px; border:1px solid #e2e8f0; }
-.qa-image-preview img { width:88px; height:88px; object-fit:contain; flex:none; background:#f8fafc; }
-.qa-image-preview > div { display:grid; gap:8px; min-width:0; }
-.qa-image-preview span { overflow-wrap:anywhere; font-size:13px; }
-.qa-image-preview small { color:#64748b; font-size:12px; }
-.qa-image-preview button { justify-self:start; }
+.qa-image-upload { display:grid; gap:10px; min-width:0; }
+.qa-image-upload-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px; font-weight:500; color:#0f172a; }
+.qa-image-optional,.qa-image-help { color:#64748b; font-weight:400; }
+.qa-image-help,.qa-image-preview small { font-size:12px; line-height:1.5; color:#64748b; }
+html body .app-shell #workspace-content .qa-dialog input.qa-image-file-input { display:none !important; }
+.qa-image-preview { display:flex; align-items:flex-start; gap:12px; min-width:0; padding:12px; border:1px solid #e2e8f0; }
+html body .app-shell #workspace-content .qa-dialog .qa-image-thumbnail { display:block; flex:none; width:64px; height:64px !important; min-height:64px; padding:0; border:1px solid #e2e8f0; background:#f8fafc; cursor:zoom-in; }
+.qa-image-thumbnail img { display:block; width:100%; height:100%; object-fit:contain; }
+.qa-image-info { display:grid; flex:1; gap:4px; min-width:0; }
+.qa-image-filename { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; color:#0f172a; }
+.qa-image-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+html body .app-shell #workspace-content .qa-dialog .qa-image-actions .button { padding:0 8px; font-size:12px !important; }
 html body .app-shell #workspace-content .qa-page .qa-report-image { display:inline-flex; flex-direction:column; align-items:flex-start; gap:8px; height:auto; max-width:100%; margin-top:18px; padding:0; border:0; color:#475569; background:transparent; font-size:12px; }
 .qa-report-image img { display:block; max-width:100%; width:240px; max-height:180px; object-fit:contain; object-position:left center; border:1px solid #e2e8f0; }
 .qa-image-dialog { width:min(1100px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); margin:auto; padding:20px; overflow:auto; border:1px solid #e2e8f0; background:white; color:#0f172a; }

@@ -31,7 +31,7 @@ function QaForm({projects,report,onClose,onSaved}:{projects:Project[];report?:Qa
    }
    await (report?editQaReport:saveQaReport)(pending.current);
    onSaved();onClose();
-  }catch(cause){setError(cause instanceof Error?cause.message:"Could not save the report.");}
+  }catch(cause){if(report)pending.current=null;setError(cause instanceof Error?cause.message:"Could not save the report.");}
   finally{saving.current=false;setBusy(false);}
  }
  return <dialog ref={dialog} className="assign-task-dialog qa-dialog" aria-labelledby="qa-form-title" onCancel={event=>{if(saving.current)event.preventDefault();else onClose();}}>
@@ -45,7 +45,7 @@ function QaForm({projects,report,onClose,onSaved}:{projects:Project[];report?:Qa
    <label className="field required">Title<input name="title" defaultValue={report?.title} required maxLength={1000} placeholder="Give your report a short title"/></label>
    <label className="field required">Details<textarea name="details" defaultValue={report?.details} required rows={5} maxLength={5000} placeholder="Describe what happened or what you would like to improve"/></label>
    <ReportImageUpload value={image} onChange={setImage} onProcessingChange={setImageBusy}/>
-  </fieldset>{error&&<p className="form-error qa-form-error" role="alert">{error}</p>}<div className="form-actions qa-form-actions"><button type="button" className="button button-quiet" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-primary" disabled={busy||imageBusy}>{busy?"Saving…":pending.current?"Retry saving":report?"Save changes":"Save report"}</button></div></form>
+  </fieldset><div className="form-actions qa-form-actions">{error&&<p className="form-error qa-form-error" role="alert">{error}</p>}<div className="qa-form-buttons"><button type="button" className="button button-quiet" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-primary" disabled={busy||imageBusy}>{busy?"Saving…":pending.current?"Retry saving":report?"Save changes":"Save report"}</button></div></div></form>
  </dialog>;
 }
 function ReportImageDialog({report,onClose}:{report:QaReport;onClose:()=>void}){

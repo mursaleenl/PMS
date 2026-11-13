@@ -31,7 +31,10 @@ export async function editQaReport(input:Parameters<typeof saveQaReport>[0]):Pro
  if(!supabase)throw new Error("Database is not configured.");
  await flushWorkspaceChanges();
  const {error}=await supabase.rpc("edit_qa_report",{p_report_id:input.id,p_kind:input.kind,p_title:input.title.trim(),p_details:input.details.trim(),p_project_external_id:input.projectId||null,p_image_data_url:input.imageDataUrl||null,p_image_name:input.imageName||null});
- if(error)throw databaseError(error);
+ if(error){
+  if(error.code==="PGRST202")throw new Error("QA editing is not set up in this database. Apply the QA report editing migration in Supabase, then save again. Your changes are still here.");
+  throw databaseError(error);
+ }
 }
 export async function deleteResolvedQaReport(id:string):Promise<void>{
  if(!supabase)throw new Error("Database is not configured.");
