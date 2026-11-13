@@ -2,7 +2,7 @@ import {supabase} from "@/lib/supabase";
 import {flushWorkspaceChanges} from "@/lib/workspace-sync";
 export type QaKind="BUG"|"CHANGE"|"IMPROVEMENT";
 export const qaKindLabels:Record<QaKind,string>={BUG:"Bug",CHANGE:"Change",IMPROVEMENT:"Improvement"};
-export type QaReport={id:string;kind:QaKind;title:string;details:string;status?:"OPEN"|"RESOLVED";created_by:string;created_at:string;image_data_url?:string|null;image_name?:string|null;project_id:string|null;task_id:string|null;project:{external_id:string;title?:string;client_company?:string}|null;task:{external_id:string;status:string;assignee_name:string}|null};
+export type QaReport={id:string;kind:QaKind;title:string;details:string;status?:"OPEN"|"RESOLVED";created_by:string;created_at:string;image_data_url?:string|null;image_name?:string|null;project_id:string|null;task_id:string|null;general_task_id?:string|null;project:{external_id:string;title?:string;client_company?:string}|null;task:{external_id:string;status:string;assignee_name:string}|null};
 function databaseError(error:{code?:string;message:string}){
  return new Error(["42P01","PGRST202","PGRST205","PGRST200"].includes(error.code||"")?"QA setup is incomplete. Apply the updated database SQL in Supabase.":error.message);
 }
@@ -26,6 +26,12 @@ export async function saveQaReport(input:{id:string;kind:QaKind;title:string;det
 export async function setQaStatus(id:string,status:"OPEN"|"RESOLVED"):Promise<void>{
  if(!supabase)throw new Error("Database is not configured.");
  const {error}=await supabase.rpc("set_qa_report_status",{p_report_id:id,p_status:status});if(error)throw databaseError(error);
+}
+export async function editQaReport(input:Parameters<typeof saveQaReport>[0]):Promise<void>{
+ if(!supabase)throw new Error("Database is not configured.");
+ await flushWorkspaceChanges();
+ const {error}=await supabase.rpc("edit_qa_report",{p_report_id:input.id,p_kind:input.kind,p_title:input.title.trim(),p_details:input.details.trim(),p_project_external_id:input.projectId||null,p_image_data_url:input.imageDataUrl||null,p_image_name:input.imageName||null});
+ if(error)throw databaseError(error);
 }
 export async function deleteResolvedQaReport(id:string):Promise<void>{
  if(!supabase)throw new Error("Database is not configured.");

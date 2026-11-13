@@ -1996,11 +1996,19 @@ html body .app-shell #workspace-content .qa-page .qa-report-status select { widt
 .qa-report-content { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:32px; padding-top:22px; }
 .qa-report-copy { display:grid; gap:22px; min-width:0; }
 .qa-report-copy section { min-width:0; }
+.qa-report-disclosure { min-width:0; }
+.qa-report-disclosure > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:36px; margin:0; cursor:pointer; list-style:none; }
+.qa-report-disclosure > summary::-webkit-details-marker { display:none; }
+.qa-report-disclosure > summary:focus-visible { outline:2px solid #0f172a; outline-offset:2px; }
+.qa-report-disclosure > summary svg { flex:none; }
+.qa-report-disclosure[open] > summary svg { transform:rotate(180deg); }
+.qa-report-disclosure[open] > summary { margin-bottom:8px; }
 .qa-section-label { display:block; margin-bottom:8px; font-size:12px; font-weight:500; line-height:1.5; color:#64748b; }
 html body .app-shell #workspace-content .qa-report-copy h2 { margin:0; font-size:19px; line-height:1.5; }
 .qa-report-attachment { min-width:150px; }
 .qa-report-attachment button { display:inline-flex; gap:8px; align-items:center; }
 .qa-report-project { display:grid; min-width:0; gap:4px; }
+.qa-report-actions { display:flex; flex-wrap:wrap; gap:8px; }
 .qa-report-project .qa-section-label { margin-bottom:2px; }
 .qa-report-project small { padding-left:22px; font-size:13px; line-height:1.5; color:#64748b; overflow-wrap:anywhere; }
 .review-delete-actions { display:flex; justify-content:flex-end; margin:16px 0; }
