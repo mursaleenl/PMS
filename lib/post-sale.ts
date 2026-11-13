@@ -1,6 +1,7 @@
 import {retainerEndDate} from "@/lib/retainer-dates";
 import { reserveWorkspaceNumber } from "@/lib/numbering";
 import { localCollectionValue, publishLocalWorkspaceChange } from "@/lib/workspace-sync";
+import type {ProjectClient} from "@/lib/projects";
 
 export const POST_SALE_STORAGE_KEY = "evecture.post-sale.v1";
 
@@ -13,6 +14,7 @@ export type ManagedProject = {
   sourceProjectId?: string;
   projectTitle: string;
   clientCompany: string;
+  clientDetails?: Omit<ProjectClient,"companyName"> & {deleted?:boolean};
   model: ManagementModel;
   managementAmount: number;
   currency: string;

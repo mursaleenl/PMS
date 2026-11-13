@@ -1,5 +1,8 @@
 "use client";
 
+import {clientContactName,clientIdentityExists,clientContactMatches,normalizedClientName} from "@/lib/client-identity";
+import {knownClientIdentities} from "@/lib/customer-editing";
+import {readManagedProjects} from "@/lib/post-sale";
 import { createUuid } from "@/lib/uuid";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
@@ -18,17 +21,18 @@ export default function ProjectEnquiryPage() {
   const [contact,setContact]=useState(emptyContact);
   const [industry,setIndustry]=useState("");
   useEffect(()=>{
-    const refresh=()=>setClients(existingProjectClients(readProjects(),readLeads()));
+    const refresh=()=>setClients(existingProjectClients(readProjects(),readLeads(),true,readManagedProjects()));
     refresh();
     window.addEventListener("evecture:projects-updated",refresh);window.addEventListener("evecture:leads-updated",refresh);
-    return ()=>{window.removeEventListener("evecture:projects-updated",refresh);window.removeEventListener("evecture:leads-updated",refresh);};
+    window.addEventListener("evecture:post-sale-updated",refresh);
+    return ()=>{window.removeEventListener("evecture:projects-updated",refresh);window.removeEventListener("evecture:leads-updated",refresh);window.removeEventListener("evecture:post-sale-updated",refresh);};
   },[]);
   function selectClient(value:string){
     setSelectedClient(value);setError("");
     const client=clients.find(item=>clientKey(item)===value);
     if(!client){setContact(emptyContact);return;}
     const lead=readLeads().find(item=>client.email?item.email.trim().toLowerCase()===client.email.trim().toLowerCase():item.fullName.trim().toLowerCase()===client.name.trim().toLowerCase()&&item.companyName.trim().toLowerCase()===(client.companyName||"").trim().toLowerCase());
-    setContact({fullName:client.name||client.companyName||"",companyName:client.companyName||"",email:client.email||"",phone:client.contactDetails?.phone??lead?.phone??"",designation:client.contactDetails?.designation??lead?.designation??"",companyWebsite:client.contactDetails?.companyWebsite??lead?.companyWebsite??"",country:client.contactDetails?.country??lead?.country??""});
+    setContact({fullName:clientContactName(client.name),companyName:client.companyName||"",email:client.email||"",phone:client.contactDetails?.phone??lead?.phone??"",designation:client.contactDetails?.designation??lead?.designation??"",companyWebsite:client.contactDetails?.companyWebsite??lead?.companyWebsite??"",country:client.contactDetails?.country??lead?.country??""});
     const clientIndustry=client.contactDetails?.industry??lead?.industry;
     if(clientIndustry&&industries.some(item=>item===clientIndustry))setIndustry(clientIndustry);
   }
@@ -56,15 +60,23 @@ export default function ProjectEnquiryPage() {
     }
     setError("");
     const form = new FormData(event.currentTarget);
+    const identities=knownClientIdentities(readProjects(),readLeads(),readManagedProjects());
+    const existingClient=clients.find(client=>clientKey(client)===selectedClient);
+    const input={name:String(form.get("fullName")||""),companyName:String(form.get("companyName")||"")};
+    const duplicate=existingClient?(normalizedClientName(input.name)!==normalizedClientName(existingClient.name)&&clientIdentityExists({name:input.name},identities.filter(person=>!clientContactMatches(existingClient,person))))||normalizedClientName(input.companyName)!==normalizedClientName(existingClient.companyName)&&clientIdentityExists({companyName:input.companyName},identities.filter(person=>!clientContactMatches(existingClient,person))):clientIdentityExists(input,identities);
+    if(duplicate){
+      setError("Client exists. Select the existing client to add another enquiry.");return;
+    }
+    if(!clientContactName(input.name)){setError("Client name is required. Enter a name instead of a placeholder.");return;}
     const now = new Date().toISOString();
     const rawWebsite = String(form.get("companyWebsite") || "").trim();
     const companyWebsite = rawWebsite ? (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(rawWebsite) ? rawWebsite : `https://${rawWebsite}`) : "";
     const lead = {
       id: createUuid(), createdAt: now,
       projectName: String(form.get("projectName") || "").trim(),
-      fullName: String(form.get("fullName") || "").trim(),
+      fullName: clientContactName(String(form.get("fullName") || "")),
       designation: String(form.get("designation") || "").trim(),
-      companyName: String(form.get("companyName") || "").trim(),
+      companyName: clientContactName(String(form.get("companyName") || "")),
       companyWebsite,
       email: String(form.get("email") || "").trim(),
       phone: String(form.get("phone") || "").trim(),
@@ -95,13 +107,13 @@ export default function ProjectEnquiryPage() {
           <label className="field" htmlFor="enquiry-existing-client">Existing client
             <select id="enquiry-existing-client" value={selectedClient} onChange={event=>selectClient(event.target.value)} aria-describedby="enquiry-client-hint">
               <option value="">Select an existing client (optional)</option>
-              {clients.map(client=><option key={clientKey(client)} value={clientKey(client)}>{client.companyName?`${client.companyName} · ${client.name}`:client.name}{client.email?` (${client.email})`:""}</option>)}
+              {clients.map(client=><option key={clientKey(client)} value={clientKey(client)}>{client.companyName&&client.name?`${client.companyName} · ${client.name}`:client.companyName||client.name||client.email}{client.email?` (${client.email})`:""}</option>)}
             </select>
           </label>
           <p id="enquiry-client-hint" className="field-hint">Select a client to fill their contact details, or leave blank for a new client.</p>
         </div>
         <div className="form-grid">
-        <label className="field required">Full name<input name="fullName" value={contact.fullName} onChange={event=>setContact(current=>({...current,fullName:event.target.value}))} readOnly={Boolean(selectedClient)} autoComplete="name" placeholder="Contact full name" required /></label>
+        <label className="field required">Full name<input name="fullName" value={contact.fullName} onChange={event=>setContact(current=>({...current,fullName:event.target.value}))} readOnly={Boolean(selectedClient&&clients.find(client=>clientKey(client)===selectedClient)?.name)} autoComplete="name" placeholder="Contact full name" required /></label>
         <label className="field">Designation<input name="designation" value={contact.designation} onChange={event=>setContact(current=>({...current,designation:event.target.value}))} autoComplete="organization-title" placeholder="e.g. Founder, Marketing Director" /></label>
         <label className="field">Email address (optional)<input name="email" value={contact.email} onChange={event=>setContact(current=>({...current,email:event.target.value}))} readOnly={Boolean(selectedClient)} type="email" autoComplete="email" placeholder="contact@example.com" /></label>
         <label className="field">Phone number (optional)<input name="phone" value={contact.phone} onChange={event=>setContact(current=>({...current,phone:event.target.value}))} type="tel" autoComplete="tel" placeholder="+1 555 000 0000" /></label>

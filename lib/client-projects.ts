@@ -1,12 +1,15 @@
+import {clientContactName} from "@/lib/client-identity";
 import type {Lead} from "@/lib/leads";
 import {getProjectClients,getProjectEnquiryDetails,nextProjectId,type ProjectEnquiryDetails,type BillingStructure,type Project,type ProjectTeamMember} from "@/lib/projects";
 import type {OperatingCompany} from "@/lib/companies";
+import type {ManagedProject} from "@/lib/post-sale";
 
 export type ExistingProjectClient = {name:string;companyName?:string;email?:string;contactDetails?:ProjectEnquiryDetails};
 
-export function existingProjectClients(projects:Project[],leads:Lead[],includeEnquiries=false):ExistingProjectClient[]{
+export function existingProjectClients(projects:Project[],leads:Lead[],includeEnquiries=false,plans:ManagedProject[]=[]):ExistingProjectClient[]{
   const clients:ExistingProjectClient[]=[];
   const add=(client:ExistingProjectClient)=>{
+    client={...client,name:clientContactName(client.name)};
     if(!client.name.trim()&&!client.companyName?.trim())return;
     const key=(item:ExistingProjectClient)=>item.email?.trim().toLowerCase()||`${item.companyName?.trim().toLowerCase()||""}:${item.name.trim().toLowerCase()}`;
     const existing=clients.find(item=>key(item)===key(client));
@@ -14,18 +17,20 @@ export function existingProjectClients(projects:Project[],leads:Lead[],includeEn
     const details=client.contactDetails;
     clients.push({...client,contactDetails:details?{phone:details.phone,designation:details.designation,companyWebsite:details.companyWebsite,country:details.country,timezone:details.timezone,industry:details.industry}:undefined});
   };
-  for(const project of projects.filter(item=>item.projectType!=="internal")){
+  for(const project of projects.filter(item=>item.projectType!=="internal"&&!item.enquiryDetails?.clientDeleted)){
     const lead=leads.find(item=>item.id===project.leadId||(!!project.clientEmail&&item.email?.trim().toLowerCase()===project.clientEmail.trim().toLowerCase()));
     add({name:project.clientName,companyName:project.clientCompany,email:project.clientEmail,contactDetails:getProjectEnquiryDetails(project,lead)});
   }
   for(const project of projects.filter(item=>item.projectType!=="internal"))for(const client of getProjectClients(project).slice(1))add(client);
-  for(const lead of leads.filter(item=>item.status==="CONVERTED"||item.status==="ACCEPTED"||(includeEnquiries&&item.status!=="LOST")))add({name:lead.fullName,companyName:lead.companyName,email:lead.email,contactDetails:getProjectEnquiryDetails({},lead)});
+  for(const lead of leads.filter(item=>!item.qualification?.clientDeleted&&(item.status==="CONVERTED"||item.status==="ACCEPTED"||(includeEnquiries&&item.status!=="LOST"))))add({name:lead.fullName,companyName:lead.companyName,email:lead.email,contactDetails:getProjectEnquiryDetails({},lead)});
+  for(const plan of plans.filter(plan=>!plan.clientDetails?.deleted))add({name:plan.clientDetails?.name||"",companyName:plan.clientCompany,email:plan.clientDetails?.email,contactDetails:plan.clientDetails?.contactDetails});
   return clients.sort((a,b)=>(a.companyName||a.name).localeCompare(b.companyName||b.name));
 }
 
 export async function createClientProject(input:{client:ExistingProjectClient;title:string;description:string;services:string[];startDate:string;operatingCompany:OperatingCompany;billingStructure:BillingStructure;contractedValue:number;currency:string;team:ProjectTeamMember[]}):Promise<Project>{
   const title=input.title.trim();
   if(!title)throw new Error("Enter a project name.");
+  if(!clientContactName(input.client.name))throw new Error("Client name is required. Add a name in Clients before creating another project.");
   if(!input.client.name.trim()&&!input.client.companyName?.trim())throw new Error("Choose an existing client.");
   if(!Number.isFinite(input.contractedValue)||input.contractedValue<0)throw new Error("Enter a valid project budget.");
   return {

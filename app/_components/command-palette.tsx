@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import {clientContactName} from "@/lib/client-identity";
 import { getProjectLogoSrc } from "@/lib/project-logo";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, FolderKanban, Handshake, Inbox, Search, Users, X } from "lucide-react";
@@ -11,9 +12,6 @@ import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
 type SearchItem = { kind: string; title: string; detail: string; href: string; terms: string; logoSrc?: string };
 
-function clientSlug(value: string) {
-  return value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "client";
-}
 
 export function CommandPalette() {
   const { role, user, members } = useWorkspaceAuth();
@@ -80,29 +78,25 @@ export function CommandPalette() {
       items.push({ kind: "Request", title: lead.projectName || lead.companyName || lead.fullName, detail: `${formatLeadId(lead.id)} · ${lead.status.replaceAll("_", " ")}`, href: `/requests/${lead.id}`, terms: `${lead.projectName || ""} ${lead.fullName} ${lead.companyName} ${lead.email} ${lead.services.join(" ")} ${lead.id}` });
     }
     for (const project of projects.filter((item) => (role !== "employee") || isProjectAssignedToUser(item, user?.id, employeeName))) items.push({ kind: "Project", logoSrc: getProjectLogoSrc(project), title: getProjectDisplayTitle(project), detail: `${project.id}${getProjectDisplayServices(project) ? ` - ${getProjectDisplayServices(project)}` : ""}`, href: `/projects/${project.id}`, terms: `${project.title} ${project.id} ${project.clientCompany} ${project.clientName} ${project.services.join(" ")}` });
-    const clients = new Map<string, { name: string; detail: string; terms: string }>();
-    for (const project of projects) {
-      const clientName = project.clientName?.trim() || project.clientCompany?.trim();
-      const company = project.clientCompany?.trim();
-      if (clientName) {
-        const detail = company && company.toLowerCase() !== clientName.toLowerCase()
-          ? `Client · ${company}`
-          : `Client · ${project.clientEmail || "Project record"}`;
-        clients.set(clientName.toLowerCase(), {
-          name: clientName,
-          detail,
-          terms: `${clientName} ${company || ""} ${project.clientEmail || ""}`,
-        });
-      }
+    const clients = new Map<string, { name: string; detail: string; terms: string; href:string; company?:string }>();
+    for (const project of projects.filter(project=>project.projectType!=="internal"&&!project.enquiryDetails?.clientDeleted)) {
+      const contact=clientContactName(project.clientName),company=clientContactName(project.clientCompany);
+      const name=contact||company||project.clientEmail||"Unnamed client";
+      const key=project.clientEmail?`email:${project.clientEmail.trim().toLowerCase()}`:contact?`name:${contact.toLowerCase()}`:company?`company:${company.toLowerCase()}`:`project:${project.id}`;
+      if(!clients.has(key))clients.set(key,{
+        name,company,detail:`Client · ${company||project.clientEmail||project.id}`,
+        terms:`${name} ${company} ${project.clientEmail||""} ${project.id} ${project.title}`,
+        href:`/clients#client-project-${project.id}`,
+      });
     }
     for (const plan of (role === "employee") ? [] : plans) {
       const name = plan.projectTitle || plan.clientCompany;
       items.push({ kind: "Retainers", title: plan.projectTitle, detail: `${name} · ${plan.model}`, href: "/post-sale", terms: `${name} ${plan.projectTitle} ${plan.model}` });
-      if (plan.clientCompany && !clients.has(plan.clientCompany.toLowerCase())) {
-        clients.set(plan.clientCompany.toLowerCase(), { name: plan.clientCompany, detail: "Client · Managed plan", terms: plan.clientCompany });
+      if (!plan.clientDetails?.deleted&&plan.clientCompany && ![...clients.values()].some(client=>client.company?.toLowerCase()===plan.clientCompany.toLowerCase())) {
+        clients.set(`plan:${plan.id}`, { name: clientContactName(plan.clientDetails?.name)||plan.clientCompany, company:plan.clientCompany, detail: "Client · Managed plan", terms: plan.clientCompany, href:`/clients#client-plan-${plan.id}` });
       }
     }
-    if ((role !== "employee")) for (const client of clients.values()) items.push({ kind: "Client", title: client.name, detail: client.detail, href: `/clients#client-${clientSlug(client.name)}`, terms: client.terms });
+    if ((role !== "employee")) for (const client of clients.values()) items.push({ kind: "Client", title: client.name, detail: client.detail, href: client.href, terms: client.terms });
     const query = term.trim().toLowerCase();
     if (!query) return [];
     const words = query.split(/\s+/);

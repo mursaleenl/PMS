@@ -41,7 +41,7 @@ export type ProjectWorkItem = {
 
 export type ProjectLinks = { staging?: string; repository?: string; design?: string; other?: string };
 
-export type ProjectEnquiryDetails = Partial<Pick<Lead, "projectName" | "phone" | "designation" | "companyWebsite" | "country" | "timezone" | "industry" | "description" | "referenceLinks" | "budgetRange" | "budgetShared" | "budgetNote" | "urgency" | "source" | "acquisitionSource">> & {projectNameOverride?:boolean};
+export type ProjectEnquiryDetails = Partial<Pick<Lead, "projectName" | "phone" | "designation" | "companyWebsite" | "country" | "timezone" | "industry" | "description" | "referenceLinks" | "budgetRange" | "budgetShared" | "budgetNote" | "urgency" | "source" | "acquisitionSource">> & {projectNameOverride?:boolean;clientDeleted?:boolean};
 
 export function getProjectEnquiryDetails(project: {enquiryDetails?:ProjectEnquiryDetails}, lead?:Lead|null):ProjectEnquiryDetails {
   const original:ProjectEnquiryDetails=lead?{projectName:lead.projectName,phone:lead.phone,designation:lead.designation,companyWebsite:lead.companyWebsite,country:lead.country,timezone:lead.timezone,industry:lead.industry,description:lead.description,referenceLinks:lead.referenceLinks,budgetRange:lead.budgetRange,budgetShared:lead.budgetShared,budgetNote:lead.budgetNote,urgency:lead.urgency,source:lead.source,acquisitionSource:lead.acquisitionSource}:{};

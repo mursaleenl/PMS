@@ -1,4 +1,5 @@
 "use client";
+import {clientContactName} from "@/lib/client-identity";
 import {canBeAssignedProjectManager} from "@/lib/roles";
 import {OperatingOrganizationField} from "@/app/_components/operating-organization-field";
 import {EditDetailsDialog} from "@/app/_components/edit-details-dialog";
@@ -125,6 +126,7 @@ export default function LeadWorkspacePage() {
       {name:"urgency",label:"Urgency",value:lead.urgency,options:["Standard","Rush"]},
     ]} onSave={async values=>{
       if(!canEditRecordDetails(role))throw new Error("You do not have permission to edit leads.");
+      if(true){values.fullName=clientContactName(values.fullName);if(!values.fullName)throw new Error("Client name is required. Enter a name instead of a placeholder.");}
       updateLead(lead.id,{projectName:values.projectName,fullName:values.fullName,companyName:values.companyName,email:values.email,phone:values.phone,designation:values.designation,companyWebsite:values.companyWebsite,country:values.country,timezone:values.timezone,industry:values.industry,services:parseServiceDetails(values.services),description:values.description,referenceLinks:values.referenceLinks,budgetNote:values.budgetNote,urgency:values.urgency as Lead["urgency"]});
       await flushWorkspaceChanges();showToast({message:"Lead details saved."});
     }}/>}

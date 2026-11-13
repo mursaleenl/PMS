@@ -382,6 +382,7 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     sourceProjectId: row.source_project_id ? projectIdByDbId.get(text(row.source_project_id)) : undefined,
     projectTitle: text(row.project_title),
     clientCompany: text(row.client_company),
+    clientDetails: row.client_details && typeof row.client_details === "object" && !Array.isArray(row.client_details) ? row.client_details : undefined,
     model: row.model,
     managementAmount: number(row.management_amount),
     currency: text(row.currency, "USD"),
@@ -456,7 +457,7 @@ export function serializeRecord(collection: WorkspaceCollection, value: unknown)
     const lead = value as Lead;
     return { row: {
     external_id: lead.id,
-    full_name: lead.fullName || "Unnamed lead",
+    full_name: lead.fullName?.trim() || "",
     project_name: nullable(lead.projectName),
     designation: nullable(lead.designation),
     company_name: nullable(lead.companyName),
@@ -530,6 +531,7 @@ export function serializeRecord(collection: WorkspaceCollection, value: unknown)
     external_id: item.id,
     project_title: item.projectTitle || "Untitled managed project",
     client_company: nullable(item.clientCompany),
+    ...(item.clientDetails ? {client_details:item.clientDetails} : {}),
     model: item.model,
     management_amount: number(item.managementAmount),
     currency: item.currency || "USD",

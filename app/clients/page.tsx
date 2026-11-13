@@ -1,6 +1,10 @@
 "use client";
+import {DeleteClientDialog} from "@/app/_components/delete-client-dialog";
+import {ClientProjectEditDialog} from "@/app/_components/client-project-edit-dialog";
 import {ClientProjectDrawer} from "@/app/_components/client-project-drawer";
 import {EditDetailsDialog} from "@/app/_components/edit-details-dialog";
+import {clientContactName,clientContactMatches} from "@/lib/client-identity";
+import {customerEdits,customerOrganizations} from "@/lib/customer-editing";
 import {canEditRecordDetails,linkedCustomerLeadIds} from "@/lib/record-editing";
 import {useWorkspaceAuth} from "@/lib/workspace-auth";
 import {flushWorkspaceChanges} from "@/lib/workspace-sync";
@@ -24,13 +28,13 @@ import {
   Plus,
   Search,
   Tag,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
 import { getProjectClients, projectClientKey, getProjectDisplayTitle, getProjectDisplayServices, readProjects, updateProject, type Project } from "@/lib/projects";
 import { readManagedProjects, updateManagedProject, type ManagedProject } from "@/lib/post-sale";
 import { readLeads, updateLead, type Lead } from "@/lib/leads";
-import { readInvoices, type StoredInvoice } from "@/lib/invoices";
 import { EmptyState } from "@/app/_components/empty-state";
 
 type ClientProject = {
@@ -48,6 +52,7 @@ type ClientProject = {
 type ClientRecord = {
   key: string;
   name: string;
+  contactName?: string;
   companyName?: string;
   organizations?: string[];
   email?: string;
@@ -68,11 +73,13 @@ export default function ClientsPage() {
   const {role}=useWorkspaceAuth();
   const [addingProject,setAddingProject]=useState<ClientRecord|null>(null);
   const [editingClient,setEditingClient]=useState<ClientRecord|null>(null);
+  const [editingProject,setEditingProject]=useState<Project|null>(null);
+  const [deletingClient,setDeletingClient]=useState<ClientRecord|null>(null);
+  const [deletedKeys,setDeletedKeys]=useState<Set<string>>(()=>new Set());
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [plans, setPlans] = useState<ManagedProject[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [invoices, setInvoices] = useState<StoredInvoice[]>([]);
   const [search, setSearch] = useState("");
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
 
@@ -80,24 +87,20 @@ export default function ClientsPage() {
     const refreshProjects = () => setProjects(readProjects().filter(project => project.projectType !== "internal"));
     const refreshPlans = () => setPlans(readManagedProjects());
     const refreshLeads = () => setLeads(readLeads());
-    const refreshInvoices = () => setInvoices(readInvoices());
     const refreshAll = () => {
       refreshProjects();
       refreshPlans();
       refreshLeads();
-      refreshInvoices();
     };
     refreshAll();
     window.addEventListener("evecture:projects-updated", refreshProjects);
     window.addEventListener("evecture:post-sale-updated", refreshPlans);
     window.addEventListener("evecture:leads-updated", refreshLeads);
-    window.addEventListener("evecture:invoices-updated", refreshInvoices);
     window.addEventListener("storage", refreshAll);
     return () => {
       window.removeEventListener("evecture:projects-updated", refreshProjects);
       window.removeEventListener("evecture:post-sale-updated", refreshPlans);
       window.removeEventListener("evecture:leads-updated", refreshLeads);
-      window.removeEventListener("evecture:invoices-updated", refreshInvoices);
       window.removeEventListener("storage", refreshAll);
     };
   }, []);
@@ -110,144 +113,59 @@ export default function ClientsPage() {
       leadsMap.set(lead.id, lead);
     }
 
-    const invoiceByProject = new Map<string, StoredInvoice>();
-    for (const inv of invoices) {
-      if (inv.projectId) {
-        invoiceByProject.set(inv.projectId, inv);
-      }
-    }
+    const normalize = (s: string) => s.trim().toLowerCase();
 
-    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-    // Helper to find an existing client in the map
+    // Missing contact names cannot identify a client. Match meaningful names,
+    // exact email addresses, or exact organizations instead of fuzzy substrings.
     const findExisting = (clientName: string, email?: string, company?: string) => {
-      const cleanEmail = email?.trim().toLowerCase();
-      const cleanName = clientName.trim().toLowerCase();
-      const cleanCompany = company?.trim().toLowerCase();
-      const normName = normalize(cleanName);
-      const normCompany = cleanCompany ? normalize(cleanCompany) : "";
-
-      for (const client of clientMap.values()) {
-        const cEmail = client.email?.trim().toLowerCase();
-        const cName = client.name.trim().toLowerCase();
-        const cCompany = client.companyName?.trim().toLowerCase();
-        const normCName = normalize(cName);
-        const normCCompany = cCompany ? normalize(cCompany) : "";
-
-        // 1. Email match is highest confidence
-        if (cleanEmail && cEmail && cleanEmail === cEmail) {
-          return client;
-        }
-
-        // 2. Exact or normalized person name match
-        if (cleanName && cName && (cleanName === cName || (normName && normName === normCName))) {
-          return client;
-        }
-
-        // 3. Company match (exact or fuzzy containing)
-        if (normCompany && normCCompany) {
-          if (
-            normCompany === normCCompany ||
-            (normCompany.length >= 4 &&
-              normCCompany.length >= 4 &&
-              (normCompany.includes(normCCompany) || normCCompany.includes(normCompany)))
-          ) {
-            return client;
-          }
-        }
-
-        // 4. Match if existing client name equals the incoming company or vice versa
-        if (
-          normCompany &&
-          normCName &&
-          (normCompany === normCName ||
-            (normCompany.length >= 4 && normCName.length >= 4 && (normCompany.includes(normCName) || normCName.includes(normCompany))))
-        ) {
-          return client;
-        }
-        if (
-          normName &&
-          normCCompany &&
-          (normName === normCCompany ||
-            (normName.length >= 4 && normCCompany.length >= 4 && (normName.includes(normCCompany) || normCCompany.includes(normName))))
-        ) {
-          return client;
-        }
-      }
-
-      return undefined;
+      const name=clientContactName(clientName),organization=normalize(clientContactName(company));
+      return [...clientMap.values()].find(client=>
+        (!!email?.trim()&&email.trim().toLowerCase()===client.email?.trim().toLowerCase())||
+        (!!name&&normalize(name)===normalize(clientContactName(client.contactName??client.name)))||
+        (!!organization&&organization===normalize(client.companyName||""))
+      );
     };
 
     // 1. Process all project workspaces
-    for (const project of projects) {
-      const rawClientName = project.clientName?.trim() || "";
-      const rawCompany = project.clientCompany?.trim() || "";
+    for (const project of projects.filter(project=>!project.enquiryDetails?.clientDeleted)) {
+      const rawClientName = clientContactName(project.clientName);
+      const rawCompany = clientContactName(project.clientCompany);
       const rawEmail = project.clientEmail?.trim() || "";
-
-      // Linked invoice (if any)
-      const linkedInvoice = invoiceByProject.get(project.id);
 
       // Look up linked lead by ID, lead.projectId, email, name, or company
       const linkedLead =
         (project.leadId ? leadsMap.get(project.leadId) : undefined) ||
         leads.find((l) => l.projectId && l.projectId === project.id) ||
         (rawEmail ? leads.find((l) => l.email && l.email.trim().toLowerCase() === rawEmail.toLowerCase()) : undefined) ||
-        (linkedInvoice?.clientEmail
-          ? leads.find((l) => l.email && l.email.trim().toLowerCase() === linkedInvoice.clientEmail!.toLowerCase())
-          : undefined) ||
-        (rawClientName ? leads.find((l) => l.fullName && l.fullName.trim().toLowerCase() === rawClientName.toLowerCase()) : undefined) ||
-        (linkedInvoice?.clientName
-          ? leads.find((l) => l.fullName && l.fullName.trim().toLowerCase() === linkedInvoice.clientName!.toLowerCase())
-          : undefined) ||
+        (rawClientName ? leads.find((l) => clientContactName(l.fullName).toLowerCase() === rawClientName.toLowerCase()) : undefined) ||
         (rawCompany
           ? leads.find((l) => {
               if (!l.companyName) return false;
               const n1 = normalize(l.companyName);
               const n2 = normalize(rawCompany);
-              return n1 === n2 || (n1.length >= 4 && n2.length >= 4 && (n1.includes(n2) || n2.includes(n1)));
+              return !!n1 && n1 === n2;
             })
           : undefined);
 
-      // Determine human client name
-      let resolvedPersonName = "";
-      if (rawClientName && (!rawCompany || rawClientName.toLowerCase() !== rawCompany.toLowerCase())) {
-        resolvedPersonName = rawClientName;
-      } else if (linkedLead?.fullName?.trim()) {
-        resolvedPersonName = linkedLead.fullName.trim();
-      } else if (linkedInvoice?.clientName?.trim()) {
-        resolvedPersonName = linkedInvoice.clientName.trim();
-      } else if (rawClientName) {
-        resolvedPersonName = rawClientName;
-      }
+      const contactName=rawClientName||clientContactName(linkedLead?.fullName);
+      const resolvedCompany=rawCompany||clientContactName(linkedLead?.companyName)||undefined;
+      const resolvedPersonName=contactName||resolvedCompany||rawEmail||"Unnamed client";
 
-      let resolvedCompany = rawCompany || linkedLead?.companyName?.trim() || linkedInvoice?.billTo?.trim() || undefined;
-
-      // If no person name found, use company
-      if (!resolvedPersonName && resolvedCompany) {
-        resolvedPersonName = resolvedCompany;
-        resolvedCompany = undefined;
-      }
-
-      if (!resolvedPersonName) continue;
-
-      if (resolvedCompany && resolvedCompany.toLowerCase() === resolvedPersonName.toLowerCase()) {
-        resolvedCompany = undefined;
-      }
-
-      const email = rawEmail || linkedLead?.email?.trim() || linkedInvoice?.clientEmail?.trim() || undefined;
+      const email = rawEmail || linkedLead?.email?.trim() || undefined;
       const phone = project.enquiryDetails?.phone ?? (linkedLead?.phone?.trim() || undefined);
       const designation = project.enquiryDetails?.designation ?? (linkedLead?.designation?.trim() || undefined);
       const country = project.enquiryDetails?.country ?? (linkedLead?.country?.trim() || undefined);
       const website = project.enquiryDetails?.companyWebsite ?? (linkedLead?.companyWebsite?.trim() || undefined);
       const industry = project.enquiryDetails?.industry ?? (linkedLead?.industry?.trim() || undefined);
 
-      let client = findExisting(resolvedPersonName, email, resolvedCompany);
+      let client = findExisting(contactName, email, resolvedCompany);
 
       if (!client) {
-        const key = `client-${clientSlug(resolvedPersonName)}`;
+        const key = `client-project-${project.id}`;
         client = {
           key,
           name: resolvedPersonName,
+          contactName,
           companyName: resolvedCompany,
           email,
           phone,
@@ -260,15 +178,7 @@ export default function ClientsPage() {
         };
         clientMap.set(key, client);
       } else {
-        // Upgrade client name if client was previously named after company
-        if (
-          resolvedPersonName &&
-          (!client.name ||
-            (client.companyName && client.name.toLowerCase() === client.companyName.toLowerCase()) ||
-            normalize(client.name) === normalize(resolvedCompany || ""))
-        ) {
-          client.name = resolvedPersonName;
-        }
+        if(contactName&&!client.contactName){client.name=contactName;client.contactName=contactName;}
         if (!client.companyName && resolvedCompany) client.companyName = resolvedCompany;
         if (!client.email && email) client.email = email;
         if (!client.phone && phone) client.phone = phone;
@@ -294,7 +204,7 @@ export default function ClientsPage() {
     }
 
     // 2. Process managed plans / retainers
-    for (const plan of plans) {
+    for (const plan of plans.filter(plan=>!plan.clientDetails?.deleted)) {
       let client: ClientRecord | undefined;
 
       if (plan.sourceProjectId) {
@@ -306,36 +216,38 @@ export default function ClientsPage() {
         }
       }
 
-      if (!client && plan.clientCompany?.trim()) {
-        client = findExisting(plan.clientCompany, undefined, plan.clientCompany);
+      if (!client) {
+        client = findExisting(clientContactName(plan.clientDetails?.name), plan.clientDetails?.email, plan.clientCompany);
       }
 
       if (client) {
         if (!client.managedPlans.some((m) => m.id === plan.id)) {
           client.managedPlans.push(plan);
         }
-      } else if (plan.clientCompany?.trim()) {
+      } else {
         const companyName = plan.clientCompany.trim();
         const matchingLead = leads.find((l) => {
           if (!l.companyName) return false;
           const n1 = normalize(l.companyName);
           const n2 = normalize(companyName);
-          return n1 === n2 || (n1.length >= 4 && n2.length >= 4 && (n1.includes(n2) || n2.includes(n1)));
+          return !!n1 && n1 === n2;
         });
-        const resolvedName = matchingLead?.fullName?.trim() || companyName;
-        const resolvedCompany = matchingLead?.fullName?.trim() ? companyName : undefined;
+        const contactName=plan.clientDetails?clientContactName(plan.clientDetails.name):clientContactName(matchingLead?.fullName);
+        const resolvedName=contactName||companyName||plan.clientDetails?.email||"Unnamed client";
+        const resolvedCompany=companyName||undefined;
 
-        const key = `client-${clientSlug(resolvedName)}`;
+        const key = `client-plan-${plan.id}`;
         client = {
           key,
           name: resolvedName,
+          contactName,
           companyName: resolvedCompany,
-          email: matchingLead?.email?.trim(),
-          phone: matchingLead?.phone?.trim(),
-          designation: matchingLead?.designation?.trim(),
-          country: matchingLead?.country?.trim(),
-          website: matchingLead?.companyWebsite?.trim(),
-          industry: matchingLead?.industry?.trim(),
+          email: plan.clientDetails?.email??matchingLead?.email?.trim(),
+          phone: plan.clientDetails?.contactDetails?.phone??matchingLead?.phone?.trim(),
+          designation: plan.clientDetails?.contactDetails?.designation??matchingLead?.designation?.trim(),
+          country: plan.clientDetails?.contactDetails?.country??matchingLead?.country?.trim(),
+          website: plan.clientDetails?.contactDetails?.companyWebsite??matchingLead?.companyWebsite?.trim(),
+          industry: plan.clientDetails?.contactDetails?.industry??matchingLead?.industry?.trim(),
           projects: [],
           managedPlans: [plan],
         };
@@ -345,18 +257,20 @@ export default function ClientsPage() {
 
     // 3. Process accepted / converted leads
     for (const lead of leads) {
-      if (lead.status === "ACCEPTED" || lead.status === "CONVERTED") {
-        const leadName = lead.fullName?.trim() || "";
-        const leadCompany = lead.companyName?.trim() || "";
+      if (!lead.qualification?.clientDeleted&&(lead.status === "ACCEPTED" || lead.status === "CONVERTED")) {
+        const leadName = clientContactName(lead.fullName);
+        const leadCompany = clientContactName(lead.companyName);
         const leadEmail = lead.email?.trim() || "";
 
-        let client = findExisting(leadName, leadEmail, leadCompany);
+        let client = [...clientMap.values()].find(client=>client.projects.some(item=>item.id===lead.projectId||projects.find(project=>project.id===item.id)?.leadId===lead.id))||findExisting(leadName, leadEmail, leadCompany);
 
-        if (!client && leadName) {
-          const key = `client-${clientSlug(leadName)}`;
+        if (!client) {
+          const displayName=leadName||leadCompany||leadEmail||"Unnamed client";
+          const key = `client-lead-${lead.id}`;
           client = {
             key,
-            name: leadName,
+            name: displayName,
+            contactName:leadName,
             companyName: leadCompany || undefined,
             email: leadEmail || undefined,
             phone: lead.phone?.trim() || undefined,
@@ -370,7 +284,7 @@ export default function ClientsPage() {
           clientMap.set(key, client);
         } else if (client) {
           if (leadName && (!client.name || client.name.toLowerCase() === client.companyName?.toLowerCase())) {
-            client.name = leadName;
+            client.name = leadName;client.contactName=leadName;
           }
           if (!client.companyName && leadCompany) client.companyName = leadCompany;
           if (!client.email && leadEmail) client.email = leadEmail;
@@ -429,25 +343,21 @@ export default function ClientsPage() {
     }
 
     // 5. Final fallback pass: associate any project with matching client
-    for (const project of projects) {
+    for (const project of projects.filter(project=>!project.enquiryDetails?.clientDeleted)) {
       for (const client of clientMap.values()) {
         const normProjCompany = project.clientCompany ? normalize(project.clientCompany) : "";
         const normClientCompany = client.companyName ? normalize(client.companyName) : "";
-        const normClientName = normalize(client.name);
-        const normProjClientName = project.clientName ? normalize(project.clientName) : "";
+        const normClientName = normalize(clientContactName(client.contactName??client.name));
+        const normProjClientName = normalize(clientContactName(project.clientName));
 
         const matchesCompany =
           normProjCompany &&
           normClientCompany &&
-          (normProjCompany === normClientCompany ||
-            (normProjCompany.length >= 4 &&
-              normClientCompany.length >= 4 &&
-              (normProjCompany.includes(normClientCompany) || normClientCompany.includes(normProjCompany))));
+          normProjCompany === normClientCompany;
 
         const matchesName =
           normClientName &&
-          ((normProjClientName && normClientName === normProjClientName) ||
-            (normProjCompany && normClientName === normProjCompany));
+          normProjClientName && normClientName === normProjClientName;
 
         const matchesEmail =
           client.email && project.clientEmail && client.email.toLowerCase() === project.clientEmail.toLowerCase();
@@ -472,8 +382,8 @@ export default function ClientsPage() {
     for(const project of projects)for(const participant of getProjectClients(project).slice(1)){
       let client=findExisting(participant.name,participant.email,participant.companyName);
       if(!client){
-        const key=`shared-${projectClientKey(participant)}`;
-        client={key,name:participant.name||participant.companyName||"Client",companyName:participant.companyName,email:participant.email,phone:participant.contactDetails?.phone,country:participant.contactDetails?.country,website:participant.contactDetails?.companyWebsite,industry:participant.contactDetails?.industry,designation:participant.contactDetails?.designation,projects:[],managedPlans:[]};
+        const key=`shared-${project.id}-${projectClientKey(participant)}`;
+        client={key,name:clientContactName(participant.name)||participant.companyName||participant.email||"Unnamed client",contactName:clientContactName(participant.name),companyName:participant.companyName,email:participant.email,phone:participant.contactDetails?.phone,country:participant.contactDetails?.country,website:participant.contactDetails?.companyWebsite,industry:participant.contactDetails?.industry,designation:participant.contactDetails?.designation,projects:[],managedPlans:[]};
         clientMap.set(key,client);
       }
       if(!client.projects.some(item=>item.id===project.id))client.projects.push({id:project.id,title:getProjectDisplayTitle(project),displayServices:getProjectDisplayServices(project),logoDataUrl:project.logoDataUrl,status:project.status,operatingCompany:project.operatingCompany});
@@ -482,23 +392,22 @@ export default function ClientsPage() {
     return [...clientMap.values()].map(client=>{
       const organizations=new Map<string,string>();
       const add=(value?:string)=>{const name=value?.trim();if(name)organizations.set(name.toLocaleLowerCase(),organizations.get(name.toLocaleLowerCase())||name);};
-      const matches=(person:{name:string;email?:string})=>client.email&&person.email
-        ? client.email.trim().toLowerCase()===person.email.trim().toLowerCase()
-        : client.name.trim().toLowerCase()===person.name.trim().toLowerCase();
+      const matches=(person:{name:string;email?:string;companyName?:string})=>clientContactMatches(client,person);
       add(client.companyName);
       const projectIds=new Set(client.projects.map(project=>project.id));
       for(const project of projects.filter(project=>projectIds.has(project.id)))for(const participant of getProjectClients(project))if(matches(participant))add(participant.companyName);
-      for(const lead of leads)if(matches({name:lead.fullName,email:lead.email}))add(lead.companyName);
+      for(const lead of leads)if(!lead.qualification?.clientDeleted&&matches({name:lead.fullName,email:lead.email,companyName:lead.companyName}))add(lead.companyName);
       for(const plan of client.managedPlans)add(plan.clientCompany);
-      for(const invoice of invoices)if(invoice.clientName&&matches({name:invoice.clientName,email:invoice.clientEmail}))add(invoice.billTo);
       return {...client,organizations:[...organizations.values()]};
     }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [projects, plans, leads, invoices]);
+  }, [projects, plans, leads]);
 
   const filteredClients = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return clients;
-    return clients.filter((client) => {
+    const visible=clients.filter(client=>!deletedKeys.has(client.key));
+    if (!q) return visible;
+    if(!clientContactName(q))return visible.filter(client=>!client.contactName);
+    return visible.filter((client) => {
       return (
         client.name.toLowerCase().includes(q) ||
         client.organizations?.some(name=>name.toLowerCase().includes(q)) ||
@@ -511,18 +420,20 @@ export default function ClientsPage() {
         client.managedPlans.some((m) => m.projectTitle?.toLowerCase().includes(q) || m.id.toLowerCase().includes(q))
       );
     });
-  }, [clients, search]);
+  }, [clients, search, deletedKeys]);
 
   useEffect(() => {
-    const targetId = window.location.hash.slice(1);
-    if (!targetId || clients.length === 0) return;
-    window.requestAnimationFrame(() => {
-      const el = document.getElementById(decodeURIComponent(targetId));
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        setExpandedClient(targetId.replace(/^client-/, ""));
-      }
+    const hash=window.location.hash.slice(1);
+    if(!hash||clients.length===0)return;
+    let targetId:string;
+    try{targetId=decodeURIComponent(hash);}catch{return;}
+    const target=clients.find(client=>client.key===targetId)||clients.find(client=>`client-${clientSlug(client.name)}`===targetId);
+    if(!target)return;
+    const frame=window.requestAnimationFrame(()=>{
+      document.getElementById(target.key)?.scrollIntoView({behavior:"smooth",block:"center"});
+      setExpandedClient(target.key);
     });
+    return()=>window.cancelAnimationFrame(frame);
   }, [clients]);
 
   return (
@@ -617,7 +528,7 @@ export default function ClientsPage() {
           ) : (
             <div className="clients-list">
               {filteredClients.map((client) => {
-                const clientId = `client-${clientSlug(client.name)}`;
+                const clientId = client.key;
                 const isExpanded = expandedClient === client.key;
                 return (
                   <article className={`client-card panel ${isExpanded ? "client-card-expanded" : ""}`} id={clientId} key={client.key}>
@@ -664,13 +575,14 @@ export default function ClientsPage() {
                         <section>
                           <h2>Client details</h2>
                           {canEditRecordDetails(role)&&(client.projects.length>0||client.managedPlans.length>0||linkedCustomerLeadIds(client,projects,leads).length>0)&&<button type="button" className="button button-quiet" onClick={()=>setEditingClient(client)}>Edit customer</button>}
+                          {canEditRecordDetails(role)&&<button type="button" className="button button-quiet" onClick={()=>setDeletingClient(client)}><Trash2 size={14}/>Delete client</button>}
                           <div className="client-contact-fields">
                             <div>
                               <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--ws-muted, #64748b)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
                                 Client name
                               </span>
                               <strong style={{ display: "block", fontSize: 15, fontWeight: 700, color: "var(--ws-text, #0f172a)" }}>
-                                {client.name}
+                                {client.contactName||"Not recorded"}
                               </strong>
                             </div>
 
@@ -777,6 +689,7 @@ export default function ClientsPage() {
                           {client.projects.length ? (
                             <div className="client-detail-links" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                               {client.projects.map((project) => (
+                                <div className="client-project-entry" key={project.id}>
                                 <Link
                                   href={`/projects/${project.id}`}
                                   key={project.id}
@@ -830,6 +743,8 @@ export default function ClientsPage() {
                                     <ExternalLink size={12} style={{ marginLeft: "auto", color: "var(--ws-muted, #94a3b8)" }} />
                                   </div>
                                 </Link>
+                                {canEditRecordDetails(role)&&<div className="client-project-edit-action"><button type="button" className="button button-quiet" aria-label={`Edit project ${project.title}`} onClick={()=>{const current=readProjects().find(item=>item.id===project.id);if(current)setEditingProject(current);}}>Edit project</button></div>}
+                                </div>
                               ))}
                             </div>
                           ) : (
@@ -883,33 +798,24 @@ export default function ClientsPage() {
           )}
         </>
       )}
-      {canEditRecordDetails(role)&&addingProject&&<ClientProjectDrawer initialClient={{name:addingProject.name,companyName:addingProject.companyName,email:addingProject.email,contactDetails:{phone:addingProject.phone,designation:addingProject.designation,country:addingProject.country,companyWebsite:addingProject.website,industry:addingProject.industry}}} onClose={()=>setAddingProject(null)} onCreated={()=>{setAddingProject(null);showToast({message:"Project added to client."});}}/>}
+      {canEditRecordDetails(role)&&deletingClient&&<DeleteClientDialog client={deletingClient} onClose={()=>setDeletingClient(null)} onDeleted={()=>{setDeletedKeys(keys=>new Set([...keys,deletingClient.key]));setExpandedClient(null);showToast({message:"Client deleted. Associated work and documents were kept."});}}/>}
+      {canEditRecordDetails(role)&&editingProject&&<ClientProjectEditDialog project={editingProject} onClose={()=>setEditingProject(null)}/>}
+      {canEditRecordDetails(role)&&addingProject&&<ClientProjectDrawer initialClient={{name:addingProject.contactName??addingProject.name,companyName:addingProject.companyName,email:addingProject.email,contactDetails:{phone:addingProject.phone,designation:addingProject.designation,country:addingProject.country,companyWebsite:addingProject.website,industry:addingProject.industry}}} onClose={()=>setAddingProject(null)} onCreated={()=>{setAddingProject(null);showToast({message:"Project added to client."});}}/>}
       {canEditRecordDetails(role)&&editingClient&&<EditDetailsDialog title="Edit customer details" onClose={()=>setEditingClient(null)} fields={[
-        {name:"companyName",label:"Organization name",value:editingClient.companyName||(!editingClient.projects.length?editingClient.name:""),required:!editingClient.projects.length},
-        ...((editingClient.projects.length||linkedCustomerLeadIds(editingClient,projects,leads).length)?[
-          {name:"name",label:"Contact name",value:editingClient.name,required:true},
-          {name:"email",label:"Contact email",value:editingClient.email,type:"email" as const},
-        ]:[]),
-        ...(linkedCustomerLeadIds(editingClient,projects,leads).length?[
-          {name:"phone",label:"Phone",value:editingClient.phone},
-          {name:"designation",label:"Designation",value:editingClient.designation},
-          {name:"country",label:"Country",value:editingClient.country},
-          {name:"website",label:"Website",value:editingClient.website},
-          {name:"industry",label:"Industry",value:editingClient.industry},
-        ]:[]),
+        ...customerOrganizations(editingClient).map((name,index)=>({name:index?`organization_${index}`:"companyName",label:index?`Organization ${index+1}`:"Organization name",value:name})),
+        {name:"name",label:"Contact name",value:editingClient.contactName??editingClient.name,required:true},
+        {name:"email",label:"Contact email",value:editingClient.email,type:"email" as const},
+        {name:"phone",label:"Phone",value:editingClient.phone},
+        {name:"designation",label:"Designation",value:editingClient.designation},
+        {name:"country",label:"Country",value:editingClient.country},
+        {name:"website",label:"Website",value:editingClient.website},
+        {name:"industry",label:"Industry",value:editingClient.industry},
       ]} onSave={async values=>{
         if(!canEditRecordDetails(role))throw new Error("You do not have permission to edit customers.");
-        const leadIds=linkedCustomerLeadIds(editingClient,readProjects(),readLeads());
-        const projectIds=new Set(editingClient.projects.map(project=>project.id));
-        const linkedProjects=readProjects().filter(project=>projectIds.has(project.id)||leadIds.includes(project.leadId));
-        for(const id of leadIds)updateLead(id,{fullName:values.name,companyName:values.companyName,email:values.email,phone:values.phone,designation:values.designation,country:values.country,companyWebsite:values.website,industry:values.industry});
-        const editingKey=projectClientKey({name:editingClient.name,companyName:editingClient.companyName,email:editingClient.email});
-        for(const project of linkedProjects){
-          const extra=project.additionalClients?.some(client=>projectClientKey(client)===editingKey);
-          if(extra)updateProject(project.id,{additionalClients:project.additionalClients?.map(client=>projectClientKey(client)===editingKey?{...client,name:values.name,companyName:values.companyName,email:values.email,contactDetails:{...client.contactDetails,phone:values.phone??client.contactDetails?.phone,country:values.country??client.contactDetails?.country,companyWebsite:values.website??client.contactDetails?.companyWebsite,industry:values.industry??client.contactDetails?.industry,designation:values.designation??client.contactDetails?.designation}}:client)});
-          else updateProject(project.id,{clientName:values.name,clientCompany:values.companyName,clientEmail:values.email,enquiryDetails:{...project.enquiryDetails,phone:values.phone??project.enquiryDetails?.phone,designation:values.designation??project.enquiryDetails?.designation,country:values.country??project.enquiryDetails?.country,companyWebsite:values.website??project.enquiryDetails?.companyWebsite,industry:values.industry??project.enquiryDetails?.industry}});
-        }
-        for(const plan of editingClient.managedPlans)updateManagedProject(plan.id,{clientCompany:values.companyName||values.name});
+        const {leadUpdates,projectUpdates,planUpdates}=customerEdits(editingClient,values,readProjects(),readLeads(),readManagedProjects());
+        for(const {id,updates} of leadUpdates)updateLead(id,updates);
+        for(const {id,updates} of projectUpdates)updateProject(id,updates);
+        for(const {id,updates} of planUpdates)updateManagedProject(id,updates);
         await flushWorkspaceChanges();setExpandedClient(null);showToast({message:"Customer details saved."});
       }}/>}
     </div>

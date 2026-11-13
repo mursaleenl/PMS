@@ -1,4 +1,5 @@
 "use client";
+import {clientContactName} from "@/lib/client-identity";
 import {canBeAssignedProjectManager,getRoleLabel} from "@/lib/roles";
 import {AssignTaskDialog} from "@/app/_components/assign-task-dialog";
 import {CalendarPicker} from "@/app/_components/calendar-picker";
@@ -470,6 +471,7 @@ export default function ProjectWorkspacePage() {
       ]:[]),
     ]} onSave={async values=>{
       if(!canEditRecordDetails(role))throw new Error("You do not have permission to edit projects.");
+      if(project.projectType!=="internal"){values.clientName=clientContactName(values.clientName);if(!values.clientName)throw new Error("Client name is required. Enter a name instead of a placeholder.");}
       if(values.targetDate&&values.targetDate<values.startDate)throw new Error("Target date must be on or after the start date.");
       const updates:Partial<Project>={title:values.title,services:parseServiceDetails(values.services),...(project.projectType==="internal"?{scopeIncluded:values.scopeIncluded,objectives:values.objectives,deliverables:values.deliverables}:{}),startDate:values.startDate,targetDate:values.targetDate||undefined,priority:values.priority as Project["priority"]};
       if(project.projectType!=="internal"){

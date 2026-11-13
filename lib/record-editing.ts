@@ -1,4 +1,5 @@
 import type {WorkspaceRole} from "@/lib/roles";
+import {clientContactMatches} from "@/lib/client-identity";
 export function canEditRecordDetails(role: WorkspaceRole | undefined | null) {
   return role === "admin" || role === "project_manager";
 }
@@ -11,12 +12,16 @@ export function parseServiceDetails(value: string): string[] {
   });
 }
 
-export function linkedCustomerLeadIds(customer: {name?:string;companyName?:string;email?:string;projects:{id:string}[]}, projects:{id:string;leadId:string;additionalClients?:{name:string;companyName?:string;email?:string}[]}[], leads:{id:string;email:string;projectId?:string}[]): string[] {
- const matches=(client:{name:string;companyName?:string;email?:string})=>customer.email?client.email?.trim().toLowerCase()===customer.email.trim().toLowerCase():client.name===customer.name&&client.companyName===customer.companyName;
- const projectIds=new Set(customer.projects.map(project=>project.id).filter(id=>!projects.find(project=>project.id===id)?.additionalClients?.some(matches)));
+export function linkedCustomerLeadIds(customer: {name?:string;contactName?:string;companyName?:string;organizations?:string[];email?:string;projects:{id:string}[]}, projects:{id:string;leadId:string;clientName?:string;clientEmail?:string;clientCompany?:string;additionalClients?:{name:string;companyName?:string;email?:string}[]}[], leads:{id:string;email:string;projectId?:string;fullName?:string;companyName?:string}[]): string[] {
+ const matches=(client:{name?:string;companyName?:string;email?:string})=>clientContactMatches(customer,client);
+ const projectIds=new Set(customer.projects.map(project=>project.id).filter(id=>{
+  const project=projects.find(project=>project.id===id);
+  return !project?.additionalClients?.some(matches)||matches({name:project.clientName,email:project.clientEmail,companyName:project.clientCompany});
+ }));
  const leadIds=new Set(projects.filter(project=>projectIds.has(project.id)).map(project=>project.leadId).filter(Boolean));
  const email=customer.email?.trim().toLowerCase();
- return leads.filter(lead=>leadIds.has(lead.id)||(!!lead.projectId&&projectIds.has(lead.projectId))||(!!email&&lead.email.trim().toLowerCase()===email)).map(lead=>lead.id);
+ const exactContact=(lead:typeof leads[number])=>!email&&matches({name:lead.fullName,companyName:lead.companyName});
+ return leads.filter(lead=>leadIds.has(lead.id)||(!!lead.projectId&&projectIds.has(lead.projectId))||(!!email&&lead.email.trim().toLowerCase()===email)||exactContact(lead)).map(lead=>lead.id);
 }
 
 export function validateProjectServiceDetails(title: string, services: string[]) {

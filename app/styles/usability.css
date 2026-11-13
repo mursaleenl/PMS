@@ -1803,6 +1803,18 @@ html body .app-shell #workspace-content .project-clients-dialog .project-clients
 .client-organizations { display: grid; gap: 8px; list-style: none; padding: 0; margin: 0; }
 .client-organizations li { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .client-organizations svg { flex: 0 0 13px; margin-top: 3px; color: #64748b; }
+.client-project-entry { min-width:0; border:1px solid #e2e8f0; background:#ffffff; }
+html body .app-shell #workspace-content .client-project-entry > .client-project-card { border:0 !important; }
+.client-project-edit-action { display:flex; justify-content:flex-end; padding:0 14px 12px; }
+html body .app-shell #workspace-content .client-project-edit-action .button { height:36px; border:1px solid #e2e8f0; border-radius:0 !important; background:#ffffff; color:#0f172a; text-transform:none !important; text-decoration:none !important; }
+.edit-details-dialog { --primary-button-color:#0f172a; --primary-button-hover:#111827; --primary-button-active:#000000; }
+.client-project-logo-editor { display:grid; gap:8px; font-size:12px; }
+.client-project-logo-editor > div { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.client-project-logo-editor img { width:64px; height:64px; object-fit:contain; border:1px solid #e2e8f0; background:#f8fafc; }
+.delete-client-dialog .delete-client-copy { padding:20px 26px; font-size:14px; line-height:1.6; overflow-wrap:anywhere; }
+.delete-client-copy p { margin:0 0 12px; }
+.delete-client-copy p:last-child { margin-bottom:0; color:#64748b; }
+.client-card-details > section > .button { margin-right:8px; margin-bottom:12px; border-radius:0 !important; text-transform:none !important; text-decoration:none !important; }
 
 /* Client rows show organization, project and managed plan counts. */
 html body .app-shell #workspace-content .clients-page .client-card-summary { display: grid; grid-template-columns: minmax(0,1fr) repeat(3,minmax(85px,110px)) 20px; align-items: center; }

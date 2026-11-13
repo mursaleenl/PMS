@@ -53,7 +53,7 @@ export function ClientProjectDrawer({initialClient,onClose,onCreated}:{initialCl
     <p>Create a separate workspace for new work under the same client.</p>
     {!clients.length?<><p>No existing clients yet. Create your first client project from a lead.</p><button type="button" className="button button-quiet" onClick={onClose}>Close</button></>:<form onSubmit={submit}>
       <fieldset disabled={busy||Boolean(pending.current)}>
-        <label className="field">Client<select name="client" required defaultValue={initialClient?"0":""}><option value="" disabled>Select an existing client</option>{clients.map((client,index)=><option key={index} value={index}>{client.companyName?`${client.companyName} · ${client.name}`:client.name}{client.email?` (${client.email})`:""}</option>)}</select></label>
+        <label className="field">Client<select name="client" required defaultValue={initialClient?"0":""}><option value="" disabled>Select an existing client</option>{clients.map((client,index)=><option key={index} value={index}>{client.companyName&&client.name?`${client.companyName} · ${client.name}`:client.companyName||client.name||client.email}{client.email?` (${client.email})`:""}</option>)}</select></label>
         <label className="field">Project name<input name="title" required maxLength={200} placeholder="e.g. Mobile app redesign"/></label>
         <label className="field">Scope / description<textarea name="description" rows={3} placeholder="Describe the work for this project"/></label>
         <label className="field">Services<input name="services" placeholder="e.g. UI/UX, Development"/></label>

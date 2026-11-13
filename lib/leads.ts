@@ -24,6 +24,7 @@ export function normalizeLeadStatus(value: unknown): LeadStatus {
 }
 
 export type Qualification = {
+  clientDeleted?: boolean;
   proposalAttachment?: { name: string; dataUrl: string };
   discoveryCallAt?: string;
   callNotes?: string;
