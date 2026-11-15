@@ -60,7 +60,7 @@ export default function OverviewPage() {
   const dashboardLeads = [...leads].sort((a, b) =>
     Number(b.status === "NEW") - Number(a.status === "NEW") ||
     (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0)
-  ).slice(0, 4);
+  ).slice(0, 6);
   const openLeadCount = leads.filter((lead) => ["NEW", "PROPOSAL_SENT", "ACCEPTED"].includes(lead.status)).length;
   return <div className={`page-content overview-dashboard${(role === "employee") ? " employee-dashboard" : ""}`}>
     <section className="welcome-row">
