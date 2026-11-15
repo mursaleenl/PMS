@@ -16812,10 +16812,10 @@ textarea:focus {
   letter-spacing: -.02em !important;
 }
 
-/* Project card actions: two compact controls, then a full-row delete action. */
+/* Project card action spans the full footer. */
 .main-area .projects-page .portfolio-actions.portfolio-actions-admin {
  display: grid !important;
- grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+ grid-template-columns: minmax(0, 1fr) !important;
  gap: 8px !important;
  align-items: start !important;
 }
