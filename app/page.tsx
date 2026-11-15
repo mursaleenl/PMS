@@ -55,7 +55,7 @@ export default function OverviewPage() {
   }, [openTasks]);
   const completedTaskCount = tasks.filter(({ task }) => task.status === "DONE").length;
   const pendingInvoices = useMemo(() => {
-    return invoices.filter((inv) => inv.status !== "CONFIRMED_PAID");
+    return invoices.filter((inv) => inv.status === "SENT");
   }, [invoices]);
   const dashboardLeads = [...leads].sort((a, b) =>
     Number(b.status === "NEW") - Number(a.status === "NEW") ||
@@ -105,7 +105,7 @@ export default function OverviewPage() {
         </div>
         <strong>{pendingInvoices.length}</strong>
         <span className="overview-summary-subtext">
-          {pendingInvoices.length === 0 ? "All invoices settled" : `${pendingInvoices.length === 1 ? "1 awaiting payment" : `${pendingInvoices.length} awaiting payment`}`}
+          {pendingInvoices.length === 0 ? "No invoices awaiting payment" : `${pendingInvoices.length} awaiting payment`}
         </span>
       </Link>}
       {(role === "admin" || role === "project_manager") && <Link href="/requests" className="overview-summary-card">
