@@ -51,6 +51,7 @@ type ClientProject = {
 
 type ClientRecord = {
   key: string;
+  clientId?: string;
   name: string;
   contactName?: string;
   companyName?: string;
@@ -132,20 +133,8 @@ export default function ClientsPage() {
       const rawCompany = clientContactName(project.clientCompany);
       const rawEmail = project.clientEmail?.trim() || "";
 
-      // Look up linked lead by ID, lead.projectId, email, name, or company
-      const linkedLead =
-        (project.leadId ? leadsMap.get(project.leadId) : undefined) ||
-        leads.find((l) => l.projectId && l.projectId === project.id) ||
-        (rawEmail ? leads.find((l) => l.email && l.email.trim().toLowerCase() === rawEmail.toLowerCase()) : undefined) ||
-        (rawClientName ? leads.find((l) => clientContactName(l.fullName).toLowerCase() === rawClientName.toLowerCase()) : undefined) ||
-        (rawCompany
-          ? leads.find((l) => {
-              if (!l.companyName) return false;
-              const n1 = normalize(l.companyName);
-              const n2 = normalize(rawCompany);
-              return !!n1 && n1 === n2;
-            })
-          : undefined);
+      // Only an explicit originating lead can supply legacy contact details.
+      const linkedLead = project.leadId ? leadsMap.get(project.leadId) : undefined;
 
       const contactName=rawClientName||clientContactName(linkedLead?.fullName);
       const resolvedCompany=rawCompany||clientContactName(linkedLead?.companyName)||undefined;
@@ -158,12 +147,13 @@ export default function ClientsPage() {
       const website = project.enquiryDetails?.companyWebsite ?? (linkedLead?.companyWebsite?.trim() || undefined);
       const industry = project.enquiryDetails?.industry ?? (linkedLead?.industry?.trim() || undefined);
 
-      let client = findExisting(contactName, email, resolvedCompany);
+      let client = project.clientId ? clientMap.get(`client-${project.clientId}`) : findExisting(contactName, email, resolvedCompany);
 
       if (!client) {
-        const key = `client-project-${project.id}`;
+        const key = project.clientId ? `client-${project.clientId}` : `client-project-${project.id}`;
         client = {
           key,
+          clientId:project.clientId,
           name: resolvedPersonName,
           contactName,
           companyName: resolvedCompany,
@@ -800,7 +790,7 @@ export default function ClientsPage() {
       )}
       {canEditRecordDetails(role)&&deletingClient&&<DeleteClientDialog client={deletingClient} onClose={()=>setDeletingClient(null)} onDeleted={()=>{setDeletedKeys(keys=>new Set([...keys,deletingClient.key]));setExpandedClient(null);showToast({message:"Client deleted. Associated work and documents were kept."});}}/>}
       {canEditRecordDetails(role)&&editingProject&&<ClientProjectEditDialog project={editingProject} onClose={()=>setEditingProject(null)}/>}
-      {canEditRecordDetails(role)&&addingProject&&<ClientProjectDrawer initialClient={{name:addingProject.contactName??addingProject.name,companyName:addingProject.companyName,email:addingProject.email,contactDetails:{phone:addingProject.phone,designation:addingProject.designation,country:addingProject.country,companyWebsite:addingProject.website,industry:addingProject.industry}}} onClose={()=>setAddingProject(null)} onCreated={()=>{setAddingProject(null);showToast({message:"Project added to client."});}}/>}
+      {canEditRecordDetails(role)&&addingProject&&<ClientProjectDrawer initialClient={{clientId:addingProject.clientId,name:addingProject.contactName??addingProject.name,companyName:addingProject.companyName,email:addingProject.email,contactDetails:{phone:addingProject.phone,designation:addingProject.designation,country:addingProject.country,companyWebsite:addingProject.website,industry:addingProject.industry}}} onClose={()=>setAddingProject(null)} onCreated={()=>{setAddingProject(null);showToast({message:"Project added to client."});}}/>}
       {canEditRecordDetails(role)&&editingClient&&<EditDetailsDialog title="Edit customer details" onClose={()=>setEditingClient(null)} fields={[
         ...customerOrganizations(editingClient).map((name,index)=>({name:index?`organization_${index}`:"companyName",label:index?`Organization ${index+1}`:"Organization name",value:name})),
         {name:"name",label:"Contact name",value:editingClient.contactName??editingClient.name,required:true},

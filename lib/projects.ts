@@ -78,6 +78,8 @@ export function getProjectClientLabel(project:Pick<Project,"clientName"|"clientC
 export type Project = {
   id: string;
   leadId: string;
+  clientId?: string;
+  clientSelection?: "new" | "existing";
   logoDataUrl?: string;
   projectType?: "client" | "internal";
   objectives?: string;
@@ -259,7 +261,7 @@ export async function projectFromLead(input: {
     clientCompany: lead.companyName,
     clientName: lead.fullName,
     clientEmail: lead.email,
-    enquiryDetails: getProjectEnquiryDetails({},lead),
+    enquiryDetails: {...getProjectEnquiryDetails({},lead),projectNameOverride:true},
     operatingCompany: input.operatingCompany,
     services: getProjectServices({title: input.title, clientCompany: lead.companyName, clientName: lead.fullName, services: lead.services}),
     classification: input.classification,

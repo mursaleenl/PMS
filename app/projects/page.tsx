@@ -22,7 +22,7 @@ export default function ProjectsPage() {
     if (showProjectOptions) projectOptions.current?.showModal();
     else projectOptions.current?.close();
   }, [showProjectOptions]);
-  const [showClientProject,setShowClientProject]=useState(false);
+  const [showClientProject,setShowClientProject]=useState<"new"|"existing"|null>(null);
   const [showInternalProject, setShowInternalProject] = useState(false);
   const { role, user, members } = useWorkspaceAuth();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -69,9 +69,10 @@ export default function ProjectsPage() {
       <header><h2 id="new-project-title">New project</h2><button className="icon-button" type="button" aria-label="Close project options" onClick={() => setShowProjectOptions(false)}><X size={18} /></button></header>
       <p>Choose the kind of project you want to create.</p>
       <div className="new-project-choices">
-        <button type="button" onClick={()=>{setShowProjectOptions(false);setShowClientProject(true);}}><strong>Existing client</strong><span>Add another project under the same client</span><ArrowRight size={16}/></button>
+        <button type="button" onClick={()=>{setShowProjectOptions(false);setShowClientProject("new");}}><strong>New client</strong><span>Create a client project directly</span><ArrowRight size={16}/></button>
+        <button type="button" onClick={()=>{setShowProjectOptions(false);setShowClientProject("existing");}}><strong>Existing client</strong><span>Add another project under the same client</span><ArrowRight size={16}/></button>
         <button type="button" onClick={() => { setShowProjectOptions(false); setShowInternalProject(true); }}><strong>Internal</strong><span>Start a project for your team</span><ArrowRight size={16} /></button>
-        <Link href="/requests" onClick={() => setShowProjectOptions(false)}><strong>External</strong><span>Create a project from a lead</span><ArrowRight size={16} /></Link>
+        <Link href="/requests" onClick={() => setShowProjectOptions(false)}><strong>From a lead</strong><span>Use an existing enquiry to start delivery</span><ArrowRight size={16} /></Link>
       </div>
     </dialog>}
     <div className="project-section-tabs" role="tablist" aria-label="Project sections">
@@ -79,7 +80,7 @@ export default function ProjectsPage() {
         <span>{section}</span><span className="project-section-count">{accessibleProjects.filter(project => inSection(project, section)).length}</span>
       </button>)}
     </div>
-    {visibleProjects.length === 0 ? <EmptyState icon={<FolderKanban size={22} />} title={accessibleProjects.length > 0 ? `No ${projectSection} projects` : (role === "admin" || role === "project_manager") ? "No project workspaces yet" : "No projects assigned"} description={(role === "admin" || role === "project_manager") ? "Create an internal project or move a lead here to start client delivery." : "Projects assigned to you will appear here."} action={(role === "admin" || role === "project_manager") ? <Link className="button button-primary" href="/requests">Open leads <ArrowRight size={15} /></Link> : undefined} /> : <section className="project-portfolio">{visibleProjects.map((project) => {
+    {visibleProjects.length === 0 ? <EmptyState icon={<FolderKanban size={22} />} title={accessibleProjects.length > 0 ? `No ${projectSection} projects` : (role === "admin" || role === "project_manager") ? "No project workspaces yet" : "No projects assigned"} description={(role === "admin" || role === "project_manager") ? "Create a client project or an internal project directly. A lead is optional." : "Projects assigned to you will appear here."} action={(role === "admin" || role === "project_manager") ? <button className="button button-primary" type="button" onClick={()=>setShowProjectOptions(true)}>New project <Plus size={15}/></button> : undefined} /> : <section className="project-portfolio">{visibleProjects.map((project) => {
       const visibleTasks = (project.workItems ?? []).filter(task => canViewProjectTask(project, task, role, user?.id, employeeName));
       const openWork = visibleTasks.filter((item) => item.status !== "DONE").length;
       const services = getProjectDisplayServices(project);
@@ -122,7 +123,7 @@ export default function ProjectsPage() {
         </div>
       </article>;
     })}</section>}
-    {(role === "admin" || role === "project_manager") && showClientProject && <ClientProjectDrawer onClose={()=>setShowClientProject(false)} onCreated={project=>{setShowClientProject(false);router.push(`/projects/${project.id}`);}}/>}
+    {(role === "admin" || role === "project_manager") && showClientProject && <ClientProjectDrawer mode={showClientProject} onClose={()=>setShowClientProject(null)} onCreated={project=>{setShowClientProject(null);router.push(`/projects/${project.id}`);}}/>}
     {(role === "admin" || role === "project_manager") && showInternalProject && <InternalProjectDrawer onClose={() => setShowInternalProject(false)} onCreated={project => { setShowInternalProject(false); router.push(`/projects/${project.id}`); }} />}
   </div>;
 }

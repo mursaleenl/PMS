@@ -5,7 +5,6 @@ import {ProjectLogoUpload} from "@/app/_components/project-logo";
 import {canEditRecordDetails,parseServiceDetails,validateProjectServiceDetails} from "@/lib/record-editing";
 import {useWorkspaceAuth} from "@/lib/workspace-auth";
 import {getProjectDisplayServices,readProjects,updateProject,type Project} from "@/lib/projects";
-import {readLeads,updateLead} from "@/lib/leads";
 import {readManagedProjects,updateManagedProject} from "@/lib/post-sale";
 import {flushWorkspaceChanges} from "@/lib/workspace-sync";
 import {operatingCompanies,type OperatingCompany} from "@/lib/companies";
@@ -38,8 +37,6 @@ export function ClientProjectEditDialog({project,onClose}:{project:Project;onClo
   validateProjectServiceDetails(values.title,services);
   updateProject(current.id,{title:values.title,services,status,operatingCompany:values.operatingCompany as OperatingCompany,contractedValue:amount,currency:values.currency,logoDataUrl:logo,enquiryDetails:{...current.enquiryDetails,projectName:values.title,projectNameOverride:true}});
   if(values.title!==current.title){
-   const lead=readLeads().find(item=>item.id===current.leadId);
-   if(lead)updateLead(lead.id,{projectName:values.title});
    for(const plan of readManagedProjects().filter(item=>item.sourceProjectId===current.id))updateManagedProject(plan.id,{projectTitle:values.title});
   }
   await flushWorkspaceChanges();showToast({message:"Project details saved."});

@@ -16,7 +16,7 @@ import {flushWorkspaceChanges} from "@/lib/workspace-sync";
 
 import { getProjectLogoSrc } from "@/lib/project-logo";
 import { ProjectLogoUpload } from "@/app/_components/project-logo";
-import {readLeads,updateLead,type Lead} from "@/lib/leads";
+import {readLeads,type Lead} from "@/lib/leads";
 import Link from "next/link";
 import {StatusBadge} from "@/app/_components/status-badge";
 import { ProjectStatusBoard } from "@/app/_components/project-status-board";
@@ -339,7 +339,7 @@ export default function ProjectWorkspacePage() {
   const teamMembers = getProjectTeamMembers(project);
   const services = getProjectDisplayServices(project);
 
-  const contactLead=linkedLead||(canEditRecordDetails(role)&&project.clientEmail?readLeads().find(lead=>lead.email?.trim().toLowerCase()===project.clientEmail.trim().toLowerCase()):undefined);
+  const contactLead=linkedLead;
   const enquiryDetails=getProjectEnquiryDetails(project,contactLead);
   const operatingOrganization=project.operatingCompany||linkedLead?.operatingCompany;
   const acceptedProposal=[...(linkedLead?.proposals??[])].filter(item=>item.status==="ACCEPTED").sort((a,b)=>b.version-a.version)[0];
@@ -482,7 +482,6 @@ export default function ProjectWorkspacePage() {
       }
       updateProject(project.id,updates);
       if(updates.title!==project.title){
-        if(linkedLead)updateLead(linkedLead.id,{projectName:updates.title});
         for(const plan of readManagedProjects().filter(item=>item.sourceProjectId===project.id))updateManagedProject(plan.id,{projectTitle:updates.title});
       }
       await flushWorkspaceChanges();showToast({message:"Project details saved."});
