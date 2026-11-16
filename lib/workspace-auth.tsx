@@ -164,7 +164,8 @@ export function WorkspaceAuthProvider({ children }: { children: ReactNode }) {
     signOut:async () => {
       try { await flushPendingWorkspaceChanges(); }
       catch { if (!window.confirm("Some changes have not been saved. Sign out and discard those changes?")) return false; }
-      if (supabase) { const result = await supabase.auth.signOut(); if (result.error) throw result.error; }
+      // Supabase defaults to signing out every session; keep other devices signed in.
+      if (supabase) { const result = await supabase.auth.signOut({ scope: "local" }); if (result.error) throw result.error; }
       return true;
     },
     provisionUser:async (name,email,password,role) => { await userManagementRequest(session,"POST",{name,email,password,role}); await refreshAccess(); },

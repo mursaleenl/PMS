@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 
 export type AttendanceSession = {
   id: string; user_id: string; work_date: string;
-  checked_in_at: string; checked_out_at: string | null;
+  checked_in_at: string | null; checked_out_at: string | null;
 };
 export type AttendanceSettings = { office_name: string; timezone: string };
 export type AttendanceChallenge = {token:string; expiresAt:string; serverTime:string; officeName:string; timezone:string};
@@ -34,13 +34,14 @@ export async function readOpenAttendanceSession():Promise<AttendanceSession|null
   if (!supabase) throw new Error("Database is not configured.");
   const {data:user,error:authError}=await supabase.auth.getUser();
   if(authError||!user.user)throw new Error("Sign in again to view your attendance.");
-  const {data,error}=await supabase.from("attendance_sessions").select("id,user_id,work_date,checked_in_at,checked_out_at").eq("user_id",user.user.id).is("checked_out_at",null).maybeSingle();
+  const {data,error}=await supabase.from("attendance_sessions").select("id,user_id,work_date,checked_in_at,checked_out_at").eq("user_id",user.user.id).not("checked_in_at","is",null).is("checked_out_at",null).order("work_date",{ascending:false}).order("checked_in_at",{ascending:false}).limit(1).maybeSingle();
   if(error)throw new Error("Unable to load your current visit. Check attendance setup and retry.");
   return data;
 }
 export function officeDate(timezone:string,date=new Date()) {
   return new Intl.DateTimeFormat("en-CA",{timeZone:timezone,year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
 }
-export function attendanceTime(value:string,timezone:string) {
+export function attendanceTime(value:string|null,timezone:string) {
+  if (!value) return "—";
   return new Intl.DateTimeFormat("en-IN",{timeZone:timezone,dateStyle:"medium",timeStyle:"short"}).format(new Date(value));
 }

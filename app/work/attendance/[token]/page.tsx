@@ -23,8 +23,8 @@ function AttendanceScanContent({params}:{params:Promise<{token:string}>}){
     if(!promise){
       promise=(async()=>{
         if(!validToken)throw new Error("This attendance QR is invalid. Scan the current office QR.");
-        const [current,office]=await Promise.all([readOpenAttendanceSession(),readAttendanceSettings()]);
-        if(current&&current.work_date!==officeDate(office.timezone))throw new Error("Missing checkout from a previous day. Ask an administrator to correct the visit before scanning again.");
+        const [latest,office]=await Promise.all([readOpenAttendanceSession(),readAttendanceSettings()]);
+        const current=latest?.work_date===officeDate(office.timezone)?latest:null;
         if(requestedAction!==null&&requestedAction!=="check_in"&&requestedAction!=="check_out")throw new Error("Choose Check In or Check Out from Scan attendance and try again.");
         const action=requestedAction??(current?"check_out":"check_in");
         if(action==="check_in"&&current)throw new Error("You are already checked in. Choose Check Out to end your current visit.");
