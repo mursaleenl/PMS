@@ -2,6 +2,7 @@
 
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 function SignInForm() {
@@ -11,6 +12,7 @@ function SignInForm() {
   const from = requestedPath.startsWith("/") && !requestedPath.startsWith("//") && !requestedPath.includes("\\") ? requestedPath : "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,16 +50,24 @@ function SignInForm() {
             onChange={(event) => setEmail(event.target.value)}
           />
         </label>
-        <label className="field">
-          Password
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </label>
+        <div className="field">
+          <label htmlFor="login-password">Password</label>
+          <div className="login-password-control">
+            <input
+              id="login-password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <button type="button" aria-controls="login-password"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              onClick={() => setShowPassword(visible => !visible)}>
+              {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+            </button>
+          </div>
+        </div>
         {error && <p className="form-error" role="alert">{error}</p>}
         <button className="button button-primary" type="submit" disabled={submitting}>
           {submitting ? "Signing in..." : "Sign in"}

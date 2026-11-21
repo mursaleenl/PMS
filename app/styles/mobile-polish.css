@@ -297,10 +297,7 @@
   .app-shell .main-area .project-detail-grid .project-data-panel > .panel-heading h2 { margin: 0 !important; font-size: 16px; line-height: 1.35 !important; }
   .app-shell .main-area .project-detail-grid .project-data-panel > .panel-heading p { margin: 4px 0 0 !important; line-height: 1.5 !important; font-size: 12px; }
   .app-shell .main-area .project-detail-grid .project-data-panel > .panel-heading > svg { flex-shrink: 0; margin-top: 3px; }
-  .app-shell .main-area .project-detail-grid :is(.project-task-summary-list,.document-links,.team-assignment-list) { margin: 0 !important; padding: 0 !important; gap: 8px !important; }
-  .app-shell .main-area .project-detail-grid .project-task-summary-item { min-width: 0; padding: 12px !important; gap: 16px; }
-  .app-shell .main-area .project-detail-grid .project-task-summary-item > div { min-width: 0; overflow-wrap: anywhere; }
-  .app-shell .main-area .project-detail-grid .project-task-summary-item .work-priority { flex-shrink: 0; padding: 0 !important; border: 0 !important; background: transparent !important; }
+  .app-shell .main-area .project-detail-grid :is(.document-links,.team-assignment-list) { margin: 0 !important; padding: 0 !important; gap: 8px !important; }
   .app-shell .main-area .project-detail-grid .project-commercial-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px 20px; padding: 0; margin: 0; }
   .app-shell .main-area .project-detail-grid .project-commercial-list > div { min-width: 0; gap: 5px; align-content: start; }
   .app-shell .main-area .project-detail-grid .project-commercial-list small { font-size: 11px; color: #71717a; line-height: 1.5; }

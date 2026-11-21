@@ -21,8 +21,8 @@ import Link from "next/link";
 import {StatusBadge} from "@/app/_components/status-badge";
 import { ProjectStatusBoard } from "@/app/_components/project-status-board";
 import { ProjectConversation } from "@/app/_components/project-conversation";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, Download, ExternalLink, FileText, FolderKanban, Handshake, Link2, Plus, Receipt, Trash2, Users, X } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
 import { deleteProject, readProjects, getProjectTeamMembers, getProjectDisplayTitle, getProjectDisplayServices, getProjectEnquiryDetails, getProjectClientLabel, getTaskAssigneeLabel, type Project, type ProjectWorkItem, updateProject, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
@@ -32,8 +32,14 @@ import { showToast } from "@/app/_components/toast-hub";
 import { useAssignableUsers } from "@/lib/assignees";
 import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignees";
 
-type ProjectTab = "Overview" | "Staging & Links" | "Project status" | "Messages";
-const projectTabs: ProjectTab[] = ["Overview", "Staging & Links", "Project status", "Messages"];
+const projectTabs = [
+  { id: "overview", label: "Overview" },
+  { id: "tasks", label: "Tasks" },
+  { id: "links", label: "Staging & Links" },
+  { id: "status", label: "Project status" },
+  { id: "messages", label: "Messages" },
+] as const;
+type ProjectTab = (typeof projectTabs)[number]["id"];
 
 type AssigneeOption = {
   id?: string;
@@ -239,6 +245,12 @@ function TaskDispatchDialog({ project, onClose, onDispatch }: { project: Project
 }
 
 export default function ProjectWorkspacePage() {
+  return <Suspense fallback={<div className="page-content">Loading project workspace…</div>}>
+    <ProjectWorkspace />
+  </Suspense>;
+}
+
+function ProjectWorkspace() {
   const { projectId } = useParams<{ projectId: string }>();
   const router = useRouter();
   const { role, user, members } = useWorkspaceAuth();
@@ -246,7 +258,10 @@ export default function ProjectWorkspacePage() {
   const [project, setProject] = useState<Project | null>(null);
   const [linkedLead,setLinkedLead]=useState<Lead|null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<ProjectTab>("Overview");
+  const params = useSearchParams();
+  const activeTab = projectTabs.find(tab => tab.id === params.get("tab"))?.id ?? "overview";
+  const selectedTask = activeTab === "tasks" ? params.get("task") : null;
+  const selectedTaskRow = useRef<HTMLDivElement>(null);
   const [editingDetails,setEditingDetails]=useState(false);
   const [managingClients,setManagingClients]=useState(false);
   const [editingTask,setEditingTask]=useState<ProjectWorkItem|null>(null);
@@ -254,6 +269,22 @@ export default function ProjectWorkspacePage() {
   const [showManagedPlan, setShowManagedPlan] = useState(false);
   const [managedPlan, setManagedPlan] = useState<ManagedProject | null>(null);
   const employeeName = (members.find((member) => member.user_id === user?.id)?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "").trim();
+
+  const hasSelectedTask = Boolean(selectedTask && project?.id === projectId && project.workItems?.some(task =>
+    task.id === selectedTask && canViewProjectTask(project, task, role, user?.id, employeeName)
+  ));
+
+  useEffect(() => {
+    if (hasSelectedTask) selectedTaskRow.current?.focus();
+  }, [hasSelectedTask, selectedTask, projectId]);
+
+  function setActiveTab(tab: ProjectTab) {
+    const url = new URL(window.location.href);
+    if (tab === "overview") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", tab);
+    url.searchParams.delete("task");
+    window.history.pushState(null, "", url);
+  }
 
   useEffect(() => {
     const refresh = () => {
@@ -308,7 +339,8 @@ export default function ProjectWorkspacePage() {
   async function dispatchTask(batch:TaskDispatch[]) {
     if(role!=="admin"&&role!=="project_manager")throw new Error("You do not have permission to dispatch tasks.");
     await persistTaskDispatch(batch);
-    setShowDispatch(false);setActiveTab("Overview");
+    setShowDispatch(false);
+    if (batch.some(item => item.projectId === projectId)) setActiveTab("tasks");
     showToast({message:`Task dispatched to ${batch.length} ${batch.length===1?"project":"projects"}.`});
   }
 
@@ -350,16 +382,16 @@ export default function ProjectWorkspacePage() {
     <Link className="back-link" href="/projects"><ArrowLeft size={15} />Project portfolio</Link>
     <header className="record-heading project-room-heading"><div className="project-room-summary"><div className="project-room-identity">{projectLogo && <img className="project-workspace-logo" src={projectLogo} alt={`${getProjectDisplayTitle(project)} logo`} />}<h1>{getProjectDisplayTitle(project)}</h1></div><div className="project-room-copy"><p className="project-room-services">Project type: {project.projectType === "internal" ? "Internal" : "External"}</p>{services && <p className="project-room-services">{services}</p>}<div className="project-lifecycle-status"><StatusBadge status={project.status}/>{health && <StatusBadge status={health}/>}</div></div></div><div className="project-lifecycle-actions"><div className="project-lifecycle-buttons">{canEditRecordDetails(role)&&project.projectType!=="internal"&&<button type="button" className="button button-quiet" onClick={()=>setManagingClients(true)}>Manage clients</button>}{canEditRecordDetails(role)&&<button type="button" className="button button-quiet" onClick={()=>setEditingDetails(true)}>Edit project</button>}{(role === "admin" || role === "project_manager")&&((project.status === "COMPLETED" || project.status === "AMC") ? project.projectType === "internal" ? null : managedPlan ? <><Link className="button button-quiet" href="/post-sale" title="View retainer plan"><Check size={14} />In retainer · {managedPlan.id}</Link><button className="button button-quiet" type="button" onClick={moveFromRetainerToProjects} title="Move out of retainers and back to active projects"><FolderKanban size={14} />Move to active projects</button></> : <button className="button button-quiet" type="button" onClick={() => setShowManagedPlan(true)}><Handshake size={14} />Move to retainer</button> : <button className="button button-quiet" type="button" onClick={markProjectComplete}><Check size={14} />Mark complete</button>)}{(role === "admin" || role === "project_manager") && <button className="button button-quiet project-delete-button" type="button" onClick={removeProject}><Trash2 size={14} />Delete project</button>}</div></div></header>
 
-    <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{project.status === "COMPLETED" ? "Completed" : "Active"}</strong></div><div><small>OPEN WORK ITEMS</small><strong><Link href="/work" style={{ textDecoration: "none", color: "inherit" }}>{workItems.filter((task) => task.status !== "DONE").length} · In Tasks</Link></strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim() && !DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim())).length}</strong></div></section>
+    <section className="project-room-strip"><div><small>PROJECT STATUS</small><strong>{project.status === "COMPLETED" ? "Completed" : "Active"}</strong></div><div><small>OPEN WORK ITEMS</small><strong><Link href="?tab=tasks" scroll={false} style={{ textDecoration: "none", color: "inherit" }}>{workItems.filter((task) => task.status !== "DONE").length} · In Tasks</Link></strong></div><div className="room-task-total"><small>TEAM MEMBERS</small><strong>{project.team.filter((member) => member.name.trim() && !DUMMY_ASSIGNABLE_NAMES.has(member.name.toLowerCase().trim())).length}</strong></div></section>
 
     {role==="employee"&&<div className="project-dispatch-row"><button type="button" className="button button-primary" onClick={()=>setShowDispatch(true)}><Plus size={14}/>Create task</button></div>}
     {(role === "admin" || role === "project_manager") && <div className="project-dispatch-row"><button type="button" className="button button-primary room-dispatch-button" onClick={() => setShowDispatch(true)}><Plus size={14} />Dispatch task</button><ProjectLogoUpload compact value={project.logoDataUrl} onChange={logoDataUrl => save({logoDataUrl})} /></div>}
 
     <nav className="project-room-tabs" aria-label="Project room sections">
-      {projectTabs.map((tab) => <button key={tab} type="button" className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>)}
+      {projectTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "active" : ""} aria-current={activeTab === tab.id ? "page" : undefined} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}
     </nav>
 
-    {activeTab === "Overview" && <>
+    {activeTab === "overview" && <>
       <section className="project-detail-grid">
         <div className="project-detail-main">
           <article className="panel project-data-panel project-scope-panel">
@@ -384,32 +416,6 @@ export default function ProjectWorkspacePage() {
               </>}
             </div>
           </article>
-          {workItems.length > 0 && (
-            <article className="panel project-data-panel project-task-preview-panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>Project tasks</h2>
-                  <p>{workItems.filter((t) => t.status !== "DONE").length} open · {workItems.length} total</p>
-                </div>
-                <Link className="button button-quiet" href="/work">
-                  Open Tasks board <ArrowRight size={13} />
-                </Link>
-              </div>
-              <div className="project-task-summary-list" tabIndex={0} role="region" aria-label="Project tasks, scroll for more">
-                {sortedWorkItems.map((task) => (
-                  <div className="project-task-summary-item" key={task.id}>
-                    <div>
-                      <strong title={task.title}>{task.title}</strong>
-                      <TaskDeadline deadline={task.deadline}/>
-                      <small>{getTaskAssigneeLabel(task) || "Unassigned"} · {task.status.replaceAll("_", " ")}</small>
-                    </div>
-                    {(role==="admin"||role==="project_manager")&&<button className="button button-quiet button-micro" type="button" onClick={()=>setEditingTask(task)}>Edit task</button>}
-                    <span className={`work-priority priority-${task.priority.toLowerCase()}`}>{task.priority}</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-          )}
         </div>
         <aside className="project-detail-side"><article className="panel project-data-panel project-team-panel">
           <div className="panel-heading"><div><h2>Project Team</h2><p>Project manager and assigned team members</p></div></div>
@@ -428,9 +434,38 @@ export default function ProjectWorkspacePage() {
       </section>
     </>}
 
-    {activeTab === "Project status" && <ProjectStatusBoard project={project} />}
-    {activeTab === "Messages" && <section className="panel portal-record"><ProjectConversation projectId={project.id}/></section>}
-    {activeTab === "Staging & Links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"]] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16} /></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12} /></a> : <strong>Not added</strong>}</div>{((role === "admin" || role === "project_manager") || ((role === "employee") && key === "staging")) && <button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button>}</article>; })}</div><p className="storage-note">Project links are saved to your workspace. Repository and hosting permissions are managed by their providers.</p></section>}
+    {activeTab === "tasks" && <section className="panel project-data-panel project-tasks-panel">
+      <div className="panel-heading">
+        <div>
+          <h2>Project tasks</h2>
+          <p>{workItems.filter(task => task.status !== "DONE").length} open · {workItems.length} total</p>
+        </div>
+        {workItems.length > 0 && <Link className="button button-quiet" href={`/work?project=${encodeURIComponent(project.id)}`}>
+          Open tasks board <ArrowRight size={13} />
+        </Link>}
+      </div>
+      {workItems.length ? <div className="project-task-summary-list">
+        {sortedWorkItems.map(task => (
+          <div className="project-task-summary-item" key={task.id}
+            ref={task.id === selectedTask ? selectedTaskRow : undefined}
+            tabIndex={task.id === selectedTask ? -1 : undefined}>
+            <div>
+              <strong>{task.title}</strong>
+              <TaskDeadline deadline={task.deadline} />
+              <small>{getTaskAssigneeLabel(task) || "Unassigned"} · {task.status.replaceAll("_", " ")}</small>
+            </div>
+            <div className="project-task-row-actions">
+              {(role === "admin" || role === "project_manager") && <button className="button button-quiet button-micro" type="button" onClick={() => setEditingTask(task)}>Edit task</button>}
+              <span className={`work-priority priority-${task.priority.toLowerCase()}`}>{task.priority}</span>
+            </div>
+          </div>
+        ))}
+      </div> : <p className="project-task-summary-list">No tasks for this project yet.</p>}
+    </section>}
+
+    {activeTab === "status" && <ProjectStatusBoard project={project} />}
+    {activeTab === "messages" && <section className="panel portal-record"><ProjectConversation projectId={project.id}/></section>}
+    {activeTab === "links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"]] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16} /></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12} /></a> : <strong>Not added</strong>}</div>{((role === "admin" || role === "project_manager") || ((role === "employee") && key === "staging")) && <button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button>}</article>; })}</div><p className="storage-note">Project links are saved to your workspace. Repository and hosting permissions are managed by their providers.</p></section>}
 
     {canEditRecordDetails(role)&&managingClients&&<ProjectClientsDialog project={project} onClose={()=>setManagingClients(false)}/>}
     {canEditRecordDetails(role)&&editingDetails&&<EditDetailsDialog title="Edit project details" onClose={()=>setEditingDetails(false)} fields={[

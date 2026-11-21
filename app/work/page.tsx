@@ -4,10 +4,11 @@ import {GENERAL_TASKS_ID,generalTaskContext,readGeneralTasks,updateGeneralTask} 
 import {EditTaskDialog} from "@/app/_components/edit-task-dialog";
 import {TaskDeadline} from "@/app/_components/task-deadline";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 import { AssignTaskDialog } from "@/app/_components/assign-task-dialog";
 import { BlockTaskDialog } from "@/app/_components/block-task-dialog";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { ArrowDownUp, ArrowRight, Check, ChevronDown, CircleAlert, FileCheck2, Filter, GripVertical, Kanban, List, MoreHorizontal, Plus, Search, ShieldAlert, Users } from "lucide-react";
 import { EmptyState } from "@/app/_components/empty-state";
 import { StatusBadge } from "@/app/_components/status-badge";
@@ -43,13 +44,26 @@ function saveTaskChanges(projectId: string, taskId: string, updates: Partial<Pro
 }
 
 export default function MyWorkPage() {
+  return <Suspense fallback={<div className="page-content">Loading tasks…</div>}>
+    <WorkPageScope />
+  </Suspense>;
+}
+
+function WorkPageScope() {
+  const params = useSearchParams();
+  const projectId = params.get("project");
+  const taskId = params.get("task");
+  return <WorkPage key={JSON.stringify([projectId, taskId])} projectId={projectId} taskId={taskId} />;
+}
+
+function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: string | null }) {
   const {role,user,members}=useWorkspaceAuth();
   const { users: assignableUsers } = useAssignableUsers();
   const [showAssignTask, setShowAssignTask] = useState(false);
   const [generalTasks,setGeneralTasks]=useState<ProjectWorkItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [assignee, setAssignee] = useState("");
-  const [filter, setFilter] = useState<TaskFilter>("TO_DO");
+  const [filter, setFilter] = useState<TaskFilter>(projectId || taskId ? "ALL" : "TO_DO");
   const [search, setSearch] = useState("");
   const [sortOldestFirst, setSortOldestFirst] = useState(false);
   const [viewMode, setViewMode] = useState<"LIST" | "BOARD">("LIST");
@@ -94,7 +108,11 @@ export default function MyWorkPage() {
   }, []);
 
   const employeeName=(members.find((member)=>member.user_id===user?.id)?.display_name||user?.user_metadata?.full_name||user?.email?.split("@")[0]||"").trim().toLowerCase();
-  const allTasks = useMemo(() => projects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))).filter(({project, task}) => canViewProjectTask(project, task, role, user?.id, employeeName)).concat(generalTasks.filter(task=>role==="admin"||role==="project_manager"||isTaskAssignedToUser(task,user?.id,employeeName)).map(task=>({project:generalTaskContext,task}))), [projects,generalTasks,role,user?.id,employeeName]);
+  const workspaceTasks = useMemo(() => projects.flatMap((project) => (project.workItems ?? []).map((task) => ({ project, task }))).filter(({project, task}) => canViewProjectTask(project, task, role, user?.id, employeeName)).concat(generalTasks.filter(task=>role==="admin"||role==="project_manager"||isTaskAssignedToUser(task,user?.id,employeeName)).map(task=>({project:generalTaskContext,task}))), [projects,generalTasks,role,user?.id,employeeName]);
+  const allTasks = useMemo(() => workspaceTasks.filter(({ project, task }) =>
+    (!projectId || project.id === projectId) && (!taskId || task.id === taskId)
+  ), [workspaceTasks, projectId, taskId]);
+  const scopedProject = projectId ? allTasks[0]?.project : undefined;
   const canEditTask = role === "admin" || role === "project_manager";
   const canCreateTask = canEditTask || role === "employee";
   const assignees = [...new Set([
@@ -241,7 +259,8 @@ export default function MyWorkPage() {
     <section className="welcome-row task-page-welcome">
       <div>
         <h1>Tasks</h1>
-        <p className="welcome-subtitle">Manage and track assigned work across projects.</p>
+        <p className="welcome-subtitle">{taskId ? "Search result" : scopedProject ? getProjectDisplayTitle(scopedProject) : "Manage and track assigned work across projects."}</p>
+        {(projectId || taskId) && <Link href="/work">Show all workspace tasks</Link>}
       </div>
       <div className="task-page-actions">
         {(role !== "employee") && <>

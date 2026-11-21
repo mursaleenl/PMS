@@ -1355,36 +1355,6 @@
     background: #2563eb !important;
     border-color: #2563eb !important;
   }
-  .app-shell .main-area .project-detail-main .project-task-preview-panel > .panel-heading {
-    min-height: 0 !important;
-    margin-bottom: 0 !important;
-    padding: 18px 30px 8px !important;
-    align-items: flex-start;
-  }
-  .app-shell .main-area .project-detail-main .project-task-preview-panel > .panel-heading h2 {
-    margin: 0 0 4px !important;
-    line-height: 1.2 !important;
-  }
-  .app-shell .main-area .project-detail-main .project-task-preview-panel > .panel-heading p {
-    margin: 0 !important;
-    line-height: 1.4 !important;
-  }
-  .app-shell .main-area .project-detail-main .project-task-summary-list {
-    padding: 0 30px 18px !important;
-    gap: 8px !important;
-  }
-  .app-shell .main-area .project-detail-main .project-task-summary-list .project-task-summary-item {
-    min-height: 56px;
-    padding: 10px 14px;
-  }
-  .app-shell .main-area .project-detail-main .project-task-summary-list .project-task-summary-item strong {
-    line-height: 1.35;
-  }
-  .app-shell .main-area .project-detail-main .project-task-summary-list .project-task-summary-item small {
-    display: block;
-    margin-top: 3px;
-    line-height: 1.4;
-  }
   .app-shell .main-area .page-content .overview-task-row {
     grid-template-columns: 28px minmax(0, 1fr) auto 16px !important;
   }

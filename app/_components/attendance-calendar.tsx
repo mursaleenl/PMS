@@ -13,8 +13,9 @@ function dateLabel(value: string) {
   return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-export function AttendanceCalendar({ userId, timezone, refreshKey }: {
+export function AttendanceCalendar({ userId, personName, timezone, refreshKey }: {
   userId: string;
+  personName?: string;
   timezone: string;
   refreshKey: number;
 }) {
@@ -52,8 +53,10 @@ export function AttendanceCalendar({ userId, timezone, refreshKey }: {
     return () => { cancelled = true; };
   }, [month, lastDate, userId, refreshKey, retry]);
 
-  const daysAttended = new Set(visits.map(visit => visit.work_date));
-  const selectedVisits = visits.filter(visit => visit.work_date === selected);
+  const scopedVisits = visits.filter(visit => visit.user_id === userId && visit.work_date.startsWith(`${month}-`));
+  const daysAttended = new Set(scopedVisits.map(visit => visit.work_date));
+  const selectedVisits = scopedVisits.filter(visit => visit.work_date === selected);
+  const title = personName ? `${personName}’s attendance calendar` : "My attendance calendar";
   const time = (value: string | null) => value ? new Intl.DateTimeFormat("en-IN", { timeStyle: "short", timeZone: timezone }).format(new Date(value)) : "—";
   function moveMonth(change: number) {
     const date = monthDate(month);
@@ -61,8 +64,8 @@ export function AttendanceCalendar({ userId, timezone, refreshKey }: {
     setMonth(date.toISOString().slice(0, 7)); setSelected("");
   }
 
-  return <section id="my-attendance-calendar" className="panel attendance-calendar" aria-label="My attendance calendar" aria-busy={loading}>
-    <div className="attendance-calendar-heading"><div><h2>My attendance calendar</h2><p>Dots mark dates with recorded attendance.</p></div><span className="attendance-calendar-count">{loading ? "Loading…" : error ? "Unavailable" : `${daysAttended.size} ${daysAttended.size === 1 ? "day" : "days"} attended`}</span></div>
+  return <section id="my-attendance-calendar" className="panel attendance-calendar" aria-labelledby="attendance-calendar-title" aria-busy={loading}>
+    <div className="attendance-calendar-heading"><div><h2 id="attendance-calendar-title">{title}</h2><p>Dots mark dates with recorded attendance.</p></div><span className="attendance-calendar-count">{loading ? "Loading…" : error ? "Unavailable" : `${daysAttended.size} ${daysAttended.size === 1 ? "day" : "days"} attended`}</span></div>
     <div className="attendance-calendar-month"><h3 aria-live="polite">{monthLabel}</h3><div className="attendance-calendar-controls">
       <button className="button button-quiet" type="button" aria-label="Previous attendance month" onClick={() => moveMonth(-1)}><ChevronLeft size={16}/></button>
       <button className="button button-quiet" type="button" onClick={() => { setMonth(today.slice(0, 7)); setSelected(today); }}>Today</button>
