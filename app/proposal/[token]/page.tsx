@@ -44,7 +44,7 @@ export default function ClientProposalPage() {
     return () => controller.abort();
   },[token]);
 
-  useLiveRefresh(()=>{
+  useLiveRefresh(null,undefined,()=>{
     void fetch(`/api/proposals/${encodeURIComponent(token)}`,{cache:"no-store"})
       .then(async response=>{if(!response.ok)return;const result=await response.json();setLead(result.lead);})
       .catch(()=>{});

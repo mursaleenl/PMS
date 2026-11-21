@@ -1,5 +1,5 @@
 "use client";
-import {useLiveRefresh} from "@/lib/live-refresh";
+import {adminRefreshTopic,useLiveRefresh,userRefreshTopic} from "@/lib/live-refresh";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { ClipboardCheck, MessageSquareWarning, RefreshCw, Send, Trash2 } from "lucide-react";
@@ -70,7 +70,7 @@ export default function ReviewsPage() {
     setLoading(false);
   }, [session?.user.id]);
 
-  useLiveRefresh(()=>{void loadReviews();},!!session);
+  useLiveRefresh("reviews",isAdmin ? adminRefreshTopic : userRefreshTopic(session?.user.id),()=>{void loadReviews();},!!session);
   useEffect(() => { void loadReviews(); }, [loadReviews, refreshKey]);
 
   async function submitReview(event: FormEvent<HTMLFormElement>) {

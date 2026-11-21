@@ -1,10 +1,10 @@
 "use client";
-import {useLiveRefresh} from "@/lib/live-refresh";
+import {adminRefreshTopic,useLiveRefresh,userRefreshTopic} from "@/lib/live-refresh";
 import {useEffect,useState,useCallback} from 'react';
 import {useWorkspaceAuth} from '@/lib/workspace-auth';
 export type PaymentReport={invoice_id:string;reference:string;submitted_at:string;invoices:{invoice_number:string}|null};
 export function usePaymentReferences(){
- const {session}=useWorkspaceAuth();
+ const {session,databaseRole}=useWorkspaceAuth();
  const [references,setReferences]=useState<PaymentReport[]>([]),[error,setError]=useState('');
  const refresh=useCallback(async()=>{
   if(!session?.access_token)return;
@@ -12,7 +12,7 @@ export function usePaymentReferences(){
   catch(cause){setError(cause instanceof Error?cause.message:'Unable to load payment references.');}
  },[session?.access_token]);
  useEffect(()=>{void refresh();},[refresh]);
- useLiveRefresh(()=>void refresh(),!!session?.access_token);
+ useLiveRefresh("payments",databaseRole==="admin" ? adminRefreshTopic : userRefreshTopic(session?.user.id),()=>void refresh(),!!session);
  const submitted=(report:PaymentReport)=>setReferences(current=>[...current.filter(item=>item.invoice_id!==report.invoice_id),report]);
  return {references,error,refresh,submitted};
 }

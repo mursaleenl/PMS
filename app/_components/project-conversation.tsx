@@ -8,12 +8,18 @@ export function ProjectConversation({projectId}:{projectId:string}) {
   const {session}=useWorkspaceAuth();
   const [messages,setMessages]=useState<Message[]>([]),[message,setMessage]=useState(""),[error,setError]=useState("");
   const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[attempt,setAttempt]=useState(0);
-  useLiveRefresh(()=>setAttempt(value=>value+1),!!session?.access_token&&!busy);
+  const [subscription,setSubscription]=useState<{routeId:string;userId:string;projectUuid:string}>();
+  const topic=subscription?.routeId===projectId && subscription.userId===session?.user.id
+    ? `pms:conversation:${subscription.projectUuid}`
+    : undefined;
+  useLiveRefresh("conversation",topic,()=>setAttempt(value=>value+1),!!session);
   useEffect(()=>{
     if(!session) return;
     const controller=new AbortController();setError("");
     void fetch(`/api/projects/${encodeURIComponent(projectId)}/messages`,{headers:{Authorization:`Bearer ${session.access_token}`},signal:controller.signal,cache:"no-store"})
-      .then(async response=>{const result=await response.json();if(!response.ok)throw new Error(result.error);setMessages(result.messages);})
+      .then(async response=>{const result=await response.json();if(controller.signal.aborted)return;if(!response.ok)throw new Error(result.error);
+        setMessages(result.messages);
+        if(typeof result.projectUuid==="string")setSubscription({routeId:projectId,userId:session.user.id,projectUuid:result.projectUuid});})
       .catch(cause=>{if(!controller.signal.aborted)setError(cause instanceof Error?cause.message:"Unable to load conversation.");})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return ()=>controller.abort();

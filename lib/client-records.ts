@@ -1,5 +1,5 @@
 "use client";
-import {useLiveRefresh} from "@/lib/live-refresh";
+import {useLiveRefresh,userRefreshTopic} from "@/lib/live-refresh";
 import {useEffect,useRef,useState} from "react";
 import {useWorkspaceAuth} from "@/lib/workspace-auth";
 export type ClientProposal={client_name?:string|null;project_title?:string|null;accepted_by?:string|null;accepted_at?:string|null;id:string;title:string;version:number;status:string;review_path:string|null;expiry_date:string|null;amount:number;currency:string;scope:string|null;deliverables:string|null;timeline:string|null;payment_terms:string|null};
@@ -13,7 +13,7 @@ export function useClientRecords(){
  const dataUser=useRef<string|undefined>(undefined);
  const [data,setData]=useState<Records>({proposals:[],invoices:[],documents:[]});
  const [loading,setLoading]=useState(true),[error,setError]=useState(""),[attempt,setAttempt]=useState(0);
- useLiveRefresh(()=>setAttempt(value=>value+1),!!session?.access_token);
+ useLiveRefresh("client-records",userRefreshTopic(userId),()=>setAttempt(value=>value+1),!!userId);
  useEffect(()=>{
   if(dataUser.current!==userId){
    dataUser.current=userId;loadedUser.current=undefined;

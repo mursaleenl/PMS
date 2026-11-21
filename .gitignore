@@ -19,6 +19,7 @@ playwright-report/
 !/supabase/migrations/*_project_lead_access_boundary.sql
 !/supabase/migrations/*_retire_task_time_tracking.sql
 !/supabase/migrations/*_remove_task_time_fields.sql
+!/supabase/migrations/*_realtime_refresh.sql
 /DATABASE_WORKFLOW.md
 /PAGE_INDEPENDENCE_PLAN.md
 /SETUP_AUTH_DATABASE.md

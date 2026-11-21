@@ -26,6 +26,7 @@ import {
   readNotifications, refreshNotifications, resetNotifications,
 } from "@/lib/notifications";
 
+import { subscribeToRefresh, userRefreshTopic } from "@/lib/live-refresh";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 function formatRelativeTime(isoString: string): string {
   try {
@@ -100,9 +101,8 @@ export function NotificationCenter() {
     const refresh=()=>{ void refreshNotifications().then(()=>setNotificationError("")).catch(()=>setNotificationError("Notifications are temporarily unavailable.")); };
     window.addEventListener("evecture:notifications-updated",sync);
     if(user)refresh();
-    const timer=window.setInterval(()=>{if(user)refresh();},10000);
-    window.addEventListener("focus",refresh);
-    return ()=>{window.clearInterval(timer);window.removeEventListener("focus",refresh);window.removeEventListener("evecture:notifications-updated",sync);resetNotifications();};
+    const stopRefresh=user ? subscribeToRefresh("notifications",userRefreshTopic(user.id),refresh) : undefined;
+    return ()=>{stopRefresh?.();window.removeEventListener("evecture:notifications-updated",sync);resetNotifications();};
   },[user?.id]);
   useEffect(() => {
     function handleClickOutside(event: PointerEvent) {

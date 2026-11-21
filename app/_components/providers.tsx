@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { usePathname } from "next/navigation";
 import { applyRemoteCollection, clearLegacyBrowserWorkspaceData, clearWorkspaceMemory, registerWorkspaceSaver, workspaceValues, type WorkspaceCollection } from "@/lib/workspace-sync";
 import { resetNotifications } from "@/lib/notifications";
+import { managerRefreshTopic, subscribeToRefresh, userRefreshTopic } from "@/lib/live-refresh";
 import { supabase } from "@/lib/supabase";
 import { WorkspaceAuthProvider, useWorkspaceAuth } from "@/lib/workspace-auth";
 import { persistWorkspaceChanges, readRelationalWorkspace, workspaceChanges } from "@/lib/relational-sync";
@@ -50,6 +51,7 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
     const requestIds = new Map<string,string>();
     let running: Promise<void> | null = null;
     let scheduled: ReturnType<typeof setTimeout> | undefined;
+    let refreshPending = false;
     setState("loading");
     clearWorkspaceMemory();
     resetNotifications();
@@ -60,7 +62,7 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
       if (running) { await running; return save(); }
       const captured = workspaceValues();
       const changes = workspaceChanges(acknowledged,captured,revisions);
-      if (!changes.length) { failed = false; setState("ready"); return; }
+      if (!changes.length) { failed = false; setState("ready"); void refreshRemote(); return; }
       if (migrationPending) {
         failed = true; setState("error"); setMessage("Workspace setup is incomplete. Contact an administrator before saving changes.");
         throw new Error("Workspace setup is incomplete. Contact an administrator before saving changes.");
@@ -108,34 +110,47 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
         setState("ready");
         setRetry(() => save);
         registerWorkspaceSaver(save);
+        void refreshRemote();
       } catch(error) {
         if (!cancelled) { setMessage(error instanceof Error ? error.message : "Unable to load workspace data."); setState("error"); setRetry(null); }
       }
     }
     let refreshing = false;
     async function refreshRemote() {
-      if (cancelled || !ready || refreshing || running || failed || conflict || document.hidden) return;
+      if (!refreshPending || cancelled || !ready || refreshing || running || failed || conflict || document.hidden) return;
       if (workspaceChanges(acknowledged, workspaceValues(), revisions).length) return;
       refreshing = true;
+      refreshPending = false;
       const previous = acknowledged;
       try {
         const snapshot = await readRelationalWorkspace(client!,includeCommercial);
         // Never replace edits or an acknowledgement made while the request was in flight.
-        if (cancelled || running || failed || conflict || acknowledged !== previous || workspaceChanges(acknowledged, workspaceValues(), revisions).length) return;
+        if (cancelled) return;
+        if (running || failed || conflict || acknowledged !== previous || workspaceChanges(acknowledged, workspaceValues(), revisions).length) {
+          refreshPending = true;
+          return;
+        }
         // A delayed read must not roll back a revision we have already saved.
         if (Object.entries(snapshot.revisions).some(([key, revision]) => revisions[key] !== undefined && revision < revisions[key])) return;
-        if (snapshot.requiresMigration || JSON.stringify(snapshot.revisions) === JSON.stringify(revisions)) return;
-        for (const collection of collections) applyRemoteCollection(collection, snapshot.values[collection]);
+        if (snapshot.requiresMigration) return;
+        for (const collection of collections) {
+          if (JSON.stringify(previous[collection]) !== JSON.stringify(snapshot.values[collection])) {
+            applyRemoteCollection(collection, snapshot.values[collection]);
+          }
+        }
         acknowledged = workspaceValues();
         revisions = snapshot.revisions;
       } catch {
-        // Keep the last loaded data during a temporary outage; the next refresh retries.
-      } finally { refreshing = false; }
+        // Keep the last loaded data until the next change or reconnection.
+      } finally {
+        refreshing = false;
+        void refreshRemote();
+      }
     }
-    const refreshTimer = setInterval(() => { void refreshRemote(); }, 5000);
-    const refreshOnFocus = () => { void refreshRemote(); };
-    window.addEventListener("focus", refreshOnFocus);
-    document.addEventListener("visibilitychange", refreshOnFocus);
+    const stopRefresh = subscribeToRefresh(
+      "workspace", includeCommercial ? managerRefreshTopic : userRefreshTopic(userId),
+      () => { refreshPending = true; void refreshRemote(); },
+    );
     function beforeUnload(event: BeforeUnloadEvent) {
       if (ready && (running || workspaceChanges(acknowledged,workspaceValues(),revisions).length)) { event.preventDefault(); event.returnValue = ""; }
     }
@@ -143,13 +158,11 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
     window.addEventListener("evecture:workspace-local-updated",scheduleSave);
     window.addEventListener("beforeunload",beforeUnload);
     window.addEventListener("online",online);
-    void load();
+    queueMicrotask(() => { if (!cancelled) void load(); });
     return () => {
       cancelled = true;
       clearTimeout(scheduled);
-      clearInterval(refreshTimer);
-      window.removeEventListener("focus", refreshOnFocus);
-      document.removeEventListener("visibilitychange", refreshOnFocus);
+      stopRefresh();
       registerWorkspaceSaver();
       clearWorkspaceMemory();
       window.removeEventListener("evecture:workspace-local-updated",scheduleSave);

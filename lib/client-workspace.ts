@@ -1,5 +1,5 @@
 "use client";
-import {useLiveRefresh} from "@/lib/live-refresh";
+import {useLiveRefresh,userRefreshTopic} from "@/lib/live-refresh";
 import { useEffect,useRef,useState } from "react";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 export type ClientProject = {logo_data_url?:string|null;id:string;external_id:string;title:string;client_company?:string|null;status:string;details?:{services:string[];start_date:string|null;scope_included:string|null;scope_excluded:string|null;assumptions:string|null};total_tasks:number;completed_tasks:number;tasks:{id:string;title:string;status:string}[]};
@@ -11,7 +11,7 @@ export function useClientWorkspace() {
   const [data,setData]=useState<{projects:ClientProject[]}>({projects:[]});
   const [loading,setLoading]=useState(true),[error,setError]=useState("");
   const [attempt,setAttempt]=useState(0);
-  useLiveRefresh(()=>setAttempt(value=>value+1),!!session?.access_token);
+  useLiveRefresh("client-projects",userRefreshTopic(userId),()=>setAttempt(value=>value+1),!!userId);
   useEffect(()=>{
     if(dataUser.current!==userId){dataUser.current=userId;loadedUser.current=undefined;setData({projects:[]});}
     if(!session?.access_token){setLoading(false);return;}

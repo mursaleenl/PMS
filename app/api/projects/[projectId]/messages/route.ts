@@ -17,7 +17,7 @@ export async function GET(request:Request,context:Context) {
   if (!auth) return NextResponse.json({error:"Project unavailable."},{status:404});
   const {data,error}=await auth.client.from("project_messages").select("id,body,sender_name,created_at").eq("project_id",auth.project.id).order("created_at",{ascending:false}).limit(100);
   if(error) return NextResponse.json({error:"Unable to load messages."},{status:503});
-  return NextResponse.json({messages:(data??[]).reverse()},{headers:{"Cache-Control":"no-store"}});
+  return NextResponse.json({projectUuid:auth.project.id,messages:(data??[]).reverse()},{headers:{"Cache-Control":"no-store"}});
 }
 export async function POST(request:Request,context:Context) {
   const auth=await authorize(request,context);

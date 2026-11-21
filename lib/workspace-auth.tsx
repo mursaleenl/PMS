@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import { isAuthApiError, type Session, type User } from "@supabase/supabase-js";
+import { adminRefreshTopic, subscribeToRefresh, useLiveRefresh, userRefreshTopic } from "@/lib/live-refresh";
 import { getWorkspaceRole, type WorkspaceRole } from "@/lib/roles";
 import { flushPendingWorkspaceChanges } from "@/lib/workspace-sync";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -117,7 +118,11 @@ export function WorkspaceAuthProvider({ children }: { children: ReactNode }) {
     }
   }, [userId,userEmail,accessToken,resolvedUserId]);
 
-  useEffect(() => { void refreshAccess(); }, [refreshAccess]);
+  const latestRefreshAccess = useRef(refreshAccess);
+  useEffect(() => {
+    latestRefreshAccess.current = refreshAccess;
+    void refreshAccess();
+  }, [refreshAccess]);
 
   useEffect(() => {
     if (!supabase || !userId || !session) return;
@@ -126,34 +131,39 @@ export function WorkspaceAuthProvider({ children }: { children: ReactNode }) {
     const signedInAt = Date.parse(session.user.last_sign_in_at || session.user.created_at);
     let stopped = false;
     let checking = false;
+    let recheck = false;
     async function checkAccessChange() {
-      if (checking || stopped) return;
+      if (stopped) return;
+      if (checking) { recheck = true; return; }
       checking = true;
       try {
         const { data, error } = await client.auth.getUser();
-        if (stopped || error || !data.user) return;
-        const changedAt = Date.parse(data.user.app_metadata.access_changed_at || "");
-        if (Number.isFinite(changedAt) && changedAt > signedInAt) {
+        if (stopped) return;
+        if (error && (!isAuthApiError(error) || ![401, 403, 404].includes(error.status ?? 0))) return;
+        const changedAt = Date.parse(data.user?.app_metadata.access_changed_at || "");
+        if (error || (Number.isFinite(changedAt) && changedAt > signedInAt)) {
           stopped = true;
           await client.auth.signOut({ scope: "local" });
           window.location.replace("/sign-in?reason=access-changed");
+        } else {
+          await latestRefreshAccess.current();
         }
       } catch {
-        // Retry temporary connectivity failures on the next poll or focus.
-      } finally { checking = false; }
+        // Recheck when the connection recovers or another access change arrives.
+      } finally {
+        checking = false;
+        if (recheck) {
+          recheck = false;
+          void checkAccessChange();
+        }
+      }
     }
     void checkAccessChange();
-    const timer = window.setInterval(() => { void checkAccessChange(); }, 10000);
-    const onFocus = () => { void checkAccessChange(); };
-    window.addEventListener("focus", onFocus);
-    window.addEventListener("online", onFocus);
-    return () => {
-      stopped = true;
-      window.clearInterval(timer);
-      window.removeEventListener("focus", onFocus);
-      window.removeEventListener("online", onFocus);
-    };
+    const stopRefresh = subscribeToRefresh("access", userRefreshTopic(userId), () => { void checkAccessChange(); });
+    return () => { stopped = true; stopRefresh(); };
   }, [userId, session?.user.last_sign_in_at]);
+
+  useLiveRefresh("members", adminRefreshTopic, () => { void refreshAccess(); }, Boolean(userId && resolvedUserId === userId && databaseRole === "admin"));
 
   const identityResolved = !userId || resolvedUserId === userId;
   const effectiveRole = identityResolved ? databaseRole : null;
