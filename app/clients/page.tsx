@@ -109,22 +109,17 @@ export default function ClientsPage() {
   const clients = useMemo(() => {
     const clientMap = new Map<string, ClientRecord>();
 
-    const leadsMap = new Map<string, Lead>();
-    for (const lead of leads) {
-      leadsMap.set(lead.id, lead);
-    }
-
     const normalize = (s: string) => s.trim().toLowerCase();
 
     // Missing contact names cannot identify a client. Match meaningful names,
     // exact email addresses, or exact organizations instead of fuzzy substrings.
     const findExisting = (clientName: string, email?: string, company?: string) => {
       const name=clientContactName(clientName),organization=normalize(clientContactName(company));
-      return [...clientMap.values()].find(client=>
+      return [...clientMap.values()].find(client=>!client.clientId && (
         (!!email?.trim()&&email.trim().toLowerCase()===client.email?.trim().toLowerCase())||
         (!!name&&normalize(name)===normalize(clientContactName(client.contactName??client.name)))||
         (!!organization&&organization===normalize(client.companyName||""))
-      );
+      ));
     };
 
     // 1. Process all project workspaces
@@ -133,19 +128,12 @@ export default function ClientsPage() {
       const rawCompany = clientContactName(project.clientCompany);
       const rawEmail = project.clientEmail?.trim() || "";
 
-      // Only an explicit originating lead can supply legacy contact details.
-      const linkedLead = project.leadId ? leadsMap.get(project.leadId) : undefined;
-
-      const contactName=rawClientName||clientContactName(linkedLead?.fullName);
-      const resolvedCompany=rawCompany||clientContactName(linkedLead?.companyName)||undefined;
+      const contactName=rawClientName;
+      const resolvedCompany=rawCompany||undefined;
       const resolvedPersonName=contactName||resolvedCompany||rawEmail||"Unnamed client";
 
-      const email = rawEmail || linkedLead?.email?.trim() || undefined;
-      const phone = project.enquiryDetails?.phone ?? (linkedLead?.phone?.trim() || undefined);
-      const designation = project.enquiryDetails?.designation ?? (linkedLead?.designation?.trim() || undefined);
-      const country = project.enquiryDetails?.country ?? (linkedLead?.country?.trim() || undefined);
-      const website = project.enquiryDetails?.companyWebsite ?? (linkedLead?.companyWebsite?.trim() || undefined);
-      const industry = project.enquiryDetails?.industry ?? (linkedLead?.industry?.trim() || undefined);
+      const email = rawEmail || undefined;
+      const {phone,designation,country,companyWebsite:website,industry} = project.enquiryDetails ?? {};
 
       let client = project.clientId ? clientMap.get(`client-${project.clientId}`) : findExisting(contactName, email, resolvedCompany);
 
@@ -217,7 +205,7 @@ export default function ClientsPage() {
       } else {
         const companyName = plan.clientCompany.trim();
         const matchingLead = leads.find((l) => {
-          if (!l.companyName) return false;
+          if (l.clientId || !l.companyName) return false;
           const n1 = normalize(l.companyName);
           const n2 = normalize(companyName);
           return !!n1 && n1 === n2;
@@ -252,13 +240,16 @@ export default function ClientsPage() {
         const leadCompany = clientContactName(lead.companyName);
         const leadEmail = lead.email?.trim() || "";
 
-        let client = [...clientMap.values()].find(client=>client.projects.some(item=>item.id===lead.projectId||projects.find(project=>project.id===item.id)?.leadId===lead.id))||findExisting(leadName, leadEmail, leadCompany);
+        let client = lead.clientId ? clientMap.get(`client-${lead.clientId}`) : [...clientMap.values()].find(client=>
+          !client.clientId && client.projects.some(item=>item.id===lead.projectId||projects.find(project=>project.id===item.id)?.leadId===lead.id)
+        )||findExisting(leadName, leadEmail, leadCompany);
 
         if (!client) {
           const displayName=leadName||leadCompany||leadEmail||"Unnamed client";
-          const key = `client-lead-${lead.id}`;
+          const key = lead.clientId ? `client-${lead.clientId}` : `client-lead-${lead.id}`;
           client = {
             key,
+            clientId: lead.clientId,
             name: displayName,
             contactName:leadName,
             companyName: leadCompany || undefined,
@@ -284,33 +275,15 @@ export default function ClientsPage() {
           if (!client.website && lead.companyWebsite) client.website = lead.companyWebsite.trim();
           if (!client.industry && lead.industry) client.industry = lead.industry.trim();
         }
-
-        // Connect lead's projectId if specified
-        if (client && lead.projectId) {
-          const matchingProject = projects.find((p) => p.id === lead.projectId);
-          if (matchingProject && !client.projects.some((p) => p.id === matchingProject.id)) {
-            client.projects.push({
-              id: matchingProject.id,
-              title: getProjectDisplayTitle(matchingProject),
-              displayServices: getProjectDisplayServices(matchingProject),
-              logoDataUrl: matchingProject.logoDataUrl,
-              status: matchingProject.status,
-              operatingCompany: matchingProject.operatingCompany,
-              contractedValue: matchingProject.contractedValue,
-              currency: matchingProject.currency,
-              invoiceNumber: matchingProject.invoice?.invoiceNumber,
-            });
-          }
-        }
       }
     }
 
     // 4. Merge any residual company-named client into the person-named client
     for (const [key, client] of [...clientMap.entries()]) {
-      if (client.companyName && client.name.toLowerCase() === client.companyName.toLowerCase()) {
+      if (!client.clientId && client.companyName && client.name.toLowerCase() === client.companyName.toLowerCase()) {
         const personClient = [...clientMap.values()].find(
           (c) =>
-            c.key !== key &&
+            c.key !== key && !c.clientId &&
             c.companyName &&
             (c.companyName.toLowerCase() === client.companyName!.toLowerCase() ||
               normalize(c.companyName) === normalize(client.companyName!)) &&
@@ -333,8 +306,9 @@ export default function ClientsPage() {
     }
 
     // 5. Final fallback pass: associate any project with matching client
-    for (const project of projects.filter(project=>!project.enquiryDetails?.clientDeleted)) {
+    for (const project of projects.filter(project=>!project.clientId && !project.enquiryDetails?.clientDeleted)) {
       for (const client of clientMap.values()) {
+        if (client.clientId) continue;
         const normProjCompany = project.clientCompany ? normalize(project.clientCompany) : "";
         const normClientCompany = client.companyName ? normalize(client.companyName) : "";
         const normClientName = normalize(clientContactName(client.contactName??client.name));
@@ -370,10 +344,10 @@ export default function ClientsPage() {
 
     // Shared delivery projects appear under every explicitly linked client.
     for(const project of projects)for(const participant of getProjectClients(project).slice(1)){
-      let client=findExisting(participant.name,participant.email,participant.companyName);
+      let client=participant.clientId ? clientMap.get(`client-${participant.clientId}`) : findExisting(participant.name,participant.email,participant.companyName);
       if(!client){
-        const key=`shared-${project.id}-${projectClientKey(participant)}`;
-        client={key,name:clientContactName(participant.name)||participant.companyName||participant.email||"Unnamed client",contactName:clientContactName(participant.name),companyName:participant.companyName,email:participant.email,phone:participant.contactDetails?.phone,country:participant.contactDetails?.country,website:participant.contactDetails?.companyWebsite,industry:participant.contactDetails?.industry,designation:participant.contactDetails?.designation,projects:[],managedPlans:[]};
+        const key=participant.clientId ? `client-${participant.clientId}` : `shared-${project.id}-${projectClientKey(participant)}`;
+        client={key,clientId:participant.clientId,name:clientContactName(participant.name)||participant.companyName||participant.email||"Unnamed client",contactName:clientContactName(participant.name),companyName:participant.companyName,email:participant.email,phone:participant.contactDetails?.phone,country:participant.contactDetails?.country,website:participant.contactDetails?.companyWebsite,industry:participant.contactDetails?.industry,designation:participant.contactDetails?.designation,projects:[],managedPlans:[]};
         clientMap.set(key,client);
       }
       if(!client.projects.some(item=>item.id===project.id))client.projects.push({id:project.id,title:getProjectDisplayTitle(project),displayServices:getProjectDisplayServices(project),logoDataUrl:project.logoDataUrl,status:project.status,operatingCompany:project.operatingCompany});
@@ -382,11 +356,11 @@ export default function ClientsPage() {
     return [...clientMap.values()].map(client=>{
       const organizations=new Map<string,string>();
       const add=(value?:string)=>{const name=value?.trim();if(name)organizations.set(name.toLocaleLowerCase(),organizations.get(name.toLocaleLowerCase())||name);};
-      const matches=(person:{name:string;email?:string;companyName?:string})=>clientContactMatches(client,person);
+      const matches=(person:{clientId?:string;name:string;email?:string;companyName?:string})=>clientContactMatches(client,person);
       add(client.companyName);
       const projectIds=new Set(client.projects.map(project=>project.id));
       for(const project of projects.filter(project=>projectIds.has(project.id)))for(const participant of getProjectClients(project))if(matches(participant))add(participant.companyName);
-      for(const lead of leads)if(!lead.qualification?.clientDeleted&&matches({name:lead.fullName,email:lead.email,companyName:lead.companyName}))add(lead.companyName);
+      for(const lead of leads)if(!lead.qualification?.clientDeleted&&matches({clientId:lead.clientId,name:lead.fullName,email:lead.email,companyName:lead.companyName}))add(lead.companyName);
       for(const plan of client.managedPlans)add(plan.clientCompany);
       return {...client,organizations:[...organizations.values()]};
     }).sort((a, b) => a.name.localeCompare(b.name));
@@ -431,7 +405,6 @@ export default function ClientsPage() {
       <section className="welcome-row">
         <div>
           <h1>Clients</h1>
-          <p className="welcome-subtitle">Keep client relationships, primary contacts, and linked work in one place.</p>
         </div>
         <div className="welcome-actions">
           <Link className="button button-quiet" href="/projects">
@@ -449,7 +422,6 @@ export default function ClientsPage() {
         <EmptyState
           icon={<Users size={22} />}
           title="No clients recorded yet"
-          description="Clients will appear here automatically when you create project workspaces or retainer plans."
           action={
             <Link className="button button-primary" href="/projects">
               Open projects <ArrowRight size={15} />

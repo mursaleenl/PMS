@@ -28,11 +28,8 @@ export type ProjectWorkItem = {
   assigneeId?: string;
   assignees?: TaskAssignee[];
   priority: "P1" | "P2" | "P3" | "P4";
-  estimatedHours: number;
-  loggedHours: number;
   createdAt: string;
   status: "TO_DO" | "IN_PROGRESS" | "BLOCKED" | "UNDER_REVIEW" | "DONE";
-  timerStartedAt?: string;
   blockerReason?: string;
   proof?: { pullRequestUrl?: string; stagingUrl?: string; recordingUrl?: string; notes: string };
   reviewNotes?: string;
@@ -42,11 +39,6 @@ export type ProjectWorkItem = {
 export type ProjectLinks = { staging?: string; repository?: string; design?: string; other?: string };
 
 export type ProjectEnquiryDetails = Partial<Pick<Lead, "projectName" | "phone" | "designation" | "companyWebsite" | "country" | "timezone" | "industry" | "description" | "referenceLinks" | "budgetRange" | "budgetShared" | "budgetNote" | "urgency" | "source" | "acquisitionSource">> & {projectNameOverride?:boolean;clientDeleted?:boolean};
-
-export function getProjectEnquiryDetails(project: {enquiryDetails?:ProjectEnquiryDetails}, lead?:Lead|null):ProjectEnquiryDetails {
-  const original:ProjectEnquiryDetails=lead?{projectName:lead.projectName,phone:lead.phone,designation:lead.designation,companyWebsite:lead.companyWebsite,country:lead.country,timezone:lead.timezone,industry:lead.industry,description:lead.description,referenceLinks:lead.referenceLinks,budgetRange:lead.budgetRange,budgetShared:lead.budgetShared,budgetNote:lead.budgetNote,urgency:lead.urgency,source:lead.source,acquisitionSource:lead.acquisitionSource}:{};
-  return {...original,...Object.fromEntries(Object.entries(project.enquiryDetails??{}).filter(([,value])=>value!==undefined))};
-}
 
 /** Recover legacy automatic titles while retaining deliberate project names. */
 export function resolveProjectName(project:{title:string;clientCompany?:string;clientName?:string;enquiryDetails?:ProjectEnquiryDetails},enquiryName?:string):string {
@@ -60,18 +52,18 @@ export function resolveProjectName(project:{title:string;clientCompany?:string;c
   return automatic?name:title;
 }
 
-export type ProjectClient = {name:string;companyName?:string;email?:string;contactDetails?:ProjectEnquiryDetails};
+export type ProjectClient = {clientId?:string;name:string;companyName?:string;email?:string;contactDetails?:ProjectEnquiryDetails};
 export function projectClientKey(client:ProjectClient):string {
-  return client.email?.trim().toLowerCase()||`${client.companyName?.trim().toLowerCase()||""}:${client.name.trim().toLowerCase()}`;
+  return client.clientId||client.email?.trim().toLowerCase()||`${client.companyName?.trim().toLowerCase()||""}:${client.name.trim().toLowerCase()}`;
 }
-export function getProjectClients(project:Pick<Project,"clientName"|"clientCompany"|"clientEmail"|"additionalClients"|"enquiryDetails">):ProjectClient[]{
+export function getProjectClients(project:Pick<Project,"clientId"|"clientName"|"clientCompany"|"clientEmail"|"additionalClients"|"enquiryDetails">):ProjectClient[]{
   const clients:ProjectClient[]=[];
-  for(const client of [{name:project.clientName,companyName:project.clientCompany,email:project.clientEmail,contactDetails:project.enquiryDetails},...(project.additionalClients??[])]){
+  for(const client of [{clientId:project.clientId,name:project.clientName,companyName:project.clientCompany,email:project.clientEmail,contactDetails:project.enquiryDetails},...(project.additionalClients??[])]){
     if((client.name?.trim()||client.companyName?.trim())&&!clients.some(item=>projectClientKey(item)===projectClientKey(client)))clients.push(client);
   }
   return clients;
 }
-export function getProjectClientLabel(project:Pick<Project,"clientName"|"clientCompany"|"clientEmail"|"additionalClients"|"enquiryDetails">):string {
+export function getProjectClientLabel(project:Pick<Project,"clientId"|"clientName"|"clientCompany"|"clientEmail"|"additionalClients"|"enquiryDetails">):string {
   return getProjectClients(project).map(client=>client.companyName||client.name).join(" · ");
 }
 
@@ -163,10 +155,8 @@ export function readProjects(): Project[] {
             return member;
           })
         : [];
-      const lead=(localCollectionValue("leads").value as Lead[]|undefined)?.find(lead=>lead.id===project.leadId);
       return {
         ...project,
-        title:resolveProjectName(project,lead?.projectName),
         team,
         operatingCompany: (project.operatingCompany as string | undefined) === "Servyn" ? "Servn" : project.operatingCompany,
         invoice: project.invoice ? {
@@ -252,7 +242,6 @@ export async function projectFromLead(input: {
   team: ProjectTeamMember[];
 }): Promise<Project> {
   const { lead, proposal } = input;
-  const invoice = lead.invoice;
   return {
     id: await nextProjectId(input.operatingCompany),
     leadId: lead.id,
@@ -261,7 +250,11 @@ export async function projectFromLead(input: {
     clientCompany: lead.companyName,
     clientName: lead.fullName,
     clientEmail: lead.email,
-    enquiryDetails: {...getProjectEnquiryDetails({},lead),projectNameOverride:true},
+    enquiryDetails: {
+      projectName: input.title, projectNameOverride: true, phone: lead.phone, designation: lead.designation,
+      companyWebsite: lead.companyWebsite, country: lead.country, timezone: lead.timezone, industry: lead.industry,
+      description: lead.description, referenceLinks: lead.referenceLinks, urgency: lead.urgency,
+    },
     operatingCompany: input.operatingCompany,
     services: getProjectServices({title: input.title, clientCompany: lead.companyName, clientName: lead.fullName, services: lead.services}),
     classification: input.classification,
@@ -269,12 +262,7 @@ export async function projectFromLead(input: {
     billingStructure: proposal?.billingStructure ?? input.billingStructure ?? "Fixed",
     contractedValue: proposal?.quotedAmount ?? input.contractedValue ?? 0,
     currency: proposal?.currency ?? input.currency ?? "USD",
-    depositAmount: invoice?.depositAmount,
-    depositStatus: invoice?.status === "CONFIRMED_PAID" ? "CONFIRMED_PAID" : undefined,
-    invoice,
     proposalVersion: proposal?.version ?? 0,
-    signedContractName: lead.acceptanceDocumentName,
-    signedContractDataUrl: lead.acceptanceDocumentDataUrl,
     scopeIncluded: proposal?.scopeIncluded ?? "",
     scopeExcluded: proposal?.scopeExcluded ?? "",
     assumptions: proposal?.assumptions ?? "",

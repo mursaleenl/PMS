@@ -12,16 +12,17 @@ export function parseServiceDetails(value: string): string[] {
   });
 }
 
-export function linkedCustomerLeadIds(customer: {name?:string;contactName?:string;companyName?:string;organizations?:string[];email?:string;projects:{id:string}[]}, projects:{id:string;leadId:string;clientName?:string;clientEmail?:string;clientCompany?:string;additionalClients?:{name:string;companyName?:string;email?:string}[]}[], leads:{id:string;email:string;projectId?:string;fullName?:string;companyName?:string}[]): string[] {
- const matches=(client:{name?:string;companyName?:string;email?:string})=>clientContactMatches(customer,client);
+export function linkedCustomerLeadIds(customer: {clientId?:string;name?:string;contactName?:string;companyName?:string;organizations?:string[];email?:string;projects:{id:string}[]}, projects:{id:string;clientId?:string;leadId:string;clientName?:string;clientEmail?:string;clientCompany?:string;additionalClients?:{clientId?:string;name:string;companyName?:string;email?:string}[]}[], leads:{id:string;clientId?:string;email:string;projectId?:string;fullName?:string;companyName?:string}[]): string[] {
+ if(customer.clientId)return leads.filter(lead=>lead.clientId===customer.clientId).map(lead=>lead.id);
+ const matches=(client:{clientId?:string;name?:string;companyName?:string;email?:string})=>clientContactMatches(customer,client);
  const projectIds=new Set(customer.projects.map(project=>project.id).filter(id=>{
   const project=projects.find(project=>project.id===id);
-  return !project?.additionalClients?.some(matches)||matches({name:project.clientName,email:project.clientEmail,companyName:project.clientCompany});
+  return project && !project.clientId && (!project.additionalClients?.some(matches)||matches({name:project.clientName,email:project.clientEmail,companyName:project.clientCompany}));
  }));
  const leadIds=new Set(projects.filter(project=>projectIds.has(project.id)).map(project=>project.leadId).filter(Boolean));
  const email=customer.email?.trim().toLowerCase();
  const exactContact=(lead:typeof leads[number])=>!email&&matches({name:lead.fullName,companyName:lead.companyName});
- return leads.filter(lead=>leadIds.has(lead.id)||(!!lead.projectId&&projectIds.has(lead.projectId))||(!!email&&lead.email.trim().toLowerCase()===email)||exactContact(lead)).map(lead=>lead.id);
+ return leads.filter(lead=>!lead.clientId&&(leadIds.has(lead.id)||(!!lead.projectId&&projectIds.has(lead.projectId))||(!!email&&lead.email.trim().toLowerCase()===email)||exactContact(lead))).map(lead=>lead.id);
 }
 
 export function validateProjectServiceDetails(title: string, services: string[]) {

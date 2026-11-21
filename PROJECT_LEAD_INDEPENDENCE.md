@@ -2,11 +2,11 @@
 
 Projects supports direct creation for a new client, a client selected from the database directory, and internal work. The existing From a lead workflow remains available. Direct creation writes no lead, proposal, or invoice.
 
-Project names and contact edits belong to the project. Renaming a project no longer updates the originating lead. Only explicit lead links provide legacy enquiry details; matching names or email addresses do not supply another lead's details. Newly converted projects retain their own name snapshot.
+Project names and contact edits belong to the project. Renaming a project no longer updates the originating lead. Converted projects retain their own title and delivery details.
 
 ## Database update
 
-The local SQL migration is `supabase/migrations/20261114111923_independent_project_clients.sql`. It has not been applied to a hosted database. It depends on the existing workspace migrations, including shared project clients. The canonical main SQL and generated testing installer also include this update.
+The direct-creation SQL is packaged for the main CLI workflow in `supabase/migrations/20261121064000_independent_project_clients_prerequisite.sql`. It depends on the existing workspace migrations, including shared project clients. The canonical main SQL and generated testing installer also include this update.
 
 The migration adds:
 
@@ -18,10 +18,15 @@ The migration adds:
 
 New clients have no portal access until explicitly linked. Selecting an existing client intentionally uses that client's current portal access. Project contact email edits do not grant or transfer portal access.
 
-Apply the reviewed migration through the repository's database workflow when deployment is authorized. Do not deploy the frontend independently of the SQL update: direct creation remains unavailable until setup is complete. Supabase SQL and local tests are ignored by this repository; include the migration explicitly if committing or sharing these changes.
+The frontend requires the direct-creation SQL. Apply the reviewed migrations through the repository’s database workflow before deploying the frontend to another environment.
 
-## Verification and boundaries
+## Project and lead access boundary
 
-`tests/project-independence.test.cjs` exercises the actual SQL in isolated PostgreSQL: duplicate names/email, caller authorization, cross-client isolation, assigned employee access, ownership preservation, rollback on child failure, idempotent retries, explicit portal linking, and preservation of projects when their lead is deleted. Browser coverage is in `tests/browser/project-independence.spec.cjs` and the existing project suites.
+Apply `supabase/migrations/20261121064102_project_lead_access_boundary.sql` after the existing independent-project-clients migration and before deploying the application changes.
 
-This change preserves existing access policies. It does not introduce custom roles, migrate or repair historical client matches, or detach proposals from their existing lead requirements. The broader Clients page still has legacy contact grouping outside the project paths updated here; this is not a site-wide authorization audit.
+- Projects use their saved titles, enquiry details, and project-linked invoices. Managers can open the originating lead through an explicit history link. Conversion copies delivery details once and keeps lead budget notes, acceptance documents, and lead-only invoices on the lead.
+- Leads and projects can both select an existing client by directory ID. A new client record requires an explicit administrator link before any portal account can see its shared records. Changing the contact fields on either record preserves its client ID.
+- Additional project clients must be selected from the directory to receive portal access. The migration removes historical secondary links that lack an explicit ID and keeps their contact text. A manager can select the verified directory entry to restore access. Existing primary portal links keep their current ownership.
+- Legacy project detail backfill uses the saved lead link and a matching non-null client ID. Project-owned values take precedence. The Clients page uses IDs for grouping and editing records with a directory identity.
+
+The direct-creation prerequisite and access-boundary migrations were applied to PMS production through the Supabase CLI on 21 November 2026. The database test runs against isolated PostgreSQL.

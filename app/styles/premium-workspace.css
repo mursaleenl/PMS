@@ -409,10 +409,6 @@
   .app-shell .overview-project-card-top { display: flex; min-height: 22px; align-items: center; justify-content: space-between; gap: 12px; }
   .app-shell .overview-project-card h3 { min-height: 40px; margin: 12px 0 4px; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 15px; line-height: 1.35; }
   .app-shell .overview-project-services { min-height: 34px; margin: 0 0 14px; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.5; }
-  .app-shell .overview-progress-label { display: flex; align-items: center; justify-content: space-between; min-height: 20px; margin-top: auto; color: #64748b; font-size: 10px; }
-  .app-shell .overview-progress-label strong { color: #0f172a; font-variant-numeric: tabular-nums; }
-  .app-shell .overview-progress-track { height: 5px; margin: 6px 0 12px; overflow: hidden; background: #e8eef7; border-radius: 99px !important; }
-  .app-shell .overview-progress-track i { display: block; height: 100%; background: #2563eb; border-radius: inherit; }
   .app-shell .overview-project-footer { display: flex; min-height: 26px; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; color: #64748b; }
   .app-shell .overview-id-badge { display: inline-flex; align-items: center; gap: 7px; color: #64748b; }
   .app-shell .overview-arrow-icon { color: #2563eb; }
@@ -1703,7 +1699,7 @@
 
 @media screen {
   .app-shell .main-area .page-content.overview-dashboard.employee-dashboard .overview-summary-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
   .app-shell .main-area .page-content.overview-dashboard.employee-dashboard .employee-overview-lower {
     grid-template-columns: minmax(0, 1fr) !important;

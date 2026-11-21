@@ -53,14 +53,16 @@ function QaForm({projects,report,users,onClose,onSaved}:{projects:Project[];user
     <label className="field">Report type<select name="kind" defaultValue={report?.kind||"BUG"}>{Object.entries(qaKindLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
     <QaProjectPicker projects={options} value={projectId} onChange={setProjectId} disabled={linkedTask}/>
    </div>
-   {!report && (role==="admin" || role==="project_manager") && <label className="field">Assignee (optional)
-    <select value={assigneeId} onChange={event=>setAssigneeId(event.target.value)}>
-     <option value="">Unassigned</option>
-     {users.filter(person=>person.id).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}
-    </select>
-   </label>}
    {linkedTask&&<small>The project is fixed because this report is linked to a task.</small>}
-   <label className="field required">Title<input name="title" defaultValue={report?.title} required maxLength={1000} placeholder="Give your report a short title"/></label>
+   <div className="compact-form-grid">
+    <label className="field required">Title<input name="title" defaultValue={report?.title} required maxLength={1000} placeholder="Give your report a short title"/></label>
+    {!report && (role==="admin" || role==="project_manager") && <label className="field">Assignee (optional)
+     <select value={assigneeId} onChange={event=>setAssigneeId(event.target.value)}>
+      <option value="">Unassigned</option>
+      {users.filter(person=>person.id).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}
+     </select>
+    </label>}
+   </div>
    <label className="field required">Details<textarea name="details" defaultValue={report?.details} required rows={5} maxLength={5000} placeholder="Describe what happened or what you would like to improve"/></label>
    <ReportImageUpload value={image} onChange={setImage} onProcessingChange={setImageBusy}/>
   </fieldset><div className="form-actions qa-form-actions">{error&&<p className="form-error qa-form-error" role="alert">{error}</p>}<div className="qa-form-buttons"><button type="button" className="button button-quiet" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-primary" disabled={busy||imageBusy}>{busy?"Saving…":savedReportId?"Retry assignment":pending.current?"Retry saving":report?"Save changes":"Save report"}</button></div></div></form>
@@ -72,14 +74,11 @@ function ReportImageDialog({report,onClose}:{report:QaReport;onClose:()=>void}){
  return <dialog ref={dialog} className="qa-image-dialog" aria-label="Report image" onCancel={onClose}><header><h2>{report.title}</h2><button type="button" className="icon-button" aria-label="Close image" onClick={onClose}><X size={18} aria-hidden="true"/></button></header><img src={report.image_data_url!} alt={`Image for ${report.title}`}/><a className="button button-quiet" href={report.image_data_url!} download={report.image_name||"report-image.webp"}>Download image</a></dialog>;
 }
 type QaStatus = NonNullable<QaReport["status"]>;
-const qaStatuses: Record<QaStatus, { label: string }> = {
-  OPEN: { label: "Open" },
-  UNDER_REVIEW: { label: "Under review" },
-  RESOLVED: { label: "Resolved" },
-};
+const qaStatuses = { OPEN: "Open", UNDER_REVIEW: "Under review", RESOLVED: "Resolved" } satisfies Record<QaStatus, string>;
+const qaStatusOrder = { UNDER_REVIEW: 0, OPEN: 1, RESOLVED: 2 } satisfies Record<QaStatus, number>;
 
 function ReportStatus({ status }: { status: QaStatus }) {
-  return <span className="qa-status-text" data-status={status}>{qaStatuses[status].label}</span>;
+  return <span className="qa-status-text" data-status={status}>{qaStatuses[status]}</span>;
 }
 
 function reportProject(report: QaReport, projects: Project[]) {
@@ -185,12 +184,17 @@ export default function QaPage() {
   const canManage = role === "admin" || role === "project_manager";
   const internal = canManage || role === "employee";
   const {users} = useAssignableUsers();
-  const [query,setQuery] = useState("");
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<QaStatus | null>(null);
+  const search = query.trim().toLowerCase();
   const visibleReports = reports.filter(report => {
+    const status = report.status ?? "OPEN";
+    if (statusFilter && status !== statusFilter) return false;
+    if (!search) return true;
     const project = reportProject(report, projects);
     const assignee = users.find(person => person.id && person.id === report.assignee_id);
-    return [report.title,report.details,qaKindLabels[report.kind],qaStatuses[report.status ?? "OPEN"].label,project.title,project.organization,assignee?.name].join(" ").toLowerCase().includes(query.trim().toLowerCase());
-  });
+    return [report.title,report.details,qaKindLabels[report.kind],qaStatuses[status],project.title,project.organization,assignee?.name].join(" ").toLowerCase().includes(search);
+  }).sort((a, b) => qaStatusOrder[a.status ?? "OPEN"] - qaStatusOrder[b.status ?? "OPEN"]);
   const selected = reports.find(report => report.id === reportId);
 
   async function refresh() {
@@ -268,24 +272,26 @@ export default function QaPage() {
 
   return <div className="page-content qa-page">
     <section className="welcome-row qa-page-heading">
-      <div><h1>QA</h1><p className="welcome-subtitle">Report bugs, changes, and improvements.</p></div>
+      <div><h1>QA</h1></div>
       <button ref={newReportButton} type="button" className="button button-primary" onClick={() => setForm(true)}><Plus size={16} />New report</button>
     </section>
-    <input type="search" className="qa-report-search" placeholder="Search reports, projects, or people" aria-label="Search QA reports" value={query} onChange={event => setQuery(event.target.value)} />
-    <ul className="qa-status-legend" aria-label="QA status legend">
-      {Object.keys(qaStatuses).map((status) => <li key={status} data-status={status}>
-        <span className="qa-status-swatch" aria-hidden="true" />
-        <ReportStatus status={status as QaStatus} />
-      </li>)}
-    </ul>
+    <div className="qa-toolbar">
+      <input type="search" className="qa-report-search" placeholder="Search reports, projects, or people" aria-label="Search QA reports" value={query} onChange={event => setQuery(event.target.value)} />
+      <div className="qa-status-filters" role="group" aria-label="Filter by report status">
+        {(Object.keys(qaStatuses) as QaStatus[]).map(status => <button
+          key={status} type="button" className="button button-quiet" aria-pressed={statusFilter === status}
+          onClick={() => setStatusFilter(current => current === status ? null : status)}
+        >{qaStatuses[status]}</button>)}
+      </div>
+    </div>
     {error && <p className="form-error" role="alert">{error} <button type="button" className="button button-quiet" onClick={() => void refresh()}>Retry</button></p>}
     {loading ? <p role="status">Loading reports…</p> : reports.length === 0 && !error
-      ? <section className="panel qa-empty"><Bug size={28} strokeWidth={1.5} aria-hidden="true" /><h2>No reports yet</h2><p>Report a bug, request a change, or share an improvement.</p></section>
+      ? <section className="panel qa-empty"><Bug size={28} strokeWidth={1.5} aria-hidden="true" /><h2>No reports yet</h2></section>
       : !visibleReports.length && !error ? <p>No matching reports.</p> : <div className="qa-report-grid">{visibleReports.map(report => {
         const project = reportProject(report, projects);
-        return <button key={report.id} type="button" className="qa-report" aria-description={qaStatuses[report.status ?? "OPEN"].label} data-status={report.status ?? "OPEN"} aria-haspopup="dialog"
+        return <button key={report.id} type="button" className="qa-report" data-status={report.status ?? "OPEN"} aria-haspopup="dialog"
           onClick={() => { setActionError(""); setReportId(report.id); }}>
-          <span className="qa-card-meta"><span>{qaKindLabels[report.kind]}</span><span>{report.assignee_id
+          <span className="qa-card-meta"><span>{qaKindLabels[report.kind]} · <ReportStatus status={report.status ?? "OPEN"} /></span><span>{report.assignee_id
             ? users.find(person => person.id === report.assignee_id)?.name || (report.assignee_id === user?.id ? "Assigned to you" : "Assigned")
             : "Unassigned"}</span></span>
           <strong className="qa-card-title">{report.title}</strong>

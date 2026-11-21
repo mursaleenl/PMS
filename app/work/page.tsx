@@ -9,10 +9,10 @@ import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 import { AssignTaskDialog } from "@/app/_components/assign-task-dialog";
 import { BlockTaskDialog } from "@/app/_components/block-task-dialog";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownUp, ArrowRight, Check, ChevronDown, CircleAlert, FileCheck2, Filter, GripVertical, Kanban, List, MoreHorizontal, Plus, Search, ShieldAlert, Users } from "lucide-react";
+import { ArrowDownUp, ArrowRight, Check, ChevronDown, CircleAlert, FileCheck2, Filter, GripVertical, Kanban, List, MoreHorizontal, Plus, Search, ShieldAlert, Users, X } from "lucide-react";
 import { EmptyState } from "@/app/_components/empty-state";
 import { StatusBadge } from "@/app/_components/status-badge";
-import { isTaskAssignedToUser, getTaskAssignees, getTaskAssigneeLabel, getProjectDisplayTitle, getProjectDisplayServices, canViewProjectTask, readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
+import { isTaskAssignedToUser, getTaskAssignees, getTaskAssigneeLabel, getProjectDisplayTitle, canViewProjectTask, readProjects, type Project, type ProjectWorkItem, updateProject } from "@/lib/projects";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
 import { useAssignableUsers } from "@/lib/assignees";
@@ -35,31 +35,66 @@ const kanbanColumns: { status: VisibleTaskStatus; label: string }[] = [
   { status: "DONE", label: "Completed" },
 ];
 
+const taskKindLabels: Record<ProjectWorkItem["kind"], string> = {
+  FEATURE_DEV: "Feature development",
+  CLIENT_FEEDBACK_TODO: "Client feedback",
+  QA_BUG: "QA bug",
+};
+
 function TaskDetail({ project, task, onClose }: { project: Project; task: ProjectWorkItem; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const element = dialog.current;
+    const trigger = document.activeElement;
     element?.showModal();
-    return () => element?.close();
+    return () => {
+      element?.close();
+      if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus();
+    };
   }, []);
-  const fields = [
+
+  const dates = new Intl.DateTimeFormat(undefined, {dateStyle: "medium", timeStyle: "short"});
+  const formatDate = (value: string) => Number.isFinite(Date.parse(value)) ? dates.format(new Date(value)) : "Unavailable";
+  const description = task.description?.trim();
+  const facts = [
+    ["Assigned to", getTaskAssigneeLabel(task) || "Unassigned"],
+    ["Deadline", task.deadline ? formatDate(task.deadline) : "No deadline"],
     ["Project", project.id === GENERAL_TASKS_ID ? "General task" : getProjectDisplayTitle(project)],
-    ["Organization", project.clientCompany], ["Assigned to", getTaskAssigneeLabel(task) || "Unassigned"],
-    ["Status", taskStatusLabels[task.status]], ["Priority", task.priority + " · " + priorityLabels[task.priority]],
-    ["Type", task.kind.replaceAll("_", " ")], ["Created", new Date(task.createdAt).toLocaleString()],
-    ["Deadline", task.deadline ? new Date(task.deadline).toLocaleString() : "No deadline"],
-    ["Estimated hours", task.estimatedHours ?? 0], ["Logged hours", task.loggedHours ?? 0],
-    ["Timer started", task.timerStartedAt && new Date(task.timerStartedAt).toLocaleString()],
-    ["Blocker", task.blockerReason], ["Revision", task.revisionRequested && "Requested"],
+    ["Organization", project.clientCompany],
+    ["Type", taskKindLabels[task.kind]],
+    ["Created", formatDate(task.createdAt)],
+  ];
+  const notes = [
+    ["Blocker", task.blockerReason], ["Revision", task.revisionRequested ? "Requested" : undefined],
     ["Review notes", task.reviewNotes], ["Proof notes", task.proof?.notes],
     ["Pull request", task.proof?.pullRequestUrl], ["Staging", task.proof?.stagingUrl], ["Recording", task.proof?.recordingUrl],
-  ];
+  ].filter(([, value]) => Boolean(value));
+
   return <dialog ref={dialog} className="work-task-detail" aria-labelledby="work-task-detail-title"
-    onCancel={onClose} onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+    onCancel={event => { event.preventDefault(); onClose(); }}
+    onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
     <article>
-      <header><h2 id="work-task-detail-title">{task.title}</h2><button type="button" className="button button-quiet" onClick={onClose}>Close</button></header>
-      <p>{task.description?.trim() || "No description provided."}</p>
-      <dl>{fields.map(([label, value]) => value || value === 0 ? <div key={String(label)}><dt>{label}</dt><dd>{value}</dd></div> : null)}</dl>
+      <header className="work-task-detail-heading">
+        <div>
+          <h2 id="work-task-detail-title">{task.title}</h2>
+          <div className="work-task-detail-status">
+            <strong>{taskStatusLabels[task.status]}</strong>
+            <span>{priorityLabels[task.priority]} priority ({task.priority})</span>
+          </div>
+        </div>
+        <button type="button" className="button button-quiet work-task-detail-close" aria-label="Close task details" onClick={onClose}>
+          <X size={18} aria-hidden="true" />
+        </button>
+      </header>
+      <div className="work-task-detail-body">
+        {description && <p className="work-task-detail-description">{description}</p>}
+        <dl className="work-task-detail-facts">{facts.map(([label, value]) => value &&
+          <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+        )}</dl>
+        {notes.length > 0 && <dl className="work-task-detail-notes">{notes.map(([label, value]) =>
+          <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+        )}</dl>}
+      </div>
     </article>
   </dialog>;
 }
@@ -295,7 +330,7 @@ function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: str
     <section className="welcome-row task-page-welcome">
       <div>
         <h1>Tasks</h1>
-        <p className="welcome-subtitle">{taskId ? "Search result" : scopedProject ? getProjectDisplayTitle(scopedProject) : "Manage and track assigned work across projects."}</p>
+        {(taskId || scopedProject) && <p className="welcome-subtitle">{taskId ? "Search result" : scopedProject && getProjectDisplayTitle(scopedProject)}</p>}
         {(projectId || taskId) && <Link href="/work">Show all workspace tasks</Link>}
       </div>
       <div className="task-page-actions">
@@ -483,11 +518,18 @@ function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: str
                         </td>
                         <td className="task-name-cell">
                           <div className="task-name-inner">
-                            <button type="button" className="task-detail-trigger" aria-label={`View details for ${task.title}`} onClick={() => setDetailKey({ projectId: project.id, taskId: task.id })}>{task.title}</button>
+                            <strong>{task.title}</strong>
                             <TaskDeadline deadline={task.deadline}/>
                             {task.description?.trim()&&<details className="task-description"><summary>Description</summary><p>{task.description}</p></details>}
                             <div className="task-meta-row">
                               <span className="task-kind-pill">{task.kind.replaceAll("_", " ")}</span>
+                              <button
+                                type="button"
+                                className="task-detail-trigger"
+                                aria-label={`View details for ${task.title}`}
+                                aria-haspopup="dialog"
+                                onClick={() => setDetailKey({ projectId: project.id, taskId: task.id })}
+                              >Details</button>
                               {task.revisionRequested && <span className="task-revision-pill">Revision requested</span>}
                             </div>
                             {task.status === "BLOCKED" && <div className="task-blocker-detail">{task.blockerReason && <span className="task-blocker-reason">{task.blockerReason}</span>}<button className="button button-quiet button-micro" type="button" onClick={() => raiseBlocker(project.id, task)}>{task.blockerReason ? "Edit reason" : "Add reason"}</button></div>}
@@ -498,7 +540,7 @@ function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: str
                             <span className="project-card-identity project-task-identity">
                               <ProjectCardLogo src={project.logoDataUrl} projectType={project.projectType} title={getProjectDisplayTitle(project)} />
                               <span className="project-task-copy"><strong>{getProjectDisplayTitle(project)}</strong>
-                                {getProjectDisplayServices(project) && <span className="project-display-services">{getProjectDisplayServices(project)}</span>}
+                                {project.clientCompany?.trim() && <span className="task-project-organization">{project.clientCompany.trim()}</span>}
                                 <small className="mono-meta">{project.id}</small>
                               </span>
                             </span>
@@ -619,7 +661,7 @@ function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: str
                               <span className="project-card-identity project-task-identity">
                                 <ProjectCardLogo src={project.logoDataUrl} projectType={project.projectType} title={getProjectDisplayTitle(project)} />
                                 <span className="project-task-copy"><span className="project-pill-title">{getProjectDisplayTitle(project)}</span>
-                                  {getProjectDisplayServices(project) && <span className="project-display-services">{getProjectDisplayServices(project)}</span>}
+                                  {project.clientCompany?.trim() && <span className="task-project-organization">{project.clientCompany.trim()}</span>}
                                   <span className="project-pill-id">{project.id}</span>
                                 </span>
                               </span>
@@ -729,6 +771,5 @@ function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: str
       updateTask(blockingTask.projectId, blockingTask.task.id, {status: "BLOCKED", blockerReason});
       setBlockingTask(null);
     }} />}
-    <p className="storage-note">Assign tasks here or open a project workspace to add new work.</p>
   </div>;
 }

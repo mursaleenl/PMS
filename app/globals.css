@@ -8178,41 +8178,6 @@ button.button-primary:active {
   min-height: auto !important;
 }
 
-.overview-progress-label {
-  display: flex !important;
-  justify-content: space-between !important;
-  align-items: center !important;
-  font-family: var(--font-body) !important;
-  font-size: 11.5px !important;
-  color: var(--ws-text, #475569) !important;
-  margin-top: auto !important;
-  margin-bottom: 6px !important;
-}
-
-.overview-progress-label strong {
-  font-family: var(--font-body) !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  color: var(--ws-text, #0f172a) !important;
-}
-
-.overview-progress-track {
-  height: 6px !important;
-  display: block !important;
-  overflow: hidden !important;
-  background: var(--ws-subtle-surface, #f1f5f9) !important;
-  border-radius: 0 !important;
-  margin: 0 0 12px 0 !important;
-}
-
-.overview-progress-track i {
-  height: 100% !important;
-  display: block !important;
-  background: var(--ws-primary, #0f172a) !important;
-  border-radius: 0 !important;
-  transition: width 0.3s ease !important;
-}
-
 .overview-project-footer {
   display: flex !important;
   justify-content: space-between !important;
@@ -8223,14 +8188,6 @@ button.button-primary:active {
   font-family: var(--font-body) !important;
   font-size: 11.5px !important;
   color: var(--ws-muted, #64748b) !important;
-}
-
-.overview-footer-stats {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 5px !important;
-  font-size: 11.5px !important;
-  color: var(--ws-text, #475569) !important;
 }
 
 .overview-id-badge {
@@ -9240,8 +9197,8 @@ input:focus, select:focus, textarea:focus {
 .overview-summary-card em, .overview-project-footer, .overview-task-copy small { color: var(--ws-muted, #929292); }
 .summary-blue, .summary-violet, .summary-amber, .summary-green { color: var(--ws-text, #111); background: var(--ws-subtle-surface, #f0f0f0); }
 .overview-project-mark { color: var(--ws-text, #111); background: var(--ws-subtle-surface, #f0f0f0); border-radius: 0; }
-.overview-progress-track, .team-load-track { background: var(--ws-subtle-surface, #ededed); }
-.overview-progress-track i, .team-load-track i { background: var(--ws-primary, #111); }
+.team-load-track { background: var(--ws-subtle-surface, #ededed); }
+.team-load-track i { background: var(--ws-primary, #111); }
 .overview-team-stack i { color: var(--ws-text, #222); background: var(--ws-subtle-surface, #f0f0f0); }
 .overview-team-stack i:nth-child(2) { color: var(--ws-text, #444); background: var(--ws-subtle-surface, #e7e7e7); }
 .overview-task-indicator { color: var(--ws-text, #222); background: var(--ws-subtle-surface, #f0f0f0); }
@@ -9282,8 +9239,8 @@ body { font-size: 13px; }
 .overview-summary-card strong { font-size: 20px; font-weight: 600; }
 .overview-summary-card em { font-size: 11px; }
 .overview-project-card h3 { font-size: 14px; font-weight: 600; }
-.overview-project-services, .overview-progress-label { font-size: 11px; }
-.overview-progress-label strong, .overview-task-copy strong { font-weight: 600; }
+.overview-project-services { font-size: 11px; }
+.overview-task-copy strong { font-weight: 600; }
 .overview-project-footer, .overview-task-copy small, .overview-task-hours { font-size: 11px; }
 .overview-task-copy strong { font-size: 12px; }
 .page-content :is(.detail-line, .lead-description, .contact-action p, .qualification-box>div:first-child p) { font-size: 12px; }
@@ -9966,7 +9923,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .overview-dashboard .overview-project-services,
-.overview-dashboard .overview-progress-label,
 .overview-dashboard .overview-project-footer {
   font-size: 12px;
 }
@@ -10681,7 +10637,7 @@ textarea {
   background: var(--ws-primary, #111);
 }
 
-.main-area :is(.progress-track i, .tiny-progress i, .overview-progress-track i, .team-load-track i, .quota-meter .progress-track i) {
+.main-area :is(.progress-track i, .tiny-progress i, .team-load-track i, .quota-meter .progress-track i) {
   background: var(--ws-primary, #111);
 }
 
@@ -10828,7 +10784,7 @@ textarea {
   border-color: var(--ws-border, #dedede) !important;
 }
 
-.main-area .page-content :is(.progress-track i, .tiny-progress i, .overview-progress-track i, .team-load-track i, .quota-meter .progress-track i) {
+.main-area .page-content :is(.progress-track i, .tiny-progress i, .team-load-track i, .quota-meter .progress-track i) {
   background: var(--ws-primary, #111) !important;
 }
 
@@ -11373,14 +11329,14 @@ textarea {
 }
 
 /* Modern, sleek & compact Project Workspace Cards */
-.main-area .projects-page .project-portfolio {
+.main-area .page-content .project-portfolio {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(290px, 330px));
   gap: 16px;
   margin-bottom: 24px;
 }
 
-.main-area .projects-page .portfolio-card {
+.main-area .project-portfolio .portfolio-card {
   display: flex !important;
   flex-direction: column !important;
   justify-content: space-between !important;
@@ -11397,13 +11353,13 @@ textarea {
   position: relative !important;
 }
 
-.main-area .projects-page .portfolio-card:hover {
+.main-area .project-portfolio .portfolio-card:hover {
   border-color: var(--ws-border, #cbd5e1) !important;
   box-shadow: 0 10px 20px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04) !important;
   transform: translateY(-2px) !important;
 }
 
-.main-area .projects-page .portfolio-card-link {
+.main-area .project-portfolio .portfolio-card-link {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 !important;
@@ -11412,7 +11368,7 @@ textarea {
   font-family: var(--font-body) !important;
 }
 
-.main-area .projects-page .portfolio-card-top {
+.main-area .project-portfolio .portfolio-card-top {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
@@ -11420,7 +11376,7 @@ textarea {
   margin-bottom: 12px !important;
 }
 
-.main-area .projects-page .company-pill {
+.main-area .project-portfolio .company-pill {
   display: inline-flex !important;
   align-items: center !important;
   height: auto !important;
@@ -11436,21 +11392,21 @@ textarea {
   line-height: 1 !important;
 }
 
-.main-area .projects-page .company-pill.company-servn,
-.main-area .projects-page .company-pill[data-company="Servn"] {
+.main-area .project-portfolio .company-pill.company-servn,
+.main-area .project-portfolio .company-pill[data-company="Servn"] {
   background: transparent !important;
   color: #2563eb !important;
   border: none !important;
 }
 
-.main-area .projects-page .company-pill.company-evecture,
-.main-area .projects-page .company-pill[data-company="Evecture"] {
+.main-area .project-portfolio .company-pill.company-evecture,
+.main-area .project-portfolio .company-pill[data-company="Evecture"] {
   background: transparent !important;
   color: #dc2626 !important;
   border: none !important;
 }
 
-.main-area .projects-page .status-badge {
+.main-area .project-portfolio .status-badge {
   display: inline-flex !important;
   align-items: center !important;
   height: auto !important;
@@ -11468,8 +11424,7 @@ textarea {
   line-height: 1 !important;
 }
 
-.main-area .projects-page .portfolio-card h2,
-.main-area .projects-page .portfolio-card-title {
+.main-area .project-portfolio .portfolio-card-title {
   font-family: var(--font-body) !important;
   font-size: 15px !important;
   font-weight: 700 !important;
@@ -11480,9 +11435,9 @@ textarea {
   text-transform: uppercase !important;
 }
 
-.main-area .projects-page .portfolio-card p,
-.main-area .projects-page .portfolio-card-subtitle,
-.main-area .projects-page .portfolio-card-link > p {
+.main-area .project-portfolio .portfolio-card p,
+.main-area .project-portfolio .portfolio-card-subtitle,
+.main-area .project-portfolio .portfolio-card-link > p {
   font-family: var(--font-body) !important;
   font-size: 12px !important;
   font-weight: 400 !important;
@@ -11494,7 +11449,7 @@ textarea {
   text-overflow: ellipsis !important;
 }
 
-.main-area .projects-page .portfolio-task-row {
+.main-area .project-portfolio .portfolio-task-row {
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
@@ -11505,7 +11460,7 @@ textarea {
   margin: 0 0 12px 0 !important;
 }
 
-.main-area .projects-page .portfolio-chip-dot {
+.main-area .project-portfolio .portfolio-chip-dot {
   width: 6px !important;
   height: 6px !important;
   border-radius: 0 !important;
@@ -11514,11 +11469,11 @@ textarea {
   flex-shrink: 0 !important;
 }
 
-.main-area .projects-page .portfolio-chip-dot.has-tasks {
+.main-area .project-portfolio .portfolio-chip-dot.has-tasks {
   background: var(--ws-primary, #0f172a) !important;
 }
 
-.main-area .projects-page .portfolio-card-meta {
+.main-area .project-portfolio .portfolio-card-meta {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
@@ -11530,7 +11485,7 @@ textarea {
   font-size: 12px !important;
 }
 
-.main-area .projects-page .portfolio-pm-chip {
+.main-area .project-portfolio .portfolio-pm-chip {
   display: inline-flex !important;
   align-items: center !important;
   gap: 5px !important;
@@ -11543,7 +11498,7 @@ textarea {
   flex-shrink: 1 !important;
 }
 
-.main-area .projects-page .portfolio-id-badge {
+.main-area .project-portfolio .portfolio-id-badge {
   display: inline-flex !important;
   align-items: center !important;
   gap: 4px !important;
@@ -11554,11 +11509,11 @@ textarea {
   transition: color 0.15s ease !important;
 }
 
-.main-area .projects-page .portfolio-card:hover .portfolio-id-badge {
+.main-area .project-portfolio .portfolio-card:hover .portfolio-id-badge {
   color: var(--ws-text, #0f172a) !important;
 }
 
-.main-area .projects-page .portfolio-id-badge .mono-meta {
+.main-area .project-portfolio .portfolio-id-badge .mono-meta {
   font-family: var(--font-body) !important;
   font-size: 11.5px !important;
   font-weight: 600 !important;
@@ -11566,11 +11521,11 @@ textarea {
   white-space: nowrap !important;
 }
 
-.main-area .projects-page .portfolio-arrow-icon {
+.main-area .project-portfolio .portfolio-arrow-icon {
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.main-area .projects-page .portfolio-card:hover .portfolio-arrow-icon {
+.main-area .project-portfolio .portfolio-card:hover .portfolio-arrow-icon {
   transform: translateX(3px) !important;
 }
 
@@ -12926,7 +12881,7 @@ textarea {
 }
 
 @media(max-width:850px) {
-  .main-area .projects-page .project-portfolio,
+  .main-area .page-content .project-portfolio,
   .main-area .project-assignments-page .team-roster-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -12937,7 +12892,7 @@ textarea {
 }
 
 @media(max-width:600px) {
-  .main-area .projects-page .project-portfolio,
+  .main-area .page-content .project-portfolio,
   .main-area .project-assignments-page .team-roster-grid {
     grid-template-columns: 1fr;
   }
@@ -13447,7 +13402,7 @@ textarea {
 }
 
 .portfolio-actions,
-.main-area .projects-page .portfolio-actions {
+.main-area .project-portfolio .portfolio-actions {
   display: flex !important;
   flex-direction: row !important;
   flex-wrap: wrap !important;
@@ -13461,7 +13416,7 @@ textarea {
 }
 
 .portfolio-actions-admin,
-.main-area .projects-page .portfolio-actions-admin {
+.main-area .project-portfolio .portfolio-actions-admin {
   display: flex !important;
   flex-direction: row !important;
   flex-wrap: wrap !important;
@@ -13471,7 +13426,7 @@ textarea {
 }
 
 .portfolio-actions .portfolio-lifecycle-button,
-.main-area .projects-page .portfolio-lifecycle-button {
+.main-area .project-portfolio .portfolio-lifecycle-button {
   flex: 1 !important;
   width: auto !important;
   height: 32px !important;
@@ -13499,28 +13454,28 @@ textarea {
 }
 
 .portfolio-actions .portfolio-lifecycle-button:hover,
-.main-area .projects-page .portfolio-lifecycle-button:hover {
+.main-area .project-portfolio .portfolio-lifecycle-button:hover {
   background: var(--ws-surface, #f8fafc) !important;
   border-color: var(--ws-border, #cbd5e1) !important;
   color: var(--ws-text, #0f172a) !important;
 }
 
 .portfolio-actions .portfolio-lifecycle-button.button-primary,
-.main-area .projects-page .portfolio-lifecycle-button.button-primary {
+.main-area .project-portfolio .portfolio-lifecycle-button.button-primary {
   background: var(--ws-primary, #0f172a) !important;
   border-color: var(--ws-accent-border, #0f172a) !important;
   color: var(--ws-on-solid, #ffffff) !important;
 }
 
 .portfolio-actions .portfolio-lifecycle-button.button-primary:hover,
-.main-area .projects-page .portfolio-lifecycle-button.button-primary:hover {
+.main-area .project-portfolio .portfolio-lifecycle-button.button-primary:hover {
   background: var(--ws-primary, #1e293b) !important;
   border-color: var(--ws-accent-border, #1e293b) !important;
   color: var(--ws-on-solid, #ffffff) !important;
 }
 
 .portfolio-actions .portfolio-delete-icon-button,
-.main-area .projects-page .portfolio-delete-icon-button {
+.main-area .project-portfolio .portfolio-delete-icon-button {
   width: 32px !important;
   height: 32px !important;
   min-width: 32px !important;
@@ -13540,7 +13495,7 @@ textarea {
 }
 
 .portfolio-actions .portfolio-delete-icon-button:hover,
-.main-area .projects-page .portfolio-delete-icon-button:hover {
+.main-area .project-portfolio .portfolio-delete-icon-button:hover {
   background: #f4f4f5 !important;
   border-color: #cbd5e1 !important;
   color: #0f172a !important;
@@ -15075,7 +15030,6 @@ button.button:hover {
 .metric-value,
 .role-summary-card strong,
 .pipeline-tabs span,
-.overview-progress-label strong,
 .task-stat-badge,
 .overview-summary-number {
   font-family: var(--font-body) !important;
@@ -16813,13 +16767,13 @@ textarea:focus {
 }
 
 /* Project card action spans the full footer. */
-.main-area .projects-page .portfolio-actions.portfolio-actions-admin {
+.main-area .project-portfolio .portfolio-actions.portfolio-actions-admin {
  display: grid !important;
  grid-template-columns: minmax(0, 1fr) !important;
  gap: 8px !important;
  align-items: start !important;
 }
-.main-area .projects-page .portfolio-actions.portfolio-actions-admin > .portfolio-lifecycle-button {
+.main-area .project-portfolio .portfolio-actions.portfolio-actions-admin > .portfolio-lifecycle-button {
  width: 100% !important;
  min-width: 0 !important;
  max-width: none !important;
@@ -16835,15 +16789,15 @@ textarea:focus {
  border: 1px solid #e2e8f0 !important;
  color: #0f172a !important;
 }
-.main-area .projects-page .portfolio-actions.portfolio-actions-admin > .portfolio-delete-icon-button {
+.main-area .project-portfolio .portfolio-actions.portfolio-actions-admin > .portfolio-delete-icon-button {
  grid-column: 1 / -1;
  color: #64748b !important;
 }
-.main-area .projects-page .portfolio-actions.portfolio-actions-admin > .portfolio-lifecycle-button:hover {
+.main-area .project-portfolio .portfolio-actions.portfolio-actions-admin > .portfolio-lifecycle-button:hover {
  background: #f4f4f5 !important;
  border-color: #cbd5e1 !important;
 }
-.main-area .projects-page .portfolio-actions.portfolio-actions-admin > .portfolio-lifecycle-button svg {
+.main-area .project-portfolio .portfolio-actions.portfolio-actions-admin > .portfolio-lifecycle-button svg {
  width: 14px !important;
  height: 14px !important;
  flex-shrink: 0;

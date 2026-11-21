@@ -9,7 +9,7 @@ export function ClientRecordsView({section}:{section:'proposals'|'invoices'}){
  const records=useClientRecords();
  const payments=usePaymentReferences();
  const title=section.charAt(0).toUpperCase()+section.slice(1);
- return <div className={`page-content client-${section}-records`}><section className="welcome-row"><div><h1>{title}</h1><p className="welcome-subtitle">{section==='proposals'?'Proposals shared with your account.':'Issued invoices and payment status for your account.'}</p></div></section>
+ return <div className={`page-content client-${section}-records`}><section className="welcome-row"><div><h1>{title}</h1></div></section>
  {records.loading?<p role="status">Loading {section}...</p>:records.error?<section className="panel portal-record"><p role="alert">{records.error}</p><button className="button button-quiet" onClick={records.retry}>Retry</button></section>:!records[section].length?<section className="panel portal-record"><h2>No {section} yet</h2><p>Your {section} will appear here when shared.</p></section>:<div className="portal-records">
  {section==='proposals'&&records.proposals.map(p=><section className="panel portal-record portal-proposal-summary" key={p.id}>
   <header className="client-project-heading"><div><h2>{p.client_name ? `Proposal for ${p.client_name}` : p.title}</h2><p className="portal-proposal-subtitle">{p.project_title || (p.client_name ? p.title : "Project proposal")}</p></div><StatusBadge status={p.status}>{p.status === "SENT" ? "Awaiting acceptance" : undefined}</StatusBadge></header>

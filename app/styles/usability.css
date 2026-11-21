@@ -175,8 +175,8 @@ body, button, input, select, textarea { font-family: var(--font-body); }
   .app-shell #workspace-content table th { background: #f0f2f6 !important; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
   .app-shell #workspace-content :is(.text-link,.proposal-index-actions a,.proposal-ready-row > svg) { color: var(--studio-ink) !important; }
   .app-shell #workspace-content .text-link { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 650; }
-  .app-shell #workspace-content :is(.overview-progress-track,.portfolio-progress-track) { background: #e0e5ec !important; }
-  .app-shell #workspace-content :is(.overview-progress-track,.portfolio-progress-track) > i { background: #2563eb !important; }
+  .app-shell #workspace-content .portfolio-progress-track { background: #e0e5ec !important; }
+  .app-shell #workspace-content .portfolio-progress-track > i { background: #2563eb !important; }
 
   /* Uppercase interface labels; descriptions, form values, and messages keep their casing. */
   html body .app-shell :is(.nav-link-label,.workspace-label,.breadcrumb,.topbar-user-role-badge,.mobile-topbar-title),
@@ -332,21 +332,11 @@ body, button, input, select, textarea { font-family: var(--font-body); }
     font-size: 13px !important; line-height: 1.5 !important; white-space: normal !important;
     overflow-wrap: anywhere; color: #71717a !important;
   }
-  .app-shell #workspace-content .overview-project-card .overview-progress-label {
-    margin: 0 0 8px !important; font-size: 12px !important; line-height: 1.4 !important;
-  }
-  .app-shell #workspace-content .overview-project-card .overview-progress-track {
-    height: 4px !important; margin: 0 !important; border-radius: 0 !important;
-    background: #e4e4e7 !important;
-  }
-  .app-shell #workspace-content .overview-project-card .overview-progress-track i {
-    border-radius: 0 !important; background: #0f172a !important;
-  }
   .app-shell #workspace-content .overview-project-card .overview-project-footer {
     min-height: 0 !important; margin: 16px 0 0 !important; padding: 12px 0 0 !important;
     border-color: #e4e4e7 !important; gap: 8px 16px !important; flex-wrap: wrap;
   }
-  .app-shell #workspace-content .overview-project-card :is(.overview-footer-stats,.overview-id-badge,.overview-id-badge .mono-meta) {
+  .app-shell #workspace-content .overview-project-card :is(.overview-id-badge,.overview-id-badge .mono-meta) {
     font-size: 12px !important; line-height: 1.4 !important; color: #475569 !important;
   }
   .app-shell #workspace-content .overview-project-card .overview-id-badge { margin-left: auto; white-space: nowrap; }
@@ -478,18 +468,18 @@ body, button, input, select, textarea { font-family: var(--font-body); }
   html body :is(.app-shell,.auth-page,.user-modal-backdrop,.invoice-preview-backdrop) :is(a,button,input,select,textarea):focus-visible {
     outline-color: #64748b !important;
   }
-  html body .app-shell #workspace-content .projects-page .portfolio-actions {
+  html body .app-shell #workspace-content .project-portfolio .portfolio-actions {
     display: grid !important; grid-template-columns: minmax(0, 1fr);
     grid-auto-rows: 1fr; align-items: stretch !important; gap: 8px !important;
   }
-  html body .app-shell #workspace-content .projects-page .portfolio-actions > .portfolio-lifecycle-button {
+  html body .app-shell #workspace-content .project-portfolio .portfolio-actions > .portfolio-lifecycle-button {
     flex: 1 1 120px !important; min-width: 0 !important;
     min-height: 38px !important; height: auto !important;
     padding: 8px 10px !important; line-height: 20px !important;
     text-transform: none !important; letter-spacing: 0 !important;
     border-radius: 0 !important; white-space: normal !important;
   }
-  html body .app-shell #workspace-content .projects-page .portfolio-actions > .portfolio-delete-icon-button {
+  html body .app-shell #workspace-content .project-portfolio .portfolio-actions > .portfolio-delete-icon-button {
     grid-column: 1 / -1;
     flex: 1 1 120px !important; width: auto !important;
     min-height: 38px !important; height: auto !important; align-self: stretch;
@@ -497,7 +487,7 @@ body, button, input, select, textarea { font-family: var(--font-body); }
     --control-ink: #ffffff; --control-bg: #dc2626; --control-border: #dc2626;
     background: #dc2626 !important; border-color: #dc2626 !important; color: #ffffff !important;
   }
-  html body .app-shell #workspace-content .projects-page .portfolio-actions > .portfolio-delete-icon-button:hover:not(:disabled) {
+  html body .app-shell #workspace-content .project-portfolio .portfolio-actions > .portfolio-delete-icon-button:hover:not(:disabled) {
     background: #b91c1c !important; border-color: #b91c1c !important; color: #ffffff !important;
   }
 }
@@ -1442,22 +1432,19 @@ html body .app-shell .command-dialog .command-search-row .icon-button { flex-shr
 .new-project-dialog { width: min(460px, calc(100vw - 32px)); margin: auto; padding: 24px; border: 1px solid #e4e4e7; border-radius: 0 !important; background: #ffffff; color: #0f172a; box-shadow: 0 24px 70px rgb(0 0 0 / 18%); }
 .new-project-dialog[open] { animation: workspaceSearchEnter 200ms ease-out both; }
 .new-project-dialog::backdrop { background: rgb(0 0 0 / 32%); backdrop-filter: blur(3px); }
-.new-project-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.new-project-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .new-project-dialog h2 { margin: 0; font-size: 20px; font-weight: 600; }
-.new-project-dialog > p { margin: 8px 0 24px; color: #71717a; font-size: 13px; }
 .new-project-choices { display: grid; gap: 12px; }
 html body .new-project-choices :is(button,a) { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; width: 100%; height: auto; padding: 18px; border: 1px solid #e4e4e7; border-radius: 0 !important; background: #ffffff; color: #0f172a; text-align: left; text-decoration: none !important; text-transform: none !important; cursor: pointer; }
 html body .new-project-choices :is(button,a):hover { background: #f4f4f5; border-color: #cbd5e1; }
 html body .new-project-choices :is(button,a):focus-visible { outline: 2px solid #0f172a; outline-offset: 2px; }
 .new-project-choices strong { font-size: 14px; font-weight: 600; }
-.new-project-choices span { grid-column: 1; font-size: 12px; color: #71717a; }
-.new-project-choices svg { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+.new-project-choices svg { grid-column: 2; align-self: center; }
 @media (prefers-reduced-motion: reduce) { .new-project-dialog[open] { animation: none; } }
 
 .internal-project-drawer fieldset > .field { margin-bottom: 18px; }
 .internal-project-team { margin: 6px 0 22px; }
 .internal-project-team h3 { margin: 0 0 6px; font-size: 14px; }
-.internal-project-team p { color: #71717a; font-size: 12px; }
 .internal-project-team label { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
 .internal-project-team input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; }
 html body .internal-project-drawer :is(input,textarea,select,button) { border-radius: 0 !important; }
@@ -1570,24 +1557,24 @@ html body .app-shell #workspace-content .project-tasks-panel .button {
 
 /* Match both project choices, including their smaller sentence-case subtitles. */
 html body .new-project-dialog .new-project-choices :is(button,a) strong { font-size: 14px !important; font-weight: 600 !important; text-transform: none !important; }
-html body .new-project-dialog .new-project-choices :is(button,a) span { font-size: 12px !important; font-weight: 400 !important; line-height: 1.5 !important; text-transform: none !important; color: #71717a !important; }
 .project-card-logo { display: block; width: 44px; height: 44px; object-fit: contain; margin: 14px 0 10px; }
 .project-workspace-logo { display: block; width: 56px; height: 56px; object-fit: contain; margin-bottom: 12px; }
 .project-logo-upload { grid-column: 1 / -1; min-width: 0; }
 .project-logo-preview { display: flex; align-items: center; gap: 16px; margin: 12px 0; }
 .project-logo-preview img { width: 56px; height: 56px; object-fit: contain; }
 
-/* Align project logos with the title rather than stacking above it. */
-html body .app-shell #workspace-content .projects-page .portfolio-project-identity { display: flex; align-items: flex-start; gap: 12px; margin: 16px 0; min-height: 44px; }
-html body .app-shell #workspace-content .projects-page .portfolio-project-identity .project-card-logo { width: 44px; height: 44px; flex: 0 0 44px; object-fit: contain; margin: 0; }
+/* Shared portfolio cards on the Projects page and dashboard. */
+html body .app-shell #workspace-content .project-portfolio .portfolio-card { border-radius: 0 !important; }
+html body .app-shell #workspace-content .project-portfolio .portfolio-project-identity { display: flex; align-items: flex-start; gap: 12px; margin: 16px 0; min-height: 44px; }
+html body .app-shell #workspace-content .project-portfolio .portfolio-project-identity .project-card-logo { width: 44px; height: 44px; flex: 0 0 44px; object-fit: contain; margin: 0; }
 .portfolio-project-copy { flex: 1; min-width: 0; }
-html body .app-shell #workspace-content .projects-page .portfolio-project-copy .portfolio-card-title { margin: 0 !important; line-height: 1.35; overflow-wrap: anywhere; }
-html body .app-shell #workspace-content .projects-page .portfolio-project-copy .portfolio-card-subtitle { margin: 5px 0 0 !important; line-height: 1.5; }
-html body .app-shell #workspace-content .projects-page .portfolio-card-top { align-items: center; gap: 12px; min-height: 20px; margin: 0 !important; }
-html body .app-shell #workspace-content .projects-page .portfolio-card-meta { align-items: center; gap: 12px; }
-html body .app-shell #workspace-content .projects-page .portfolio-pm-chip { min-width: 0; }
-html body .app-shell #workspace-content .projects-page .portfolio-pm-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-html body .app-shell #workspace-content .projects-page .portfolio-id-badge { flex-shrink: 0; }
+html body .app-shell #workspace-content .project-portfolio .portfolio-project-copy .portfolio-card-title { margin: 0 !important; font-size: 15px !important; line-height: 1.35 !important; letter-spacing: .025em !important; overflow-wrap: anywhere; }
+html body .app-shell #workspace-content .project-portfolio .portfolio-project-copy .portfolio-card-subtitle { margin: 5px 0 0 !important; line-height: 1.5; }
+html body .app-shell #workspace-content .project-portfolio .portfolio-card-top { align-items: center; gap: 12px; min-height: 20px; margin: 0 !important; }
+html body .app-shell #workspace-content .project-portfolio .portfolio-card-meta { align-items: center; gap: 12px; }
+html body .app-shell #workspace-content .project-portfolio .portfolio-pm-chip { min-width: 0; }
+html body .app-shell #workspace-content .project-portfolio .portfolio-pm-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html body .app-shell #workspace-content .project-portfolio .portfolio-id-badge { flex-shrink: 0; }
 
 /* Task dispatch leads the row; logo editing stays on the right. */
 html body .app-shell .project-dispatch-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
@@ -1657,8 +1644,8 @@ html body .app-shell #workspace-content .requests-page :is(.lead-expand-caret, .
   html body .app-shell #workspace-content .requests-page .lead-received small { display: none; }
 }
 
-/* Company headings and service descriptions share a consistent hierarchy. */
-html body .app-shell #workspace-content .project-display-services {
+/* Project subtitles use the same hierarchy across views. */
+html body .app-shell #workspace-content :is(.project-display-services,.task-project-organization) {
   display: block; margin-top: 4px; font-size: 12px !important; font-weight: 400 !important;
   line-height: 1.5; color: #71717a !important; white-space: normal; overflow-wrap: anywhere;
 }
@@ -1667,7 +1654,7 @@ html body .app-shell #workspace-content .task-management-page .task-kanban-proje
   min-width: 0; padding: 0; border: 0; background: transparent; white-space: normal;
 }
 html body .app-shell #workspace-content .task-management-page .project-pill-title { font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
-html body .app-shell #workspace-content .task-management-page .task-kanban-project-pill .project-display-services { margin: 0; }
+html body .app-shell #workspace-content .task-management-page .task-kanban-project-pill .task-project-organization { margin: 0; }
 
 /* Record lists share one outer frame and one divider between adjacent rows. */
 html body .app-shell #workspace-content .page-content :is(.lead-record-list, .clients-list, .reviews-list, .portal-records) {
@@ -1806,13 +1793,13 @@ html body .app-shell #workspace-content .enquiry-form .field > :is(input:not([ty
 html body dialog.client-project-dialog { width: min(560px,calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 0; background: #ffffff; color: #0f172a; box-shadow: 0 24px 80px rgb(15 23 42 / 22%); }
 .client-project-dialog::backdrop { background: rgb(15 23 42 / 48%); backdrop-filter: blur(4px); }
 .client-project-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.client-project-dialog > form { margin-top: 16px; }
 html body #workspace-content .client-project-dialog h2 { margin: 5px 0 0; font-size: 20px !important; line-height: 1.35; text-transform: none !important; }
 .client-project-dialog > p { margin: 12px 0 22px; color: #64748b; line-height: 1.6; }
 .client-project-dialog fieldset { display: grid; gap: 16px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .client-project-dialog .field { min-width: 0; margin: 0; }
 html body .app-shell #workspace-content .client-project-dialog :is(input,select,textarea) { border-color: #cbd5e1 !important; width: 100%; min-width: 0; border: 1px solid #cbd5e1; border-radius: 0; background: #ffffff; color: #0f172a; padding: 9px 10px; }
 .client-project-dialog :is(button,input,select,textarea):focus-visible { outline: 2px solid #0f172a !important; outline-offset: 2px; box-shadow: none !important; }
-.client-project-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
 .client-project-dialog .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
 html body .app-shell #workspace-content .client-project-dialog .button { height: 38px !important; text-transform: none !important; border: 1px solid #e2e8f0 !important; background: #ffffff !important; color: #0f172a !important; }
 html body .app-shell #workspace-content .client-project-dialog .button-primary { border-color: #0f172a !important; background: #0f172a !important; color: #ffffff !important; }
@@ -1821,7 +1808,6 @@ html body .app-shell #workspace-content .client-project-dialog .button-primary {
 .portfolio-project-name { margin: 5px 0; font-size: 13px; color: #475569; line-height: 1.5; }
 @media (max-width: 420px) {
   html body dialog.client-project-dialog { padding: 20px 16px; }
-  .client-project-fields { grid-template-columns: 1fr; }
 }
 
 html body .app-shell #workspace-content .client-project-dialog :is(input,textarea)::placeholder { color: #71717a !important; }
@@ -1830,7 +1816,6 @@ html body .app-shell #workspace-content .client-project-dialog :is(input,textare
 html body #workspace-content .enquiry-form .enquiry-client-selection { margin: 0 0 24px; padding: 0; min-width: 0; }
 html body #workspace-content .enquiry-client-selection .field { margin: 0; }
 html body #workspace-content .enquiry-client-selection select { width: 100%; min-width: 0; border-radius: 0 !important; }
-html body #workspace-content .enquiry-client-selection .field-hint { margin: 8px 0 0; line-height: 1.6; color: #64748b; }
 
 .project-primary-client { display: grid; gap: 6px; padding: 16px 0; margin-bottom: 18px; border-block: 1px solid #e2e8f0; }
 .project-primary-client :is(small,span) { color: #64748b; font-size: 12px; }
@@ -1903,7 +1888,6 @@ html body .calendar-picker-root .calendar-popover-panel[popover] { position: fix
 .calendar-year-jump { display: grid; grid-template-columns: 1fr 90px 42px; gap: 8px; align-items: center; margin-bottom: 12px; font-size: 12px; }
 .calendar-year-jump input { width: 100%; min-width: 0; padding: 6px; border: 1px solid #cbd5e1; }
 .calendar-time-panel { display: grid; gap: 10px; }
-.calendar-time-panel > span { font-size: 11px; color: #64748b; }
 .calendar-time-grid { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 4px; }
 .calendar-time-toggle { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 12px; }
 .calendar-time-toggle strong { margin-left: auto; }
@@ -1974,8 +1958,8 @@ html body .app-shell #workspace-content .assign-task-dialog[open] { display: fle
 .task-deadline { display: block; color: #64748b; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 
 /* QA report page and its compact reporting form. */
-.qa-page { display:grid; gap:24px; min-width:0; }
-.qa-page-heading { margin:0; align-items:center; gap:20px; }
+.qa-page { display:grid; gap:12px; min-width:0; }
+html body .app-shell #workspace-content .qa-page > .qa-page-heading { margin:0 !important; align-items:center; gap:12px; }
 .qa-empty { padding:24px; min-width:0; margin:0; }
 .qa-empty { display:flex; min-height:240px; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; }
 .qa-empty h2 { margin:4px 0 0; font-size:18px; }
@@ -2000,7 +1984,7 @@ html body .app-shell #workspace-content .qa-page .button-primary { background:#0
 html body .app-shell #workspace-content .qa-page .button-quiet { background:#ffffff !important; color:#0f172a !important; border-color:#e2e8f0 !important; }
 html body .app-shell #workspace-content .qa-page :is(input,textarea,select,button):focus-visible { outline:2px solid #0f172a !important; outline-offset:2px; box-shadow:none !important; }
 @media(max-width:560px){
- .qa-page-heading { flex-wrap:wrap; gap:16px; }
+ .qa-page-heading { flex-wrap:wrap; }
  .qa-form-row { grid-template-columns:minmax(0,1fr); }
  .qa-empty { padding:20px; }
  html body .app-shell #workspace-content .qa-dialog > header,html body .app-shell #workspace-content .qa-dialog .qa-form-fields { padding:20px; }
@@ -2037,32 +2021,43 @@ html body .app-shell #workspace-content .qa-image-dialog h2 { margin:0; font-siz
 .qa-image-dialog > img { display:block; max-width:100%; max-height:70dvh; width:auto; height:auto; margin:auto; object-fit:contain; }
 .qa-image-dialog > a { justify-self:start; }
 html body .app-shell #workspace-content :is(.qa-image-upload,.project-logo-upload) input[type=file]::file-selector-button { height:36px; padding:0 12px; margin-right:12px; border:1px solid #cbd5e1 !important; border-radius:0 !important; background:#ffffff !important; color:#0f172a !important; font:inherit; font-size:13px; cursor:pointer; }
-.qa-status-legend {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px;
-  margin: 0; padding: 0 0 10px; border-bottom: 1px solid #e4e4e7; list-style: none;
+.qa-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; }
+.qa-status-filters { display:flex; flex-wrap:wrap; gap:6px; }
+html body .app-shell #workspace-content .qa-page .qa-report-search {
+  width:min(100%,380px); min-height:36px; margin:0; padding:6px 10px;
+  border:1px solid #cbd5e1 !important; border-radius:0 !important;
+  background:#ffffff !important; color:#0f172a !important;
 }
-.qa-status-legend li { display: flex; align-items: baseline; gap: 8px; color: #52525b; font-size: 12px; }
-.qa-page [data-status="OPEN"] { --qa-fill: #fff3bf; --qa-hover: #ffea99; }
-.qa-page [data-status="RESOLVED"] { --qa-fill: #cfebe4; --qa-hover: #bde2d8; }
-.qa-status-swatch { width: 20px; height: 16px; background: var(--qa-fill); border: 1px solid rgb(0 0 0 / 15%); }
-.qa-status-text { font-weight: 700; }
-html body .qa-page .qa-status-text[data-status="OPEN"] { color: #665000 !important; -webkit-text-fill-color: #665000 !important; }
-html body .qa-page .qa-status-text[data-status="RESOLVED"] { color: #135c4c !important; -webkit-text-fill-color: #135c4c !important; }
+html body .app-shell #workspace-content .qa-page .qa-report-search:focus { border-color:#0f172a !important; }
+html body .app-shell #workspace-content .qa-page .qa-status-filters .button {
+  height:36px; min-height:36px; padding:0 12px !important; text-decoration:none !important;
+}
+html body .app-shell #workspace-content .qa-page .qa-status-filters .button[aria-pressed="true"] {
+  background:#0f172a !important; border-color:#0f172a !important; color:#ffffff !important; -webkit-text-fill-color:#ffffff !important;
+}
+.qa-page [data-status="OPEN"] { --qa-fill: #fff3bf; --qa-hover: #ffea99; --qa-status-ink: #665000; }
+.qa-page [data-status="UNDER_REVIEW"] { --qa-fill: #e8e2f6; --qa-hover: #ddd4f0; }
+.qa-page [data-status="RESOLVED"] { --qa-fill: #cfebe4; --qa-hover: #bde2d8; --qa-status-ink: #135c4c; }
+html body .qa-page .qa-status-text {
+  color: var(--qa-status-ink, #0f172a) !important;
+  -webkit-text-fill-color: var(--qa-status-ink, #0f172a) !important;
+  font-weight: 700;
+}
 .qa-report-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
 }
 html body .app-shell #workspace-content .qa-page button.qa-report {
-  display: grid; grid-template-rows: auto 1fr auto; gap: 10px;
-  width: 100%; height: auto !important; min-height: 112px; min-width: 0; margin: 0;
-  padding: 12px 14px !important; border: 1px solid #e4e4e7 !important;
-  background: var(--qa-fill) !important; color: #0f172a !important; text-align: left;
+  display: grid; align-content: start; gap: 5px;
+  width: 100%; height: auto !important; min-height: 0; min-width: 0; margin: 0;
+  padding: 8px 10px !important; border: 1px solid #e4e4e7 !important;
+  background: var(--qa-fill, #ffffff) !important; color: #0f172a !important; text-align: left;
   text-decoration: none !important; white-space: normal; cursor: pointer;
 }
 html body .app-shell #workspace-content .qa-page button.qa-report:hover {
-  background: var(--qa-hover) !important; border-color: #cbd5e1 !important;
+  background: var(--qa-hover, #f8fafc) !important; border-color: #cbd5e1 !important;
 }
 .qa-card-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: #52525b; font-size: 12px; }
 .qa-card-title {
@@ -2117,7 +2112,6 @@ html body .app-shell #workspace-content .qa-dialog .qa-project-search input { wi
 html body .app-shell #workspace-content .qa-project-popover [role=option] { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:60px; height:auto !important; padding:12px !important; border:0 !important; border-bottom:1px solid #f1f5f9 !important; border-radius:0; background:#ffffff !important; color:#0f172a !important; text-align:left; cursor:pointer; }
 html body .app-shell #workspace-content .qa-project-popover [role=option]:is(:hover,:focus-visible,[aria-selected=true]) { background:#f4f4f5 !important; outline:none; }
 .qa-project-popover p { padding:12px; font-size:13px; color:#64748b; }
-html body .app-shell #workspace-content .qa-dialog .qa-form-row > .field select { min-height:64px; }
 
 html body .app-shell #workspace-content .attendance-person-select {
   width: min(100%, 270px);
@@ -2319,10 +2313,7 @@ html body .app-shell #workspace-content .dashboard-task-calendar button[data-eve
 .calendar-day-heading > div { display:flex; gap:4px; }
 .calendar-task-preview { position:fixed; z-index:100; pointer-events:none; max-width:min(250px,90vw); padding:9px 12px; display:grid; gap:3px; background:white; border:1px solid #cbd5e1; box-shadow:0 4px 16px #0002; font-size:12px; overflow-wrap:anywhere; }
 .task-calendar-sidebar input[type="search"] { width:100%; margin-top:8px; }
-.qa-page [data-status="UNDER_REVIEW"] { --qa-fill:#e8e2f6; --qa-hover:#ddd4f0; }
-.qa-report-grid { grid-auto-rows: minmax(152px, 1fr); }
 .qa-card-identity > * { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.qa-report-search { width:min(100%,480px); min-height:38px; }
 html body .app-shell #workspace-content .qa-detail-dialog { width:min(710px,calc(100vw - 24px)); }
 .qa-detail-dialog[open] { display:flex; flex-direction:column; }
 .qa-detail-dialog > header,.qa-detail-actions { flex:none; }
@@ -2341,23 +2332,63 @@ html body .app-shell #workspace-content :is(.task-table-search,.task-filter-sele
   border: 0 !important; outline: 0 !important; box-shadow: none !important; background-color: transparent !important;
 }
 
-.task-name-inner .task-detail-trigger {
-  display: block; width: fit-content; height: auto; min-height: 0; padding: 0;
-  background: transparent; border: 0; color: inherit; font: inherit;
-  font-weight: 650; text-align: left; white-space: normal; cursor: pointer;
+.task-name-inner .task-meta-row { flex-wrap: wrap; }
+html body .app-shell #workspace-content .task-meta-row .task-detail-trigger {
+  display: inline-flex; align-items: center; min-height: 24px; height: auto; padding: 0 2px;
+  border: 0 !important; border-radius: 0 !important; background: transparent !important;
+  box-shadow: none !important; color: #52525b; font: inherit; font-size: 12px !important;
+  font-weight: 600; line-height: 1.3; letter-spacing: normal; text-transform: none !important;
+  text-decoration: none !important; cursor: pointer;
+}
+html body .app-shell #workspace-content .task-meta-row .task-detail-trigger:hover {
+  background: #f4f4f5 !important; color: #0f172a;
+}
+html body .app-shell #workspace-content .task-meta-row .task-detail-trigger:focus-visible {
+  outline: 2px solid #0f172a !important; outline-offset: 2px;
 }
 .work-task-detail {
-  width: min(540px, calc(100vw - 32px)); max-height: 85dvh; margin: auto;
-  padding: 0; border: 1px solid #cbd5e1; color: #0f172a; overflow: auto;
+  position: fixed; inset: 0; box-sizing: border-box;
+  width: min(520px, calc(100% - 24px)); max-height: calc(100dvh - 24px); margin: auto;
+  padding: 0; overflow: auto; overscroll-behavior: contain;
+  border: 1px solid #cbd5e1; border-radius: 0 !important;
+  background: #ffffff; color: #0f172a; box-shadow: 0 16px 40px rgb(15 23 42 / 18%);
 }
 .work-task-detail::backdrop { background: rgb(15 23 42 / 45%); }
-.work-task-detail article { padding: 24px; overflow-wrap: anywhere; }
-.work-task-detail header { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
-.work-task-detail p { margin: 16px 0; white-space: pre-wrap; }
-.work-task-detail dl { display: grid; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
-.work-task-detail dl div { display: grid; grid-template-columns: minmax(90px, 1fr) 2fr; gap: 12px; }
-.work-task-detail dt { color: #52525b; }
-.work-task-detail dd { margin: 0; white-space: pre-wrap; }
+.work-task-detail article { overflow-wrap: anywhere; }
+.work-task-detail-heading {
+  position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between;
+  align-items: start; gap: 12px; padding: 16px 20px; margin: 0;
+  border-bottom: 1px solid #e2e8f0; background: #ffffff;
+}
+.work-task-detail-heading > div { min-width: 0; }
+html body .app-shell #workspace-content .work-task-detail h2 {
+  margin: 0; color: #0f172a !important; font-size: 20px !important; font-weight: 700;
+  line-height: 1.3; letter-spacing: normal; text-transform: none !important;
+}
+.work-task-detail-status {
+  display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; color: #52525b; font-size: 13px;
+}
+.work-task-detail-status strong { color: #0f172a; }
+html body .app-shell #workspace-content .work-task-detail .work-task-detail-close {
+  display: grid; flex: none; place-items: center; width: 36px; min-width: 36px; height: 36px; min-height: 36px;
+  margin: 0; padding: 0 !important; border: 1px solid #e2e8f0 !important; border-radius: 0 !important;
+  background: #ffffff !important; color: #0f172a !important; box-shadow: none !important;
+}
+html body .app-shell #workspace-content .work-task-detail .work-task-detail-close:hover { background: #f4f4f5 !important; }
+html body .app-shell #workspace-content .work-task-detail .work-task-detail-close:focus-visible {
+  outline: 2px solid #0f172a !important; outline-offset: 2px;
+}
+.work-task-detail-body { display: grid; gap: 14px; padding: 14px 20px 18px; }
+.work-task-detail-description { margin: 0; white-space: pre-wrap; line-height: 1.55; }
+.work-task-detail dl { display: grid; gap: 0 16px; margin: 0; }
+.work-task-detail-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.work-task-detail dl > div { min-width: 0; padding: 8px 0; border-bottom: 1px solid #e4e4e7; }
+.work-task-detail dt { margin: 0 0 2px; color: #52525b; font-size: 12px; }
+.work-task-detail dd { margin: 0; color: #0f172a; font-size: 14px; line-height: 1.4; white-space: pre-wrap; }
+@media (max-width: 420px) {
+  .work-task-detail-heading, .work-task-detail-body { padding-inline: 12px; }
+  .work-task-detail dl { column-gap: 10px; }
+}
 
 /* Keep all QA fields and actions in the same scroll area on short screens. */
 html body .app-shell #workspace-content .qa-dialog[open] {
@@ -2384,4 +2415,160 @@ html body .app-shell #workspace-content .qa-dialog .qa-form-fields {
 @media (max-width: 560px) {
   .qa-dialog .qa-form-row { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .qa-dialog .qa-form-buttons > button { flex: 1 1 auto; }
+}
+
+/* Short form controls share a compact height, while writing fields keep their natural rows. */
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form, form.auth-card) .field {
+  gap: 5px !important;
+}
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form, form.auth-card, .client-proposal-response-form form)
+  :is(.field > input:not([type]), .field > input:is([type=text],[type=email],[type=tel],[type=url],[type=number],[type=password],[type=date],[type=datetime-local],[type=time]),
+    .field > select, .add-user-password-control > input, label > input:not([type]), .invoice-reference-controls > input) {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  height: 36px !important;
+  min-height: 36px !important;
+  margin-block: 0;
+  padding: 5px 9px !important;
+  border-color: #cbd5e1 !important;
+  border-radius: 0 !important;
+}
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form, form.auth-card, .client-proposal-response-form form)
+  :is(.field > input:not([type]), .field > input:is([type=text],[type=email],[type=tel],[type=url],[type=number],[type=password],[type=date],[type=datetime-local],[type=time]),
+    .field > select, .add-user-password-control > input, label > input:not([type]), .invoice-reference-controls > input, .field > textarea):focus-visible {
+  border-color: #0f172a !important;
+  outline: 1px solid #0f172a !important;
+  outline-offset: 1px;
+  box-shadow: none !important;
+}
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) .field > textarea {
+  width: 100%;
+  border-radius: 0 !important;
+}
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) .field > .compact-title-input {
+  min-height: 36px !important;
+  padding: 6px 9px !important;
+  line-height: 1.4 !important;
+  resize: vertical;
+}
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) .field .calendar-input-wrapper {
+  box-sizing: border-box;
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 0 !important;
+}
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) .field .calendar-input-wrapper:focus-within {
+  border-color: #0f172a !important;
+  outline: 1px solid #0f172a !important;
+}
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) .field .calendar-input-wrapper > .calendar-text-input,
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) .field .calendar-input-wrapper > .calendar-icon-button {
+  height: 34px !important;
+  min-height: 34px !important;
+}
+html body .app-shell #workspace-content .qa-dialog form .qa-project-trigger {
+  min-height: 36px;
+  padding: 5px 9px !important;
+}
+.qa-dialog .qa-project-trigger > span { gap: 1px; }
+
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) :is(.compact-form-grid, .client-project-form-fields) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 10px 12px;
+  min-width: 0;
+}
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) .compact-form-grid > .field { margin: 0; }
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) .compact-form-grid > :only-child,
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) .form-field-wide,
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) :is(.form-grid, .proposal-fields-grid, .invoice-form-grid) > .field:has(> textarea) {
+  grid-column: 1 / -1;
+}
+html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) :is(.form-grid,.proposal-fields-grid,.invoice-form-grid,.reviews-form-grid,.password-fields-grid,
+  .post-sale-project-fields,.qa-form-row,.edit-details-fields),
+html body .user-modal-card form.add-user-form {
+  gap: 10px 12px !important;
+}
+html body .app-shell #workspace-content .client-project-dialog > p { margin-block: 8px 14px; }
+html body .app-shell #workspace-content .client-project-dialog form .form-actions { margin-top: 16px; padding-top: 12px; }
+
+@media (min-width: 481px) and (max-width: 700px) {
+  html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) :is(.form-grid,.proposal-fields-grid,.invoice-form-grid,.reviews-form-grid,.password-fields-grid,
+    .post-sale-project-fields,.qa-form-row,.edit-details-fields) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 480px) {
+  html body :is(.app-shell #workspace-content form, .user-modal-card form, .invoice-modal-card form) :is(.compact-form-grid,.client-project-form-fields,.form-grid,.proposal-fields-grid,
+    .invoice-form-grid,.reviews-form-grid,.password-fields-grid,.post-sale-project-fields,.qa-form-row,.edit-details-fields) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+.calendar-time-controls {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 8px;
+}
+.calendar-time-controls label {
+  display: grid;
+  gap: 4px;
+  color: #52525b;
+  font-size: 12px;
+}
+html body .app-shell #workspace-content .calendar-time-controls select {
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 0 !important;
+  background: #ffffff;
+  color: #0f172a;
+}
+.calendar-time-period { display: flex; gap: 4px; }
+html body .app-shell #workspace-content .calendar-time-period button { min-width: 44px; }
+html body .app-shell #workspace-content .calendar-time-controls select:focus-visible {
+  outline: 2px solid #0f172a !important;
+  outline-offset: 1px;
+  box-shadow: none !important;
+}
+
+/* Keep the field edge consistent across the older page and modal themes. */
+@layer input-borders {
+  :is(input:not([type=checkbox], [type=radio], [type=hidden]), select, textarea) {
+    box-shadow: none !important;
+  }
+
+  :where(input:not([type=checkbox], [type=radio], [type=hidden]), select, textarea):focus {
+    border-color: #0f172a !important;
+    outline: 1px solid #0f172a !important;
+    outline-offset: -1px !important;
+  }
+
+  /* Composite fields own the border and focus indicator on their wrapper. */
+  :is(.calendar-input-wrapper, .command-search-row, .task-table-search, .task-filter-select,
+      .work-assignee-filter, .invoice-table-search, .pipeline-search, .task-target-search,
+      .qa-project-search) {
+    box-shadow: none !important;
+
+    &:focus-within {
+      border-color: #0f172a !important;
+      outline: 1px solid #0f172a !important;
+      outline-offset: -1px !important;
+    }
+
+    & > :is(input, select, textarea),
+    & > .filter-select-wrap > select {
+      border: 0 !important;
+      outline: none !important;
+      background-color: transparent !important;
+    }
+  }
+
+  .calendar-input-wrapper > .calendar-icon-button {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
 }

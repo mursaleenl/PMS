@@ -54,7 +54,6 @@ export default function SettingsPage() {
       <section className="welcome-row">
         <div>
           <h1>Account settings</h1>
-          <p className="welcome-subtitle">{workspaceRole !== "admin" ? "View your account details." : "Manage your profile, sign-in email, password, and security options."}</p>
         </div>
       </section>
 

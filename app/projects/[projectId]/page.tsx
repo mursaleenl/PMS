@@ -16,7 +16,6 @@ import {flushWorkspaceChanges} from "@/lib/workspace-sync";
 
 import { getProjectLogoSrc } from "@/lib/project-logo";
 import { ProjectLogoUpload } from "@/app/_components/project-logo";
-import {readLeads,type Lead} from "@/lib/leads";
 import Link from "next/link";
 import {StatusBadge} from "@/app/_components/status-badge";
 import { ProjectStatusBoard } from "@/app/_components/project-status-board";
@@ -25,7 +24,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, Download, ExternalLink, FileText, FolderKanban, Handshake, Link2, Plus, Receipt, Trash2, Users, X } from "lucide-react";
 import { ManagedPlanDrawer } from "@/app/_components/managed-plan-drawer";
-import { deleteProject, readProjects, getProjectTeamMembers, getProjectDisplayTitle, getProjectDisplayServices, getProjectEnquiryDetails, getProjectClientLabel, getTaskAssigneeLabel, type Project, type ProjectWorkItem, updateProject, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
+import { deleteProject, readProjects, getProjectTeamMembers, getProjectDisplayTitle, getProjectDisplayServices, getProjectClientLabel, getTaskAssigneeLabel, type Project, type ProjectWorkItem, updateProject, isProjectAssignedToUser, canViewProjectTask } from "@/lib/projects";
 import { deleteManagedProject, readManagedProjects, updateManagedProject, type ManagedProject } from "@/lib/post-sale";
 import { useWorkspaceAuth } from "@/lib/workspace-auth";
 import { showToast } from "@/app/_components/toast-hub";
@@ -217,16 +216,18 @@ function TaskDispatchDialog({ project, onClose, onDispatch }: { project: Project
           </label>
           <TaskTargetPicker label="Assignees" options={assignees.filter(person=>person.id).map(person=>({id:person.id!,label:person.name,detail:getRoleLabel(person.role)}))} selected={selectedAssignees} onChange={setSelectedAssignees}/>
           {loadingAssignees&&<small role="status">Loading workspace assignees…</small>}
-          <label className="field required">
-            Priority
-            <select name="priority" defaultValue="P3">
-              <option value="P1">P1 · Critical</option>
-              <option value="P2">P2 · High</option>
-              <option value="P3">P3 · Normal</option>
-              <option value="P4">P4 · Low</option>
-            </select>
-          </label>
-          <label className="field">Deadline<CalendarPicker name="deadline" mode="datetime" ariaLabel="Deadline"/></label>
+          <div className="compact-form-grid">
+            <label className="field required">
+              Priority
+              <select name="priority" defaultValue="P3">
+                <option value="P1">P1 · Critical</option>
+                <option value="P2">P2 · High</option>
+                <option value="P3">P3 · Normal</option>
+                <option value="P4">P4 · Low</option>
+              </select>
+            </label>
+            <label className="field">Deadline<CalendarPicker name="deadline" mode="datetime" ariaLabel="Deadline"/></label>
+          </div>
           </fieldset>
           {error && <div className="form-error" role="alert">{error}</div>}
           <footer>
@@ -256,7 +257,6 @@ function ProjectWorkspace() {
   const { role, user, members } = useWorkspaceAuth();
   const { users: managerOptions } = useAssignableUsers();
   const [project, setProject] = useState<Project | null>(null);
-  const [linkedLead,setLinkedLead]=useState<Lead|null>(null);
   const [loading, setLoading] = useState(true);
   const params = useSearchParams();
   const activeTab = projectTabs.find(tab => tab.id === params.get("tab"))?.id ?? "overview";
@@ -290,19 +290,16 @@ function ProjectWorkspace() {
     const refresh = () => {
       const candidate = readProjects().find((item) => item.id === projectId) ?? null;
       setProject(candidate && ((role !== "employee") || isProjectAssignedToUser(candidate, user?.id, employeeName)) ? candidate : null);
-      setLinkedLead((role === "admin" || role === "project_manager") && candidate ? readLeads().find(lead=>lead.id===candidate.leadId||lead.projectId===candidate.id)??null:null);
       setManagedPlan((role === "admin" || role === "project_manager") ? readManagedProjects().find((item) => item.sourceProjectId === projectId) ?? null : null);
       setLoading(false);
     };
     refresh();
     window.addEventListener("evecture:projects-updated", refresh);
     window.addEventListener("evecture:post-sale-updated", refresh);
-    window.addEventListener("evecture:leads-updated", refresh);
     window.addEventListener("storage", refresh);
     return () => {
       window.removeEventListener("evecture:projects-updated", refresh);
       window.removeEventListener("evecture:post-sale-updated", refresh);
-      window.removeEventListener("evecture:leads-updated", refresh);
       window.removeEventListener("storage", refresh);
     };
   }, [projectId, role, user?.id, employeeName]);
@@ -365,18 +362,16 @@ function ProjectWorkspace() {
   const taskStatusOrder: Record<ProjectWorkItem["status"], number> = { TO_DO: 0, IN_PROGRESS: 1, UNDER_REVIEW: 2, BLOCKED: 3, DONE: 4 };
   const sortedWorkItems = [...workItems].sort((a, b) => taskStatusOrder[a.status] - taskStatusOrder[b.status]);
   const clientBlocked = workItems.some((task) => task.status === "BLOCKED");
-  const marginAlert = workItems.some((task) => task.estimatedHours > 0 && task.loggedHours / task.estimatedHours >= 0.85);
-  const health = clientBlocked ? "Blocked work" : marginAlert ? "Margin alert" : null;
+  const health = clientBlocked ? "Blocked work" : null;
 
   const teamMembers = getProjectTeamMembers(project);
   const services = getProjectDisplayServices(project);
 
-  const contactLead=linkedLead;
-  const enquiryDetails=getProjectEnquiryDetails(project,contactLead);
-  const operatingOrganization=project.operatingCompany||linkedLead?.operatingCompany;
-  const acceptedProposal=[...(linkedLead?.proposals??[])].filter(item=>item.status==="ACCEPTED").sort((a,b)=>b.version-a.version)[0];
-  const sowUrl=linkedLead?.acceptanceDocumentDataUrl||project.signedContractDataUrl;
-  const sowName=linkedLead?.acceptanceDocumentName||project.signedContractName;
+  const enquiryDetails=project.enquiryDetails??{};
+  const operatingOrganization=project.operatingCompany;
+  const managerCanViewSales = role === "admin" || role === "project_manager";
+  const sowUrl=project.signedContractDataUrl;
+  const sowName=project.signedContractName;
   const projectLogo = getProjectLogoSrc(project);
   return <div className="page-content project-detail-page">
     <Link className="back-link" href="/projects"><ArrowLeft size={15} />Project portfolio</Link>
@@ -418,7 +413,7 @@ function ProjectWorkspace() {
           </article>
         </div>
         <aside className="project-detail-side"><article className="panel project-data-panel project-team-panel">
-          <div className="panel-heading"><div><h2>Project Team</h2><p>Project manager and assigned team members</p></div></div>
+          <div className="panel-heading"><div><h2>Project Team</h2></div></div>
           {(role === "admin" || role === "project_manager") ? <label className="field">Assigned project manager<select aria-label="Assigned project manager" value={project.team.find(member=>member.role==="Project Manager")?.userId||managerOptions.find(person=>person.name===project.team.find(member=>member.role==="Project Manager")?.name)?.id||""} onChange={event=>{
             if(role!=="admin")return;
             const manager=managerOptions.find(person=>person.id===event.target.value && canBeAssignedProjectManager(person.role));
@@ -430,7 +425,7 @@ function ProjectWorkspace() {
             {teamMembers.length ? <ul>{teamMembers.map(member=><li key={member.userId||member.name.trim().toLowerCase()}><span>{member.name}</span><small>Team member</small></li>)}</ul> : <p>Team members appear here when tasks are assigned.</p>}
           </div>
         </article>
-          {project.projectType !== "internal" && <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Project documents</h2><p>Accepted proposal and project records</p></div><FileText size={16} /></div><div className="document-links">{acceptedProposal?.shareToken && <Link href={`/proposal/${acceptedProposal.shareToken}`}><FileText size={14}/>{acceptedProposal.proposalTitle || "Accepted proposal"} · Accepted</Link>}{acceptedProposal?.documentDataUrl && <a href={acceptedProposal.documentDataUrl} download={acceptedProposal.documentName}><Download size={14}/>Accepted proposal attachment</a>}{sowUrl && sowName && <a href={sowUrl} download={sowName}><Download size={14}/>{sowName} · Signed SOW</a>}{(role === "admin" || role === "project_manager") && (project.invoice ? <Link href={`/invoices?invoice=${project.invoice.invoiceNumber}`}><ExternalLink size={14} />{project.invoice.invoiceNumber} · invoice record</Link> : <Link className="document-pending" href={`/invoices?project=${project.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px", color: "inherit" }}><Receipt size={13} />No invoice recorded · Create invoice</Link>)}</div></article>}</aside>
+          {project.projectType !== "internal" && <article className="panel project-data-panel"><div className="panel-heading"><div><h2>Project documents</h2></div><FileText size={16} /></div><div className="document-links">{managerCanViewSales && project.leadId && <Link href={`/requests/${project.leadId}`}><FileText size={14}/>Originating lead</Link>}{managerCanViewSales && sowUrl && sowName && <a href={sowUrl} download={sowName}><Download size={14}/>{sowName} · Signed SOW</a>}{(role === "admin" || role === "project_manager") && (project.invoice ? <Link href={`/invoices?invoice=${project.invoice.invoiceNumber}`}><ExternalLink size={14} />{project.invoice.invoiceNumber} · invoice record</Link> : <Link className="document-pending" href={`/invoices?project=${project.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px", color: "inherit" }}><Receipt size={13} />No invoice recorded · Create invoice</Link>)}</div></article>}</aside>
       </section>
     </>}
 
@@ -465,7 +460,7 @@ function ProjectWorkspace() {
 
     {activeTab === "status" && <ProjectStatusBoard project={project} />}
     {activeTab === "messages" && <section className="panel portal-record"><ProjectConversation projectId={project.id}/></section>}
-    {activeTab === "links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2><p>Keep the team's staging, source, and design references attached to this workspace.</p></div></div><div className="project-link-grid">{([["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"]] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16} /></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12} /></a> : <strong>Not added</strong>}</div>{((role === "admin" || role === "project_manager") || ((role === "employee") && key === "staging")) && <button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button>}</article>; })}</div><p className="storage-note">Project links are saved to your workspace. Repository and hosting permissions are managed by their providers.</p></section>}
+    {activeTab === "links" && <section className="panel ops-panel"><div className="panel-heading"><div><h2>Project links & environments</h2></div></div><div className="project-link-grid">{([["staging", "Staging environment"], ["repository", "Source repository"], ["design", "Design file"], ["other", "Other reference"]] as const).map(([key, label]) => { const value = project.links?.[key]; return <article className="project-link-card" key={key}><span className="project-link-icon"><Link2 size={16} /></span><div><small>{label}</small>{value ? <a href={value} target="_blank" rel="noreferrer">{value}<ExternalLink size={12} /></a> : <strong>Not added</strong>}</div>{((role === "admin" || role === "project_manager") || ((role === "employee") && key === "staging")) && <button type="button" className="button button-quiet" onClick={() => setProjectLink(key)}>{value ? "Edit link" : "Add link"}</button>}</article>; })}</div></section>}
 
     {canEditRecordDetails(role)&&managingClients&&<ProjectClientsDialog project={project} onClose={()=>setManagingClients(false)}/>}
     {canEditRecordDetails(role)&&editingDetails&&<EditDetailsDialog title="Edit project details" onClose={()=>setEditingDetails(false)} fields={[
@@ -513,7 +508,7 @@ function ProjectWorkspace() {
         const currency=values.currency.toUpperCase();
         if(!/^[A-Z]{3}$/.test(currency))throw new Error("Enter a three-letter currency code.");
         if(!Number.isInteger(Number(values.revisionRounds))||Number(values.revisionRounds)<0)throw new Error("Revision rounds must be a whole number.");
-        Object.assign(updates,{enquiryDetails:{...enquiryDetails,projectName:values.title,projectNameOverride:values.title!==project.title?true:enquiryDetails.projectNameOverride,phone:values.phone,designation:values.designation,companyWebsite:values.companyWebsite,country:values.country,timezone:values.timezone,industry:values.industry,description:values.enquiryDescription,referenceLinks:values.referenceLinks,budgetRange:values.budgetRange,budgetShared:values.budgetShared==="Yes",budgetNote:values.budgetNote,urgency:values.urgency as Lead["urgency"],source:values.source,acquisitionSource:values.acquisitionSource},operatingCompany:operatingOrganization||values.operatingCompany,clientCompany:values.clientCompany,clientName:values.clientName,clientEmail:values.clientEmail,classification:values.classification,billingStructure:values.billingStructure,contractedValue:Number(values.contractedValue),currency,revisionRounds:Number(values.revisionRounds)});
+        Object.assign(updates,{enquiryDetails:{...enquiryDetails,projectName:values.title,projectNameOverride:values.title!==project.title?true:enquiryDetails.projectNameOverride,phone:values.phone,designation:values.designation,companyWebsite:values.companyWebsite,country:values.country,timezone:values.timezone,industry:values.industry,description:values.enquiryDescription,referenceLinks:values.referenceLinks,budgetRange:values.budgetRange,budgetShared:values.budgetShared==="Yes",budgetNote:values.budgetNote,urgency:values.urgency as NonNullable<Project["enquiryDetails"]>["urgency"],source:values.source,acquisitionSource:values.acquisitionSource},operatingCompany:operatingOrganization||values.operatingCompany,clientCompany:values.clientCompany,clientName:values.clientName,clientEmail:values.clientEmail,classification:values.classification,billingStructure:values.billingStructure,contractedValue:Number(values.contractedValue),currency,revisionRounds:Number(values.revisionRounds)});
       }
       updateProject(project.id,updates);
       if(updates.title!==project.title){
@@ -525,6 +520,5 @@ function ProjectWorkspace() {
     {(role === "admin" || role === "project_manager") && showDispatch && <TaskDispatchDialog project={project} onClose={() => setShowDispatch(false)} onDispatch={dispatchTask} />}
     {(role === "admin" || role === "project_manager") && showManagedPlan && <ManagedPlanDrawer projects={[project]} initialProjectId={project.id} onClose={() => setShowManagedPlan(false)} onCreated={(item) => setManagedPlan(item)} />}
     {(role==="admin"||role==="project_manager")&&editingTask&&<EditTaskDialog projectId={project.id} task={editingTask} onClose={()=>setEditingTask(null)}/>}
-    <p className="storage-note">Changes are saved to your workspace database.</p>
   </div>;
 }

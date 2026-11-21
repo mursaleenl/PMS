@@ -1,30 +1,15 @@
 import {clientContactName} from "@/lib/client-identity";
-import type {Lead} from "@/lib/leads";
-import {getProjectClients,getProjectEnquiryDetails,nextProjectId,type ProjectEnquiryDetails,type BillingStructure,type Project,type ProjectTeamMember} from "@/lib/projects";
+import {nextProjectId,type ProjectEnquiryDetails,type BillingStructure,type Project,type ProjectTeamMember} from "@/lib/projects";
+import {supabase} from "@/lib/supabase";
 import type {OperatingCompany} from "@/lib/companies";
-import type {ManagedProject} from "@/lib/post-sale";
 
 export type ExistingProjectClient = {clientId?:string;portalLinked?:boolean;name:string;companyName?:string;email?:string;contactDetails?:ProjectEnquiryDetails};
 
-export function existingProjectClients(projects:Project[],leads:Lead[],includeEnquiries=false,plans:ManagedProject[]=[]):ExistingProjectClient[]{
-  const clients:ExistingProjectClient[]=[];
-  const add=(client:ExistingProjectClient)=>{
-    client={...client,name:clientContactName(client.name)};
-    if(!client.name.trim()&&!client.companyName?.trim())return;
-    const key=(item:ExistingProjectClient)=>item.email?.trim().toLowerCase()||`${item.companyName?.trim().toLowerCase()||""}:${item.name.trim().toLowerCase()}`;
-    const existing=clients.find(item=>key(item)===key(client));
-    if(existing)return;
-    const details=client.contactDetails;
-    clients.push({...client,contactDetails:details?{phone:details.phone,designation:details.designation,companyWebsite:details.companyWebsite,country:details.country,timezone:details.timezone,industry:details.industry}:undefined});
-  };
-  for(const project of projects.filter(item=>item.projectType!=="internal"&&!item.enquiryDetails?.clientDeleted)){
-    const lead=leads.find(item=>item.id===project.leadId);
-    add({clientId:project.clientId,name:project.clientName,companyName:project.clientCompany,email:project.clientEmail,contactDetails:getProjectEnquiryDetails(project,lead)});
-  }
-  for(const project of projects.filter(item=>item.projectType!=="internal"))for(const client of getProjectClients(project).slice(1))add(client);
-  for(const lead of leads.filter(item=>!item.qualification?.clientDeleted&&(item.status==="CONVERTED"||item.status==="ACCEPTED"||(includeEnquiries&&item.status!=="LOST"))))add({name:lead.fullName,companyName:lead.companyName,email:lead.email,contactDetails:getProjectEnquiryDetails({},lead)});
-  for(const plan of plans.filter(plan=>!plan.clientDetails?.deleted))add({name:plan.clientDetails?.name||"",companyName:plan.clientCompany,email:plan.clientDetails?.email,contactDetails:plan.clientDetails?.contactDetails});
-  return clients.sort((a,b)=>(a.companyName||a.name).localeCompare(b.companyName||b.name));
+export async function readProjectLeadClientDirectory(): Promise<(ExistingProjectClient & {clientId:string})[]> {
+  if (!supabase) throw new Error("Database connection is unavailable.");
+  const {data,error} = await supabase.rpc("project_lead_client_directory");
+  if (error || !Array.isArray(data)) throw new Error("The client directory is unavailable. Check workspace setup and retry.");
+  return data;
 }
 
 export async function createClientProject(input:{client:ExistingProjectClient;title:string;description:string;services:string[];startDate:string;operatingCompany:OperatingCompany;billingStructure:BillingStructure;contractedValue:number;currency:string;team:ProjectTeamMember[];clientSelection?:"new"|"existing"}):Promise<Project>{

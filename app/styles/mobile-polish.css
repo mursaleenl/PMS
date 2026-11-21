@@ -266,17 +266,17 @@
 }
 
 @media screen {
-  .app-shell .main-area .projects-page .project-portfolio { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; width: 100%; }
-  .app-shell .main-area .projects-page .portfolio-card { min-width: 0; }
+  .app-shell .main-area .page-content .project-portfolio { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; width: 100%; }
+  .app-shell .main-area .project-portfolio .portfolio-card { min-width: 0; }
 }
 @media screen and (max-width: 1199px) {
-  .app-shell .main-area .projects-page .project-portfolio { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .app-shell .main-area .page-content .project-portfolio { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media screen and (max-width: 950px) {
-  .app-shell .main-area .projects-page .project-portfolio { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell .main-area .page-content .project-portfolio { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media screen and (max-width: 600px) {
-  .app-shell .main-area .projects-page .project-portfolio { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .main-area .page-content .project-portfolio { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media screen {

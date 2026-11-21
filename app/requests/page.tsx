@@ -70,14 +70,14 @@ export default function RequestsPage() {
   }).sort((left,right)=>(Date.parse(right.createdAt)||0)-(Date.parse(left.createdAt)||0)), [leads, query, status]);
 
   if ((role === "employee")) return <div className="page-content requests-page">
-    <section className="welcome-row requests-welcome"><div><h1>Leads</h1><p className="welcome-subtitle">Browse enquiry details and proposal progress.</p></div></section>
+    <section className="welcome-row requests-welcome"><div><h1>Leads</h1></div></section>
     <div className="pipeline-toolbar"><div className="pipeline-tabs" role="tablist" aria-label="Filter leads by status">{statusOptions.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={status === key} className={status === key ? "selected" : ""} onClick={() => setStatus(key)}>{label}<span>{counts[key]}</span></button>)}</div><label className="pipeline-search"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search leads" /></label></div>
     {visibleLeads.length === 0 ? <EmptyState icon={<Mail size={22} />} title={leads.length === 0 ? "No leads available" : "No matching leads"} description="Try another search or status filter." /> : <div className="lead-record-list">{visibleLeads.map((lead) => <article className="lead-record panel" key={lead.id}><Link className="lead-record-summary" href={`/requests/${lead.id}`}><LeadSummary lead={lead} now={now} /><ArrowRight className="lead-summary-arrow" size={16} aria-hidden="true" /></Link></article>)}</div>}
   </div>;
 
   return <div className="page-content requests-page">
     <section className="welcome-row requests-welcome">
-      <div><h1>Leads</h1><p className="welcome-subtitle">Review incoming enquiries and move them into proposals or projects.</p></div>
+      <div><h1>Leads</h1></div>
       <Link className="button button-primary" href="/requests/new"><Plus size={16} />Log enquiry</Link>
     </section>
 
@@ -126,7 +126,7 @@ export default function RequestsPage() {
                       <span><b>Found via</b>{lead.acquisitionSource || "Not provided"}</span>
                     </div>
                     <section className="lead-company-section" aria-labelledby={`company-heading-${lead.id}`}>
-                      <div><h4 id={`company-heading-${lead.id}`}>Operating organization</h4><p>The studio responsible for this lead and its project.</p></div>
+                      <div><h4 id={`company-heading-${lead.id}`}>Operating organization</h4></div>
                       <OperatingOrganizationField value={lead.operatingCompany} label="Operating organization" selectLabel="Choose operating organization" onChange={organization=>updateLead(lead.id,{operatingCompany:organization})}/>
                     </section>
                     {lead.budgetNote && <p className="budget-note-display">{lead.budgetNote}</p>}

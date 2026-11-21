@@ -25,7 +25,7 @@ export function AssignTaskDialog({projects,onClose}:{projects:Project[];onClose:
   const data=new FormData(event.currentTarget);busyRef.current=true;setBusy(true);setError("");
   try{
    if(role!=="admin"&&role!=="project_manager"&&role!=="employee")throw new Error("Task creation is not available for this role.");
-   if(!pending.current)pending.current=prepareTaskDispatch({general:scope==="GENERAL",projectIds:[...selectedProjects],assignees:selfService?[{name:selfName,userId:user?.id}]:users.filter(person=>person.id&&selectedAssignees.has(person.id)).map(person=>({name:person.name,userId:person.id})),title:String(data.get("title")||""),description:String(data.get("description")||""),deadline:String(data.get("deadline")||""),kind:String(data.get("kind")) as ProjectWorkItem["kind"],priority:String(data.get("priority")) as ProjectWorkItem["priority"],estimatedHours:Number(data.get("estimatedHours")||0)});
+   if(!pending.current)pending.current=prepareTaskDispatch({general:scope==="GENERAL",projectIds:[...selectedProjects],assignees:selfService?[{name:selfName,userId:user?.id}]:users.filter(person=>person.id&&selectedAssignees.has(person.id)).map(person=>({name:person.name,userId:person.id})),title:String(data.get("title")||""),description:String(data.get("description")||""),deadline:String(data.get("deadline")||""),kind:String(data.get("kind")) as ProjectWorkItem["kind"],priority:String(data.get("priority")) as ProjectWorkItem["priority"]});
    if(pending.current.some(item=>item.projectId!==GENERAL_TASKS_ID&&!allowedProjects.some(project=>project.id===item.projectId)))throw new Error("Select available projects.");
    await persistTaskDispatch(pending.current,{selfService});onClose();
   }catch(cause){setError(cause instanceof Error?cause.message:"Could not assign the task.");}
@@ -37,12 +37,14 @@ export function AssignTaskDialog({projects,onClose}:{projects:Project[];onClose:
   <form onSubmit={submit}><div className="assign-task-fields"><fieldset disabled={busy||Boolean(pending.current)}>
    <label className="field">Task scope<select aria-label="Task scope" value={scope} onChange={event=>setScope(event.target.value)}><option value="PROJECT">Project task</option><option value="GENERAL">General task — no project</option></select></label>
    {scope==="PROJECT"&&<TaskTargetPicker label="Projects" options={allowedProjects.map(project=>({id:project.id,label:getProjectDisplayTitle(project),detail:getProjectClientLabel(project)}))} selected={selectedProjects} onChange={setSelectedProjects}/>}
-   <label className="field required">Task title<textarea name="title" required rows={3} maxLength={1000} placeholder="Describe the work to be done"/></label>
+   <label className="field required">Task title<textarea className="compact-title-input" name="title" required rows={1} maxLength={1000} placeholder="Describe the work to be done"/></label>
    <label className="field">Description<textarea name="description" rows={4} maxLength={5000} placeholder="Add requirements and the expected outcome"/></label>
    {selfService?<p>Assigned to you · {selfName}</p>:<TaskTargetPicker label="Assignees" options={users.filter(person=>person.id).map(person=>({id:person.id!,label:person.name,detail:getRoleLabel(person.role)}))} selected={selectedAssignees} onChange={setSelectedAssignees}/>}
    <label className="field">Task type<select name="kind" defaultValue="FEATURE_DEV"><option value="FEATURE_DEV">Feature / development</option><option value="CLIENT_FEEDBACK_TODO">Client feedback</option><option value="QA_BUG">QA / bug</option></select></label>
-   <div className="assign-task-columns"><label className="field">Priority<select name="priority" defaultValue="P3"><option value="P1">Critical</option><option value="P2">High</option><option value="P3">Normal</option><option value="P4">Low</option></select></label><label className="field">Estimated hours<input name="estimatedHours" type="number" min="0" step="0.25" defaultValue="0"/></label></div>
-   <label className="field">Deadline<CalendarPicker name="deadline" mode="datetime" ariaLabel="Deadline"/></label>
+   <div className="compact-form-grid">
+    <label className="field">Priority<select name="priority" defaultValue="P3"><option value="P1">Critical</option><option value="P2">High</option><option value="P3">Normal</option><option value="P4">Low</option></select></label>
+    <label className="field">Deadline<CalendarPicker name="deadline" mode="datetime" ariaLabel="Deadline"/></label>
+   </div>
   </fieldset></div>{error&&<p className="form-error" role="alert">{error}</p>}<div className="form-actions"><button className="button button-quiet" type="button" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-primary" disabled={busy||loading||(scope==="PROJECT"&&!allowedProjects.length)}>{busy?"Saving…":pending.current?"Retry saving":selfService?"Create task":"Assign task"}</button></div></form>
  </dialog>;
 }

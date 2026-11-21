@@ -28,11 +28,10 @@ export function EditTaskDialog({projectId,task,onClose}:{projectId:string;task:P
   try{
    if(role!=="admin"&&role!=="project_manager")throw new Error("Only admins and project managers can edit task details.");
    if(!pending.current){
-    const title=String(data.get("title")||"").trim(),estimatedHours=Number(data.get("estimatedHours")||0);
+    const title=String(data.get("title")||"").trim();
     if(!title)throw new Error("Enter a task title.");
-    if(!Number.isFinite(estimatedHours)||estimatedHours<0)throw new Error("Enter valid estimated hours.");
     const priority=String(data.get("priority")) as ProjectWorkItem["priority"];
-    const patch:Partial<ProjectWorkItem>={title,description:String(data.get("description")||"").trim()||undefined,deadline:taskDeadlineFromInput(String(data.get("deadline")||"")),priority,estimatedHours};
+    const patch:Partial<ProjectWorkItem>={title,description:String(data.get("description")||"").trim()||undefined,deadline:taskDeadlineFromInput(String(data.get("deadline")||"")),priority};
     const originalKeys=new Set(original.map(personKey));
     const changed=selected&&(selected.size!==originalKeys.size||[...selected].some(id=>!originalKeys.has(id)));
     if(changed){
@@ -55,11 +54,13 @@ export function EditTaskDialog({projectId,task,onClose}:{projectId:string;task:P
  return <dialog ref={dialog} className="assign-task-dialog" aria-labelledby="edit-task-title" onCancel={event=>{if(busyRef.current)event.preventDefault();else onClose();}}>
   <header><h2 id="edit-task-title">Edit task</h2><button type="button" className="icon-button" aria-label="Close task form" disabled={busy} onClick={onClose}><X size={18}/></button></header>
   <form onSubmit={submit}><div className="assign-task-fields"><fieldset disabled={busy||Boolean(pending.current)}>
-   <label className="field required">Task title<textarea name="title" required rows={2} maxLength={1000} defaultValue={task.title}/></label>
+   <label className="field required">Task title<textarea className="compact-title-input" name="title" required rows={1} maxLength={1000} defaultValue={task.title}/></label>
    <label className="field">Description<textarea name="description" rows={4} maxLength={5000} defaultValue={task.description}/></label>
    <TaskTargetPicker label="Assignees" options={options} selected={selected??new Set()} onChange={setSelected}/>
-   <div className="assign-task-columns"><label className="field">Priority<select name="priority" defaultValue={task.priority}><option value="P1">Critical</option><option value="P2">High</option><option value="P3">Normal</option><option value="P4">Low</option></select></label><label className="field">Estimated hours<input name="estimatedHours" type="number" min="0" step="0.25" defaultValue={task.estimatedHours}/></label></div>
-   <label className="field">Deadline<CalendarPicker name="deadline" mode="datetime" ariaLabel="Deadline" defaultValue={taskDeadlineInput(task.deadline)}/></label>
+   <div className="compact-form-grid">
+    <label className="field">Priority<select name="priority" defaultValue={task.priority}><option value="P1">Critical</option><option value="P2">High</option><option value="P3">Normal</option><option value="P4">Low</option></select></label>
+    <label className="field">Deadline<CalendarPicker name="deadline" mode="datetime" ariaLabel="Deadline" defaultValue={taskDeadlineInput(task.deadline)}/></label>
+   </div>
   </fieldset></div>{error&&<p className="form-error" role="alert">{error}</p>}<div className="form-actions"><button className="button button-quiet" type="button" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-primary" disabled={busy||loading||selected===null}>{busy?"Saving…":pending.current?"Retry saving":"Save changes"}</button></div></form>
  </dialog>;
 }

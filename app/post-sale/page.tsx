@@ -123,7 +123,6 @@ export default function PostSalePage() {
     <section className="welcome-row">
       <div>
         <h1>Retainers & AMC</h1>
-        <p className="welcome-subtitle">Track ongoing client support and maintenance contracts.</p>
       </div>
       <div className="welcome-actions">
         <label className="post-sale-filter">Show

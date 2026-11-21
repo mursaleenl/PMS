@@ -61,8 +61,9 @@ function refreshInvoiceProjections() {
     if (JSON.stringify(lead.invoice) !== JSON.stringify(invoice)) updateLead(lead.id,{invoice});
   }
   for (const project of readProjects()) {
-    const deposit = invoices.filter(item => item.isDeposit && (item.projectId === project.id || (!!project.leadId && item.leadId === project.leadId)));
-    const invoice = deposit[0];
+    const projectInvoices = invoices.filter(item => item.projectId === project.id);
+    const deposit = projectInvoices.filter(item => item.isDeposit);
+    const invoice = deposit[0] ?? projectInvoices[0];
     const depositAmount = deposit.reduce((sum,item) => sum+item.total,0);
     const depositStatus = deposit.length && deposit.every(item => item.status === "CONFIRMED_PAID") ? "CONFIRMED_PAID" as const : undefined;
     if (JSON.stringify(project.invoice) !== JSON.stringify(invoice) || project.depositAmount !== depositAmount || project.depositStatus !== depositStatus) updateProject(project.id,{invoice,depositAmount,depositStatus});

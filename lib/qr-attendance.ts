@@ -43,5 +43,11 @@ export function officeDate(timezone:string,date=new Date()) {
 }
 export function attendanceTime(value:string|null,timezone:string) {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-IN",{timeZone:timezone,dateStyle:"medium",timeStyle:"short"}).format(new Date(value));
+  return new Intl.DateTimeFormat("en-IN",{timeZone:timezone,dateStyle:"medium",timeStyle:"short",hour12:true}).format(new Date(value));
+}
+
+export function formatAttendanceHours(hours:number) {
+  if(!Number.isFinite(hours)||hours<0)return "—";
+  const minutes=Math.round(hours*60);
+  return `${Math.floor(minutes/60)}h ${String(minutes%60).padStart(2,"0")}m`;
 }

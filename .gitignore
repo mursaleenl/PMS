@@ -12,7 +12,13 @@ test-results/
 playwright-report/
 
 # Local database files and workspace documentation
-/supabase/
+/supabase/*
+!/supabase/migrations/
+/supabase/migrations/*
+!/supabase/migrations/*_independent_project_clients_prerequisite.sql
+!/supabase/migrations/*_project_lead_access_boundary.sql
+!/supabase/migrations/*_retire_task_time_tracking.sql
+!/supabase/migrations/*_remove_task_time_fields.sql
 /DATABASE_WORKFLOW.md
 /PAGE_INDEPENDENCE_PLAN.md
 /SETUP_AUTH_DATABASE.md

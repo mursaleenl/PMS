@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { officeDate, readAttendanceSessions, type AttendanceSession } from "@/lib/qr-attendance";
+import { formatAttendanceHours, officeDate, readAttendanceSessions, type AttendanceSession } from "@/lib/qr-attendance";
 
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 function monthDate(month: string, day = 1) {
@@ -57,7 +57,7 @@ export function AttendanceCalendar({ userId, personName, timezone, refreshKey }:
   const daysAttended = new Set(scopedVisits.map(visit => visit.work_date));
   const selectedVisits = scopedVisits.filter(visit => visit.work_date === selected);
   const title = personName ? `${personName}’s attendance calendar` : "My attendance calendar";
-  const time = (value: string | null) => value ? new Intl.DateTimeFormat("en-IN", { timeStyle: "short", timeZone: timezone }).format(new Date(value)) : "—";
+  const time = (value: string | null) => value ? new Intl.DateTimeFormat("en-IN", { timeStyle: "short", hour12: true, timeZone: timezone }).format(new Date(value)) : "—";
   function moveMonth(change: number) {
     const date = monthDate(month);
     date.setUTCMonth(date.getUTCMonth() + change);
@@ -86,7 +86,7 @@ export function AttendanceCalendar({ userId, personName, timezone, refreshKey }:
       </div>
       <div className="attendance-calendar-legend"><span className="attendance-date-dot" aria-hidden="true"/>Recorded attendance</div>
       {selected && !loading && <div className="attendance-calendar-day-details" aria-live="polite"><h3>{dateLabel(selected)}</h3>
-        {selectedVisits.length ? <ul>{selectedVisits.map(visit => <li key={visit.id}><span><small>Arrival</small>{time(visit.checked_in_at)}</span><span><small>Departure</small>{visit.checked_out_at ? time(visit.checked_out_at) : !visit.checked_in_at ? "—" : visit.work_date === today ? "Checked in" : "Missing checkout"}</span><span><small>Hours</small>{visit.checked_in_at && visit.checked_out_at ? ((Date.parse(visit.checked_out_at) - Date.parse(visit.checked_in_at)) / 3600000).toFixed(2) : "—"}</span></li>)}</ul> : <p>No attendance recorded for this date.</p>}
+        {selectedVisits.length ? <ul>{selectedVisits.map(visit => <li key={visit.id}><span><small>Arrival</small>{time(visit.checked_in_at)}</span><span><small>Departure</small>{visit.checked_out_at ? time(visit.checked_out_at) : !visit.checked_in_at ? "—" : visit.work_date === today ? "Checked in" : "Missing checkout"}</span><span><small>Hours</small>{visit.checked_in_at && visit.checked_out_at ? formatAttendanceHours((Date.parse(visit.checked_out_at) - Date.parse(visit.checked_in_at)) / 3600000) : "—"}</span></li>)}</ul> : <p>No attendance recorded for this date.</p>}
       </div>}
     </>}
   </section>;

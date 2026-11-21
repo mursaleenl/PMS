@@ -30,14 +30,14 @@ export function ProjectConversation({projectId}:{projectId:string}) {
   }
   return <section className="project-conversation" aria-busy={loading}>
     <header className="conversation-heading">
-      <div><span className="section-kicker">Project updates</span><h2>Project conversation</h2><p>Share decisions and updates with everyone on this project.</p></div>
+      <div><span className="section-kicker">Project updates</span><h2>Project conversation</h2></div>
       <button className="button button-quiet conversation-refresh" type="button" onClick={()=>setAttempt(value=>value+1)} disabled={loading}><RefreshCw size={14}/>Refresh</button>
     </header>
     <div className={`conversation-messages ${messages.length===0&&!loading?"is-empty":""}`} aria-live="polite">
       {loading?<p className="conversation-loading" role="status">Loading messages…</p>:messages.length?messages.map(item=><article key={item.id}>
         <div className="conversation-message-meta"><strong>{item.sender_name}</strong><time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString()}</time></div>
         <p>{item.body}</p>
-      </article>):<div className="conversation-empty"><span><MessageSquareText size={20}/></span><strong>No messages yet</strong><p>Start the conversation with your project team.</p></div>}
+      </article>):<div className="conversation-empty"><span><MessageSquareText size={20}/></span><strong>No messages yet</strong></div>}
     </div>
     {error&&<p className="form-error" role="alert">{error}</p>}
     <form className="conversation-composer" onSubmit={send}>

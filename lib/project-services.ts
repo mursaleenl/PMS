@@ -25,6 +25,6 @@ export function getProjectServices(project: ServiceProject): string[] {
 }
 
 /** Project invoices inherit authored scope before falling back to service labels. */
-export function getInheritedInvoiceDescription(project: ServiceProject & {scopeIncluded?: string}, lead?: {description?: string}): string {
-  return project.scopeIncluded?.trim() || lead?.description?.trim() || getProjectServices(project).join(", ") || project.title.trim() || "Project services";
+export function getInheritedInvoiceDescription(project: ServiceProject & {scopeIncluded?: string; enquiryDetails?: {description?: string}}): string {
+  return project.scopeIncluded?.trim() || project.enquiryDetails?.description?.trim() || getProjectServices(project).join(", ") || project.title.trim() || "Project services";
 }

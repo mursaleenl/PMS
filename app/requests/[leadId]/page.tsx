@@ -83,7 +83,7 @@ export default function LeadWorkspacePage() {
         team,
       });
       addProject(project);
-      updateLead(lead.id, { status: "CONVERTED", projectId: project.id, projectName:project.title });
+      updateLead(lead.id, { status: "CONVERTED", projectId: project.id });
       await flushWorkspaceChanges();
       router.push(`/projects/${project.id}`);
     } catch (cause) {
@@ -132,14 +132,14 @@ export default function LeadWorkspacePage() {
     }}/>}
 
     {workflowOpen && <section className={`panel record-section operating-company-step ${lead.operatingCompany ? "is-selected" : "needs-selection"}`} id="workflow-company">
-      <div className="record-section-heading"><div><span className="section-icon"><ShieldCheck size={17} /></span><div><h2>{lead.operatingCompany?"Operating organization":"Choose operating organization"}</h2><p>The studio responsible for this lead and its project.</p></div></div><span className="workflow-state">{lead.operatingCompany ? "Organization confirmed" : "Required before project setup"}</span></div>
+      <div className="record-section-heading"><div><span className="section-icon"><ShieldCheck size={17} /></span><div><h2>{lead.operatingCompany?"Operating organization":"Choose operating organization"}</h2></div></div><span className="workflow-state">{lead.operatingCompany ? "Organization confirmed" : "Required before project setup"}</span></div>
       <OperatingOrganizationField value={lead.operatingCompany} selectLabel="Choose the operating organization for this lead" required onChange={organization=>saveLead({operatingCompany:organization})}/>
     </section>}
 
 
-    {lead.status === "CONVERTED" && lead.projectId && <section className="panel record-section project-gate-complete"><div className="record-section-heading"><div><span className="section-icon"><Check size={17} /></span><div><h2>Project workspace created</h2><p>Accepted proposal details and any available commercial records are linked to the active project.</p></div></div></div><Link className="button button-primary" href={`/projects/${lead.projectId}`}>Open project workspace <ArrowRight size={14} /></Link></section>}
+    {lead.status === "CONVERTED" && lead.projectId && <section className="panel record-section project-gate-complete"><div className="record-section-heading"><div><span className="section-icon"><Check size={17} /></span><div><h2>Project workspace created</h2></div></div></div><Link className="button button-primary" href={`/projects/${lead.projectId}`}>Open project workspace <ArrowRight size={14} /></Link></section>}
 
-    {(["NEW", "PROPOSAL_SENT", "ACCEPTED"].includes(lead.status)) && !lead.projectId && <section className="panel record-section project-create-section"><div className="record-section-heading"><div><span className="section-icon"><Check size={17} /></span><div><h2>Move to Projects</h2><p>{lead.status === "ACCEPTED" ? "Set the project owner and setup details to create its workspace." : "Create a project workspace. Proposals can be managed separately on the Proposals page."} Deposit and SOW tracking can be completed separately.</p></div></div></div>
+    {(["NEW", "PROPOSAL_SENT", "ACCEPTED"].includes(lead.status)) && !lead.projectId && <section className="panel record-section project-create-section"><div className="record-section-heading"><div><span className="section-icon"><Check size={17} /></span><div><h2>Move to Projects</h2></div></div></div>
       <div className="commercial-proof"><span className={lead.acceptanceDocumentDataUrl ? "" : "commercial-proof-pending"}>{lead.acceptanceDocumentDataUrl ? <Check size={13} /> : <Clock3 size={13} />}Signed SOW · {lead.acceptanceDocumentDataUrl ? lead.acceptanceDocumentName : "not attached"}</span><span className={lead.invoice?.status === "CONFIRMED_PAID" ? "" : "commercial-proof-pending"}>{lead.invoice?.status === "CONFIRMED_PAID" ? <Check size={13} /> : <Clock3 size={13} />}Deposit · {lead.invoice ? lead.invoice.status.replaceAll("_", " ") : "not recorded"}</span></div>
       <form className="project-create-form" onSubmit={createProjectFromLead}>
         <div className="proposal-fields-grid"><label className="field required">Project classification<select name="classification" required defaultValue={lead.acquisitionSource === "Referral" ? "Referral" : lead.acquisitionSource === "Repeat client" ? "Repeat Client" : "New Client"}><option>New Client</option><option>Repeat Client</option><option>Referral</option></select></label><label className="field required">Project start date<CalendarPicker name="startDate" required /></label></div>
@@ -149,14 +149,12 @@ export default function LeadWorkspacePage() {
             <option value="">Unassigned</option>
             {assignableUsers.filter(person=>person.id && canBeAssignedProjectManager(person.role)).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}
           </select>
-          <small>A project manager can be assigned or changed in the project workspace.</small>
         </label>
-        <div className="project-template-note"><span><Check size={13} /></span><p>Proposal scope, exclusions, assumptions, revision rounds, billing structure, and payment terms carry over. Any SOW or invoice records already captured will be linked. The assigned Project Manager is recorded on the project team.</p></div>
         <div className="form-actions"><button className="button button-primary" type="submit">Move to Projects <ArrowRight size={14} /></button></div>
       </form>
     </section>}
 
-    {lead.status === "LOST" && <section className="panel record-section lost-panel"><h2>Lead archived</h2><p>{lead.disqualificationReason || "Lost reason not recorded"}</p><small>This lead is retained in the pipeline history and is not deleted.</small></section>}
+    {lead.status === "LOST" && <section className="panel record-section lost-panel"><h2>Lead archived</h2><p>{lead.disqualificationReason || "Lost reason not recorded"}</p></section>}
     {error && <div className="form-error" role="alert">{error}</div>}
   </div>;
 }

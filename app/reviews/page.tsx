@@ -124,7 +124,7 @@ export default function ReviewsPage() {
   }
 
   return <div className="page-content reviews-page">
-    <section className="welcome-row"><div><h1>Reviews</h1><p className="welcome-subtitle">{isAdmin ? "Review reported bugs and issues, then track them through resolution." : "Report bugs and issues for the admin team to review."}</p></div><button className="button button-quiet" type="button" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}><RefreshCw size={14} />Refresh</button></section>
+    <section className="welcome-row"><div><h1>Reviews</h1></div><button className="button button-quiet" type="button" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}><RefreshCw size={14} />Refresh</button></section>
 
     <section className="panel reviews-submit-panel">
       <div className="panel-heading"><div><h2>Report a bug or issue</h2><p>Describe what happened and what should be fixed.</p></div><MessageSquareWarning size={18} strokeWidth={1.75} aria-hidden="true" /></div>

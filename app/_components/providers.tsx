@@ -29,6 +29,7 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
   const [retry,setRetry] = useState<(() => Promise<void>) | null>(null);
   const publicPage = pathname.startsWith("/proposal/") || pathname.startsWith("/sign-in");
   const userId = user?.id;
+  const includeCommercial = databaseRole === "admin" || databaseRole === "project_manager";
   const internal = databaseRole === "admin" || (databaseRole === "employee" || databaseRole === "project_manager");
 
   useEffect(() => {
@@ -96,7 +97,7 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
     async function load() {
       try {
         clearLegacyBrowserWorkspaceData();
-        const snapshot = await readRelationalWorkspace(client!);
+        const snapshot = await readRelationalWorkspace(client!,includeCommercial);
         if (cancelled) return;
         for (const collection of collections) applyRemoteCollection(collection,snapshot.values[collection]);
         acknowledged = workspaceValues();
@@ -118,7 +119,7 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
       refreshing = true;
       const previous = acknowledged;
       try {
-        const snapshot = await readRelationalWorkspace(client!);
+        const snapshot = await readRelationalWorkspace(client!,includeCommercial);
         // Never replace edits or an acknowledgement made while the request was in flight.
         if (cancelled || running || failed || conflict || acknowledged !== previous || workspaceChanges(acknowledged, workspaceValues(), revisions).length) return;
         // A delayed read must not roll back a revision we have already saved.
@@ -155,7 +156,7 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
       window.removeEventListener("beforeunload",beforeUnload);
       window.removeEventListener("online",online);
     };
-  },[userId,internal,attempt]);
+  },[userId,internal,includeCommercial,attempt]);
 
   if (publicPage || !user || !internal) return children;
   if (state === "loading") return <div className="access-denied" role="status"><p>Loading workspace…</p></div>;
@@ -163,6 +164,11 @@ function WorkspaceDataSync({ children }: { children: ReactNode }) {
   return <SyncContext.Provider value={{state,canSave,message,retry,reload:()=>setAttempt(value=>value+1)}}>{children}</SyncContext.Provider>;
 }
 
+function WorkspaceDataScope({ children }: { children: ReactNode }) {
+  const {user,databaseRole} = useWorkspaceAuth();
+  return <WorkspaceDataSync key={`${user?.id ?? ""}:${databaseRole ?? ""}`}>{children}</WorkspaceDataSync>;
+}
+
 export function AppProviders({ children }: { children: ReactNode }) {
-  return <WorkspaceAuthProvider><WorkspaceDataSync>{children}</WorkspaceDataSync></WorkspaceAuthProvider>;
+  return <WorkspaceAuthProvider><WorkspaceDataScope>{children}</WorkspaceDataScope></WorkspaceAuthProvider>;
 }

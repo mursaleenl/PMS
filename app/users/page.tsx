@@ -123,7 +123,6 @@ export default function UsersPage() {
       <section className="welcome-row">
         <div>
           <h1>Users</h1>
-          <p className="welcome-subtitle">Manage user accounts, roles, and workspace access.</p>
         </div>
         {workspaceRole === "admin" && (
           <button
@@ -233,7 +232,6 @@ export default function UsersPage() {
               <div>
                 <span className="section-kicker">WORKSPACE ACCESS</span>
                 <h2 id="add-user-title">Add a user</h2>
-                <p>Create a sign-in and assign a workspace role.</p>
               </div>
               <button type="button" aria-label="Close add user" onClick={() => setShowAddUser(false)}>
                 <X size={20} />
@@ -320,7 +318,6 @@ export default function UsersPage() {
               <div>
                 <span className="section-kicker">WORKSPACE ACCESS</span>
                 <h2 id="edit-user-title">Edit account</h2>
-                <p>Update the sign-in email, password, and workspace role.</p>
               </div>
               <button type="button" aria-label="Close dialog" onClick={() => setEditingMember(null)}>
                 <X size={20} />
@@ -345,19 +342,21 @@ export default function UsersPage() {
             </div>
 
             <form className="edit-user-form" onSubmit={handleRoleUpdate}>
-              <label className="field">
-                Email address
-                <input type="email" required autoComplete="off" disabled={!editingMember.user_id || busy} value={editingEmail} onChange={event => setEditingEmail(event.target.value)} />
-              </label>
-              <div className="field">
-                <label htmlFor="edit-user-password">New password</label>
-                <div className="add-user-password-control">
-                  <input id="edit-user-password" type={showEditingPassword ? "text" : "password"} minLength={8} autoComplete="new-password" disabled={!editingMember.user_id || busy} value={editingPassword} onChange={event => setEditingPassword(event.target.value)} placeholder="Leave blank to keep current password" />
-                  <button className="button button-quiet" type="button" aria-label={showEditingPassword ? "Hide new password" : "Show new password"} aria-pressed={showEditingPassword} aria-controls="edit-user-password" onClick={() => setShowEditingPassword(value => !value)}>
-                    {showEditingPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+              <div className="compact-form-grid">
+                <label className="field">
+                  Email address
+                  <input type="email" required autoComplete="off" disabled={!editingMember.user_id || busy} value={editingEmail} onChange={event => setEditingEmail(event.target.value)} />
+                </label>
+                <div className="field">
+                  <label htmlFor="edit-user-password">New password</label>
+                  <div className="add-user-password-control">
+                    <input id="edit-user-password" type={showEditingPassword ? "text" : "password"} minLength={8} autoComplete="new-password" disabled={!editingMember.user_id || busy} value={editingPassword} onChange={event => setEditingPassword(event.target.value)} placeholder="Leave blank to keep current password" />
+                    <button className="button button-quiet" type="button" aria-label={showEditingPassword ? "Hide new password" : "Show new password"} aria-pressed={showEditingPassword} aria-controls="edit-user-password" onClick={() => setShowEditingPassword(value => !value)}>
+                      {showEditingPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  <small>{editingMember.user_id ? "Use at least 8 characters. Saving changes requires the user to sign in again." : "No sign-in account is linked to this membership. Only its role can be changed."}</small>
                 </div>
-                <small>{editingMember.user_id ? "Use at least 8 characters. Saving changes requires the user to sign in again." : "No sign-in account is linked to this membership. Only its role can be changed."}</small>
               </div>
               <label className="field">
                 Select role

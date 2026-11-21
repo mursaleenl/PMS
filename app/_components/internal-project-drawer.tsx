@@ -62,17 +62,18 @@ export function InternalProjectDrawer({ onClose, onCreated }: { onClose: () => v
   }}>
     <aside className="task-dispatch-drawer post-sale-drawer internal-project-drawer" role="dialog" aria-modal="true" aria-labelledby="internal-project-title">
       <header><h2 id="internal-project-title">New internal project</h2><button className="icon-button" type="button" disabled={busy} onClick={onClose} aria-label="Close form"><X size={18} /></button></header>
-      <p>Organize internal work with tasks, a project manager, messages, and project links.</p>
       <form ref={form} onSubmit={submit}>
         <fieldset disabled={busy || Boolean(pending.current)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <ProjectLogoUpload value={logoDataUrl} onChange={setLogoDataUrl} onProcessingChange={setLogoBusy} />
           <label className="field required">Project name<input name="title" required maxLength={200} /></label>
           <label className="field">Description<textarea name="description" rows={5} placeholder="What are we working on?" /></label>
           <label className="field">Objectives<textarea name="objectives" rows={3} placeholder="What should this project achieve?" /></label>
-          <label className="field">Priority<select name="priority" defaultValue="Normal"><option>Low</option><option>Normal</option><option>High</option><option>Urgent</option></select></label>
-          <label className="field">Start date<CalendarPicker name="startDate" /></label>
+          <div className="compact-form-grid">
+            <label className="field">Priority<select name="priority" defaultValue="Normal"><option>Low</option><option>Normal</option><option>High</option><option>Urgent</option></select></label>
+            <label className="field">Start date<CalendarPicker name="startDate" /></label>
+          </div>
           <label className="field">Project manager<select name="manager" defaultValue=""><option value="">Unassigned</option>{users.filter(person => person.id && canBeAssignedProjectManager(person.role)).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
-          <div className="internal-project-team"><h3>Team members</h3><p>Select the people working on this project.</p>{users.filter(person => person.id).map(person => <label key={person.id}><input type="checkbox" name="team" value={person.id} />{person.name}</label>)}</div>
+          <div className="internal-project-team"><h3>Team members</h3>{users.filter(person => person.id).map(person => <label key={person.id}><input type="checkbox" name="team" value={person.id} />{person.name}</label>)}</div>
         </fieldset>
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="form-actions"><button className="button button-quiet" type="button" onClick={onClose} disabled={busy}>Cancel</button><button className="button button-primary" type="submit" disabled={busy||logoBusy}>{busy ? "Saving…" : pending.current ? "Retry saving" : "Create internal project"}</button></div>

@@ -4,7 +4,7 @@ export function clientContactName(value?:string|null):string{
  if(!/[\p{L}\p{N}]/u.test(name)||/^(none|n\/?a|unknown|unnamed (client|lead)|not (provided|recorded|set))$/i.test(name))return "";
  return name;
 }
-type Person={name?:string;contactName?:string;companyName?:string;organizations?:string[];email?:string};
+type Person={clientId?:string;name?:string;contactName?:string;companyName?:string;organizations?:string[];email?:string};
 export function normalizedClientName(value?:string|null):string{
  return clientContactName(value).normalize("NFKC").replace(/\s+/g," ").toLowerCase();
 }
@@ -16,6 +16,7 @@ export function clientIdentityExists(input:Person,clients:Person[]):boolean{
  );
 }
 export function clientContactMatches(customer:Person,person:Person):boolean{
+ if(customer.clientId||person.clientId)return Boolean(customer.clientId&&customer.clientId===person.clientId);
  const email=customer.email?.trim().toLowerCase(),otherEmail=person.email?.trim().toLowerCase();
  if(email&&otherEmail)return email===otherEmail;
  const name=clientContactName(customer.contactName??customer.name).toLowerCase(),otherName=clientContactName(person.contactName??person.name).toLowerCase();

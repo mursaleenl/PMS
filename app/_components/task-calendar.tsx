@@ -192,7 +192,6 @@ export function TaskCalendar({ tasks, workspaceWide }: { tasks: CalendarTask[]; 
             
             
             <div><dt>Assigned to</dt><dd>{getTaskAssigneeLabel(selected.task) || "Unassigned"}</dd></div>
-            {(selected.task.loggedHours > 0 || selected.task.estimatedHours > 0) && <div><dt>Hours</dt><dd>{selected.task.loggedHours} logged · {selected.task.estimatedHours} estimated</dd></div>}
           </dl>
           <Link className="text-link" href={taskHref(selected)}>Open task <ArrowRight size={14} /></Link>
         </div>}

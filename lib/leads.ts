@@ -121,6 +121,7 @@ export type LeadInvoice = {
 
 export type Lead = {
   id: string;
+  clientId?: string;
   projectName?: string;
   createdAt: string;
   fullName: string;

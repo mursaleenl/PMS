@@ -2,7 +2,7 @@ import { createUuid } from "@/lib/uuid";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeLeadStatus, type Lead, type LeadInvoice, type ProposalVersion } from "@/lib/leads";
 import type { ManagedProject } from "@/lib/post-sale";
-import { resolveProjectName, type Project, type ProjectTeamMember, type ProjectWorkItem } from "@/lib/projects";
+import { type Project, type ProjectTeamMember, type ProjectWorkItem } from "@/lib/projects";
 import type { StoredInvoice } from "@/lib/invoices";
 import { type WorkspaceCollection } from "@/lib/workspace-sync";
 import { DUMMY_ASSIGNABLE_NAMES } from "@/lib/assignee-names";
@@ -214,22 +214,26 @@ export function rowToProposal(row: DbRow, followUps: DbRow[]): ProposalVersion {
   };
 }
 
-export async function readRelationalWorkspace(client: SupabaseClient): Promise<RelationalSnapshot> {
+export async function readRelationalWorkspace(client: SupabaseClient, includeCommercial = true): Promise<RelationalSnapshot> {
   async function readTable(table: string) {
+    const columns = table === "project_work_items"
+      ? "id,project_id,external_id,title,description,deadline,kind,assignee_name,assignee_user_id,assignees,priority,status,blocker_reason,proof,review_notes,revision_requested,created_at"
+      : "*";
     const data: DbRow[] = [];
     for (let offset = 0; ; offset += 500) {
-      const result = await client.from(table).select("*").order("id").range(offset, offset + 499);
+      const result = await client.from(table).select(columns).order("id").range(offset, offset + 499);
       fail(result, `Loading ${table}`);
-      data.push(...(result.data ?? []));
+      data.push(...((result.data ?? []) as DbRow[]));
       if ((result.data?.length ?? 0) < 500) return {data};
     }
   }
   const [leads, proposals, followUps, invoices, projects, team, workItems, links, managed, general] = await Promise.all(
-    ["leads", "proposals", "proposal_follow_ups", "invoices", "projects", "project_team_members", "project_work_items", "project_links", "managed_projects", "general_tasks"].map(readTable)
+    ["leads", "proposals", "proposal_follow_ups", "invoices", "projects", "project_team_members", "project_work_items", "project_links", "managed_projects", "general_tasks"].map(table =>
+      includeCommercial || !["leads", "proposals", "proposal_follow_ups", "invoices", "managed_projects"].includes(table)
+        ? readTable(table) : Promise.resolve({data: [] as DbRow[]})
+    )
   );
-  const schemaCheck = await client.from("leads").select("revision").limit(1);
   const schemaVersion = await client.rpc("workspace_schema_version");
-  if (schemaCheck.error && !["42703","PGRST204"].includes(schemaCheck.error.code)) fail(schemaCheck,"Checking workspace schema");
   const leadRows = (leads.data ?? []) as DbRow[];
   const proposalRows = (proposals.data ?? []) as DbRow[];
   const followUpRows = (followUps.data ?? []) as DbRow[];
@@ -268,6 +272,7 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     return {
       id: text(row.external_id, dbId),
       createdAt: text(row.created_at),
+      clientId: row.client_id || undefined,
       fullName: text(row.full_name),
       projectName: text(row.project_name),
       designation: text(row.designation),
@@ -302,10 +307,8 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     };
   });
 
-  const proposalIdByLeadAndVersion = new Map(proposalRows.map((row) => [`${text(row.lead_id)}|${number(row.version)}`, text(row.id)]));
   const hydratedProjects: Project[] = projectRows.map((row) => {
     const dbId = text(row.id);
-    const lead = leadRows.find((candidate) => text(candidate.id) === text(row.lead_id));
     const teamMembers: ProjectTeamMember[] = (teamByProject.get(dbId) ?? []).map((member) => {
       const memberName = text(member.name);
       const isDummy = DUMMY_ASSIGNABLE_NAMES.has(memberName.toLowerCase().trim());
@@ -326,34 +329,29 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
       assigneeId: item.assignee_user_id || undefined,
       assignees: Array.isArray(item.assignees) ? item.assignees : [],
       priority: item.priority,
-      estimatedHours: number(item.estimated_hours),
-      loggedHours: number(item.logged_hours),
       createdAt: text(item.created_at),
       status: item.status,
-      timerStartedAt: item.timer_started_at || undefined,
       blockerReason: item.blocker_reason || undefined,
       proof: item.proof || undefined,
       reviewNotes: item.review_notes || undefined,
       revisionRequested: Boolean(item.revision_requested),
     }));
     const projectLinks = Object.fromEntries((linksByProject.get(dbId) ?? []).map((link) => [text(link.link_type), text(link.url)]));
-    const leadExternalId = lead ? text(lead.external_id, text(lead.id)) : "";
-    const proposalId = row.proposal_id || proposalIdByLeadAndVersion.get(`${text(row.lead_id)}|${number(row.proposal_version, 1)}`);
-    const proposalVersion = proposalRows.find((proposal) => text(proposal.id) === text(proposalId))?.version;
+    const deposits = invoiceRows.filter(invoice => invoice.is_deposit && invoice.project_id === dbId);
     return {
       id: text(row.external_id, dbId),
       objectives: text(row.objectives), deliverables: text(row.deliverables), targetDate: text(row.target_date), priority: row.priority || "Normal",
       logoDataUrl: row.logo_data_url || undefined,
       projectType: row.project_type === "internal" ? "internal" : "client",
-      leadId: leadExternalId || text(row.lead_id),
+      leadId: leadIdByDbId.get(text(row.lead_id)) ?? text(row.lead_id),
       clientId: row.client_id || undefined,
       createdAt: text(row.created_at),
-      title: resolveProjectName({title:text(row.title),clientCompany:text(row.client_company),clientName:text(row.client_name),enquiryDetails:row.enquiry_details},text(lead?.project_name)),
+      title: text(row.title),
       clientCompany: text(row.client_company),
       clientName: text(row.client_name),
       clientEmail: text(row.client_email),
       additionalClients: Array.isArray(row.additional_clients) ? row.additional_clients : [],
-      enquiryDetails: {...(lead ? {description:text(lead.description),industry:text(lead.industry),urgency:lead.urgency,country:text(lead.country)} : {}),...(row.enquiry_details && typeof row.enquiry_details === "object" && !Array.isArray(row.enquiry_details) ? row.enquiry_details : {})},
+      enquiryDetails: row.enquiry_details && typeof row.enquiry_details === "object" && !Array.isArray(row.enquiry_details) ? row.enquiry_details : {},
       operatingCompany: row.operating_company || undefined,
       services: Array.isArray(row.services) ? row.services : [],
       classification: row.classification,
@@ -361,10 +359,10 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
       billingStructure: row.billing_structure,
       contractedValue: number(row.contracted_value),
       currency: text(row.currency, "USD"),
-      depositAmount: invoiceRows.filter(invoice => invoice.is_deposit && (invoice.project_id === dbId || (row.lead_id && invoice.lead_id === row.lead_id))).reduce((sum,invoice) => sum + number(invoice.total),0),
-      depositStatus: (() => { const deposits = invoiceRows.filter(invoice => invoice.is_deposit && (invoice.project_id === dbId || (row.lead_id && invoice.lead_id === row.lead_id))); return deposits.length && deposits.every(invoice => invoice.status === "CONFIRMED_PAID") ? "CONFIRMED_PAID" as const : undefined; })(),
-      invoice: rowToInvoice(invoiceByProject.get(dbId) || (lead ? invoiceByLead.get(text(lead.id)) : undefined)),
-      proposalVersion: number(proposalVersion, 1),
+      depositAmount: deposits.reduce((sum, invoice) => sum + number(invoice.total), 0),
+      depositStatus: deposits.length && deposits.every(invoice => invoice.status === "CONFIRMED_PAID") ? "CONFIRMED_PAID" : undefined,
+      invoice: rowToInvoice(deposits[0] ?? invoiceByProject.get(dbId)),
+      proposalVersion: 0,
       signedContractName: row.signed_contract_name || undefined,
       signedContractDataUrl: row.signed_contract_data_url || undefined,
       scopeIncluded: text(row.scope_included),
@@ -429,7 +427,14 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     updatedAt: text(row.updated_at),
   }));
 
-  const values: RelationalValues = { leads: hydratedLeads, projects: hydratedProjects, management: hydratedManagement, invoices: hydratedInvoices, postSaleOperations: [], generalTasks: general.data.map(row=>({...row.task,id:row.external_id})) };
+  const generalTasks = general.data.map(row => {
+    const task = {...row.task, id: row.external_id};
+    delete task.estimatedHours;
+    delete task.loggedHours;
+    delete task.timerStartedAt;
+    return task;
+  });
+  const values: RelationalValues = { leads: hydratedLeads, projects: hydratedProjects, management: hydratedManagement, invoices: hydratedInvoices, postSaleOperations: [], generalTasks };
   // Every relational collection is authoritative, including an empty one.
   // Do not fall back to the legacy workspace_records table or client state:
   // deleting the final row must make the collection empty in the app.
@@ -437,7 +442,7 @@ export async function readRelationalWorkspace(client: SupabaseClient): Promise<R
     values,
     remoteCollections: new Set<WorkspaceCollection>(collections),
     legacyCollections: new Set<WorkspaceCollection>(),
-    requiresMigration: Boolean(schemaCheck.error) || schemaVersion.data !== 1 || [...leadRows,...projectRows,...managedRows,...invoiceRows].some(row => row.revision === undefined),
+    requiresMigration: schemaVersion.data !== 1 || [...leadRows,...projectRows,...managedRows,...invoiceRows].some(row => row.revision === undefined),
     revisions: Object.fromEntries(([ ["leads",leadRows], ["projects",projectRows], ["management",managedRows], ["invoices",invoiceRows], ["generalTasks",general.data] ] as [WorkspaceCollection, DbRow[]][]).flatMap(([collection,rows]) => rows.map(row => {
       return [`${collection}:${collection === "invoices" ? row.invoice_number : row.external_id || row.id}`, number(row.revision)];
     }))),
@@ -487,7 +492,7 @@ export function serializeRecord(collection: WorkspaceCollection, value: unknown)
     acceptance_document_name: nullable(lead.acceptanceDocumentName),
     acceptance_document_data_url: nullable(lead.acceptanceDocumentDataUrl),
     created_at: lead.createdAt || new Date().toISOString(),
-    }, proposals: (lead.proposals ?? []).map(proposal => ({
+    }, clientId: lead.clientId || null, proposals: (lead.proposals ?? []).map(proposal => ({
       row: proposalToRow(proposal, ""),
       followUps: proposal.followUps.map(item => ({ label: item.label, due_at: item.dueAt, logged_at: nullable(item.loggedAt) })),
     })) };
@@ -522,7 +527,7 @@ export function serializeRecord(collection: WorkspaceCollection, value: unknown)
       created_at: project.createdAt || new Date().toISOString(),
     }, leadId: project.leadId || null, clientId: project.clientId || null, clientSelection: project.clientSelection, proposalVersion: project.proposalVersion,
       team: project.team.map(member => ({ role: member.role, name: nullable(member.name), user_id: nullable(member.userId), allocation_percent: number(member.allocationPercent) })),
-      workItems: (project.workItems ?? []).map(item => ({ external_id: item.id, title: item.title, description: nullable(item.description), deadline: nullable(item.deadline), kind: item.kind, assignee_name: nullable(item.assignee), assignee_user_id: nullable(item.assigneeId), assignees: item.assignees ?? [], priority: item.priority, estimated_hours: number(item.estimatedHours), logged_hours: number(item.loggedHours), status: item.status, blocker_reason: nullable(item.blockerReason), proof: item.proof ?? {}, review_notes: nullable(item.reviewNotes), revision_requested: Boolean(item.revisionRequested), timer_started_at: nullable(item.timerStartedAt), created_at: item.createdAt })),
+      workItems: (project.workItems ?? []).map(item => ({ external_id: item.id, title: item.title, description: nullable(item.description), deadline: nullable(item.deadline), kind: item.kind, assignee_name: nullable(item.assignee), assignee_user_id: nullable(item.assigneeId), assignees: item.assignees ?? [], priority: item.priority, status: item.status, blocker_reason: nullable(item.blockerReason), proof: item.proof ?? {}, review_notes: nullable(item.reviewNotes), revision_requested: Boolean(item.revisionRequested), created_at: item.createdAt })),
       links: Object.entries(project.links ?? {}).filter(([,url]) => url).map(([link_type,url]) => ({ link_type, url })),
     };
   }

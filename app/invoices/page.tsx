@@ -1,7 +1,6 @@
 "use client";
 
 import { getInheritedInvoiceDescription } from "@/lib/project-services";
-import { readLeads } from "@/lib/leads";
 import { DEFAULT_INVOICE_PAYMENT_DETAILS } from "@/lib/invoice-payment-details";
 import {usePaymentReferences} from "@/lib/payment-references";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
@@ -280,7 +279,6 @@ export default function InvoicesPage() {
         id: invNumber,
         invoiceNumber: invNumber,
         projectId: activeProject.id,
-        leadId: activeProject.leadId || undefined,
         operatingCompany: company,
         billTo: activeProject.clientCompany || activeProject.clientName || "Client",
         clientName: activeProject.clientName || activeProject.clientCompany,
@@ -337,7 +335,6 @@ export default function InvoicesPage() {
         id: invNumber,
         invoiceNumber: invNumber,
         projectId: customProject?.id,
-        leadId: customProject?.leadId,
         operatingCompany: company,
         billTo,
         clientName: clientName || billTo,
@@ -461,7 +458,6 @@ export default function InvoicesPage() {
       <section className="welcome-row">
         <div>
           <h1>Invoices</h1>
-          <p className="welcome-subtitle">Create invoices, track payments, and keep client billing in one place.</p>
         </div>
         <button
           className="button button-primary"
@@ -794,7 +790,6 @@ export default function InvoicesPage() {
               <div>
                 <span className="section-kicker">COMMERCIAL BILLING</span>
                 <h2 id="generate-invoice-title">Generate invoice</h2>
-                <p>Create a branded invoice from any project workspace or create a direct invoice. All records are automatically saved to the database.</p>
               </div>
               <button
                 type="button"
@@ -1025,7 +1020,7 @@ export default function InvoicesPage() {
                                 name="description"
                                 key={activeProject.id}
                                 required
-                                defaultValue={getInheritedInvoiceDescription(activeProject, readLeads().find(lead => lead.id === activeProject.leadId))}
+                                defaultValue={getInheritedInvoiceDescription(activeProject)}
                               />
                             </label>
                             <label className="field">

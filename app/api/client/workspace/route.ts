@@ -14,7 +14,6 @@ export async function GET(request: Request) {
   const projects = (Array.isArray(data) ? data : []).map(project => ({
     id: project.id, external_id: project.external_id, title: project.title,
     client_company: project.client_company, status: project.status, logo_data_url: project.logo_data_url,
-    total_tasks: project.total_tasks, completed_tasks: project.completed_tasks,
     tasks: project.tasks?.map((task: {id: string; title: string; status: string}) => ({id: task.id, title: task.title, status: task.status})),
     details: project.details ? {
       services: project.details.services, start_date: project.details.start_date,
