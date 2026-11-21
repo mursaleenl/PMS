@@ -1,11 +1,12 @@
 "use client";
+import { getProjectLogoSrc } from "@/lib/project-logo";
 import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BriefcaseBusiness, Check, Clock3, Inbox, ListTodo, Plus, ReceiptText } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, CalendarDays, Check, Clock3, Inbox, ListTodo, Plus, ReceiptText } from "lucide-react";
 import { type Lead, readLeads } from "@/lib/leads";
-import { type Project, readProjects, getProjectDisplayTitle, getProjectDisplayServices, getProjectClientLabel, isProjectAssignedToUser, isTaskAssignedToUser, canViewProjectTask, type ProjectWorkItem } from "@/lib/projects";
+import { type Project, readProjects, getTaskAssigneeLabel, getProjectDisplayTitle, getProjectDisplayServices, getProjectClientLabel, isProjectAssignedToUser, isTaskAssignedToUser, canViewProjectTask, type ProjectWorkItem } from "@/lib/projects";
 import { readInvoices, type StoredInvoice } from "@/lib/invoices";
 import { StatusBadge } from "@/app/_components/status-badge";
 import { EmptyState } from "@/app/_components/empty-state";
@@ -15,6 +16,7 @@ import { useWorkspaceAuth } from "@/lib/workspace-auth";
 
 export default function OverviewPage() {
   const { role, user, members } = useWorkspaceAuth();
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [generalTasks, setGeneralTasks] = useState<ProjectWorkItem[]>([]);
@@ -52,6 +54,15 @@ export default function OverviewPage() {
       .map(task => ({ projectId: GENERAL_TASKS_ID, projectTitle: "General task", task })),
   ];
   const openTasks = tasks.filter(({ task }) => task.status !== "DONE");
+  const activeTasks = useMemo(() => {
+    return tasks
+      .filter(({ task }) => task.status === "IN_PROGRESS" || task.status === "TO_DO" || (task.status as string) === "TODO")
+      .sort((a, b) => {
+        if (a.task.status === "IN_PROGRESS" && b.task.status !== "IN_PROGRESS") return -1;
+        if (a.task.status !== "IN_PROGRESS" && b.task.status === "IN_PROGRESS") return 1;
+        return 0;
+      });
+  }, [tasks]);
   const inProgressCount = useMemo(() => {
     return openTasks.filter(({ task }) => task.status === "IN_PROGRESS").length;
   }, [openTasks]);
@@ -68,6 +79,10 @@ export default function OverviewPage() {
     <section className="welcome-row">
       <div><h1>Dashboard</h1><p className="welcome-subtitle">{(role === "employee") ? "Your assigned projects and tasks." : "See what needs attention across your workspace."}</p></div>
       <div className="welcome-actions">
+        {user?.id && role !== "client" && <button type="button" className="button button-quiet"
+          aria-expanded={calendarOpen} aria-controls="dashboard-calendar" onClick={() => setCalendarOpen(open => !open)}>
+          <CalendarDays size={14} aria-hidden="true" /> Calendar
+        </button>}
         <Link className="button button-quiet" href="/projects">
           <BriefcaseBusiness size={14} strokeWidth={2} />
           Projects
@@ -79,6 +94,9 @@ export default function OverviewPage() {
       </div>
     </section>
 
+    {user?.id && role !== "client" && <div id="dashboard-calendar" hidden={!calendarOpen}>
+      {calendarOpen && <TaskCalendar key={user.id} tasks={calendarTasks} workspaceWide={role === "admin"} />}
+    </div>}
     <section className="overview-summary-grid" aria-label="Workspace summary">
       <Link href="/projects" className="overview-summary-card">
         <div className="overview-summary-top">
@@ -126,8 +144,6 @@ export default function OverviewPage() {
       </>}
     </section>
 
-    {user?.id && role !== "client" && <TaskCalendar key={user.id} tasks={calendarTasks} workspaceWide={role === "admin"} />}
-
     <section className="overview-project-section">
       <div className="overview-section-heading"><div><h2>Project overview</h2><p>{(role === "employee") ? "Your assigned projects and task progress." : "Progress and current work across your active projects."}</p></div><Link className="text-link" href="/projects">View all projects <ArrowRight size={14} /></Link></div>
       {activeProjects.length === 0 ? <div className="panel overview-empty"><EmptyState icon={<BriefcaseBusiness size={22} />} title={(role === "employee") ? "No assigned projects" : "No active projects"} description={(role === "employee") ? "Projects assigned to you will appear here." : "Move an accepted lead into its project workspace to start tracking delivery."} action={(role === "admin" || role === "project_manager") ? <Link className="button button-quiet" href="/requests">Open requests <ArrowRight size={14} /></Link> : undefined} /></div> : <div className="overview-project-grid">{activeProjects.slice(0, 4).map((project) => {
@@ -164,8 +180,44 @@ export default function OverviewPage() {
       })}</div>}
     </section>
 
-    {(role === "admin" || role === "project_manager") && <section className="panel overview-request-panel"><div className="overview-panel-heading"><div><h2>Leads</h2><p>New leads first, then latest enquiries</p></div><Link className="text-link" href="/requests">Open leads <ArrowRight size={14} /></Link></div>
+    <section className={`overview-lower-grid ${(role === "employee") ? "employee-overview-lower" : ""}`}>
+      <div className="panel overview-task-panel">
+        <div className="overview-panel-heading">
+          <div>
+            <h2>Tasks</h2>
+            <p>{(role === "employee") ? "Your tasks to do and in progress" : "To do and in progress across active projects"}</p>
+          </div>
+          <Link className="text-link" href="/work">All tasks <ArrowRight size={14} /></Link>
+        </div>
+        {activeTasks.length === 0 ? (
+          <div className="overview-inline-empty"><Check size={17} />No tasks are to do or in progress.</div>
+        ) : (
+          <div className="overview-task-list">
+            {activeTasks.slice(0, 6).map(({ project, task }) => (
+              <Link href={`/projects/${project.id}`} className="overview-task-row" key={`${project.id}-${task.id}`}>
+                <span
+                  className={`overview-task-indicator${getProjectLogoSrc(project) ? " overview-task-project-logo" : ""}`}
+                  data-status={task.status}
+                  title={task.status === "IN_PROGRESS" ? "In progress" : "To do"}
+                >
+                  {getProjectLogoSrc(project) ? <ProjectCardLogo src={project.logoDataUrl} projectType={project.projectType} title={getProjectDisplayTitle(project)} /> : task.status === "IN_PROGRESS" ? <Clock3 size={14} /> : <ListTodo size={14} />}
+                </span>
+                <span className="overview-task-copy">
+                  <strong>{task.title}</strong>
+                  <small>{getProjectDisplayTitle(project)}{getProjectDisplayServices(project) ? ` - ${getProjectDisplayServices(project)}` : ""} · {getTaskAssigneeLabel(task) || "Unassigned"}</small>
+                </span>
+                <StatusBadge status={task.status === "IN_PROGRESS" ? "IN_PROGRESS" : "TO_DO"}>
+                  {task.status === "IN_PROGRESS" ? "In progress" : "To do"}
+                </StatusBadge>
+                <ArrowRight size={14} />
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+      {(role === "admin" || role === "project_manager") && <div className="panel overview-request-panel"><div className="overview-panel-heading"><div><h2>Leads</h2><p>New leads first, then latest enquiries</p></div><Link className="text-link" href="/requests">Open leads <ArrowRight size={14} /></Link></div>
         {leads.length === 0 ? <div className="overview-inline-empty"><Inbox size={17} />No requests have been recorded yet.</div> : <div className="overview-request-list">{dashboardLeads.map((lead) => <Link href={`/requests#${lead.id}`} className="overview-request-row" key={lead.id}><span className="overview-task-indicator"><Inbox size={14} /></span><span className="overview-task-copy"><strong>{lead.fullName}</strong><small>{lead.companyName || "Individual enquiry"}</small></span><StatusBadge status={lead.status} /></Link>)}</div>}
-    </section>}
+      </div>}
+    </section>
   </div>;
 }

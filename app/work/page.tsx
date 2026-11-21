@@ -8,7 +8,7 @@ import { useSearchParams } from "next/navigation";
 import { ProjectCardLogo } from "@/app/_components/project-card-logo";
 import { AssignTaskDialog } from "@/app/_components/assign-task-dialog";
 import { BlockTaskDialog } from "@/app/_components/block-task-dialog";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownUp, ArrowRight, Check, ChevronDown, CircleAlert, FileCheck2, Filter, GripVertical, Kanban, List, MoreHorizontal, Plus, Search, ShieldAlert, Users } from "lucide-react";
 import { EmptyState } from "@/app/_components/empty-state";
 import { StatusBadge } from "@/app/_components/status-badge";
@@ -34,6 +34,35 @@ const kanbanColumns: { status: VisibleTaskStatus; label: string }[] = [
   { status: "BLOCKED", label: "Blocked" },
   { status: "DONE", label: "Completed" },
 ];
+
+function TaskDetail({ project, task, onClose }: { project: Project; task: ProjectWorkItem; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    return () => element?.close();
+  }, []);
+  const fields = [
+    ["Project", project.id === GENERAL_TASKS_ID ? "General task" : getProjectDisplayTitle(project)],
+    ["Organization", project.clientCompany], ["Assigned to", getTaskAssigneeLabel(task) || "Unassigned"],
+    ["Status", taskStatusLabels[task.status]], ["Priority", task.priority + " · " + priorityLabels[task.priority]],
+    ["Type", task.kind.replaceAll("_", " ")], ["Created", new Date(task.createdAt).toLocaleString()],
+    ["Deadline", task.deadline ? new Date(task.deadline).toLocaleString() : "No deadline"],
+    ["Estimated hours", task.estimatedHours ?? 0], ["Logged hours", task.loggedHours ?? 0],
+    ["Timer started", task.timerStartedAt && new Date(task.timerStartedAt).toLocaleString()],
+    ["Blocker", task.blockerReason], ["Revision", task.revisionRequested && "Requested"],
+    ["Review notes", task.reviewNotes], ["Proof notes", task.proof?.notes],
+    ["Pull request", task.proof?.pullRequestUrl], ["Staging", task.proof?.stagingUrl], ["Recording", task.proof?.recordingUrl],
+  ];
+  return <dialog ref={dialog} className="work-task-detail" aria-labelledby="work-task-detail-title"
+    onCancel={onClose} onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <article>
+      <header><h2 id="work-task-detail-title">{task.title}</h2><button type="button" className="button button-quiet" onClick={onClose}>Close</button></header>
+      <p>{task.description?.trim() || "No description provided."}</p>
+      <dl>{fields.map(([label, value]) => value || value === 0 ? <div key={String(label)}><dt>{label}</dt><dd>{value}</dd></div> : null)}</dl>
+    </article>
+  </dialog>;
+}
 
 function saveTaskChanges(projectId: string, taskId: string, updates: Partial<ProjectWorkItem>) {
   if(projectId===GENERAL_TASKS_ID){updateGeneralTask(taskId,updates);return;}
@@ -130,6 +159,13 @@ function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: str
       return matchesStatus && matchesAssignee && matchesSearch;
     }).sort((left, right) => (new Date(left.task.createdAt).getTime() - new Date(right.task.createdAt).getTime()) * (sortOldestFirst ? 1 : -1));
   }, [allTasks, assignee, selectedAssigneeId, filter, search, sortOldestFirst]);
+
+  const listScope = JSON.stringify([filter, search, assignee, sortOldestFirst]);
+  const [expandedScope, setExpandedScope] = useState<string | null>(null);
+  const expanded = expandedScope === listScope;
+  const listedTasks = expanded ? visibleTasks : visibleTasks.slice(0, 10);
+  const [detailKey, setDetailKey] = useState<{ projectId: string; taskId: string } | null>(null);
+  const detail = allTasks.find(({ project, task }) => project.id === detailKey?.projectId && task.id === detailKey.taskId);
 
   const boardTasksByColumn = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -238,16 +274,16 @@ function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: str
     }
   }
 
-  const allVisibleDone = visibleTasks.length > 0 && visibleTasks.every(({ task }) => task.status === "DONE");
+  const allVisibleDone = listedTasks.length > 0 && listedTasks.every(({ task }) => task.status === "DONE");
 
   function toggleAllVisibleTasks() {
-    if (visibleTasks.length === 0) return;
+    if (listedTasks.length === 0) return;
     if (allVisibleDone) {
-      visibleTasks.forEach(({ project, task }) => {
+      listedTasks.forEach(({ project, task }) => {
         updateTask(project.id, task.id, { status: "TO_DO", revisionRequested: false });
       });
     } else {
-      visibleTasks.forEach(({ project, task }) => {
+      listedTasks.forEach(({ project, task }) => {
         if (task.status !== "DONE") {
           updateTask(project.id, task.id, { status: "DONE", revisionRequested: false });
         }
@@ -315,7 +351,7 @@ function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: str
       <div className="task-table-heading">
         <div>
           <h2>All tasks</h2>
-          <p>{viewMode === "LIST" ? `${visibleTasks.length} ${visibleTasks.length === 1 ? "task" : "tasks"} shown | ${allTasks.length} total` : `${Object.values(boardTasksByColumn).flat().length} tasks shown on board Â· ${allTasks.length} total`}</p>
+          <p>{viewMode === "LIST" ? `${listedTasks.length} ${listedTasks.length === 1 ? "task" : "tasks"} shown | ${allTasks.length} total` : `${Object.values(boardTasksByColumn).flat().length} tasks shown on board Â· ${allTasks.length} total`}</p>
         </div>
         <div className="task-table-tools">
           <div className="task-view-switcher" role="group" aria-label="View mode">
@@ -421,12 +457,12 @@ function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: str
                     <th>Assignee</th>
                     <th>Priority</th>
                     <th>Status</th>
-                    <th>Created</th>
+
                     <th className="task-actions-col"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleTasks.map(({ project, task }) => {
+                  {listedTasks.map(({ project, task }) => {
                     return (
                       <tr className={task.revisionRequested ? "task-row-revision" : ""} key={`${project.id}-${task.id}`}>
                         <td className="task-check-col">
@@ -447,7 +483,7 @@ function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: str
                         </td>
                         <td className="task-name-cell">
                           <div className="task-name-inner">
-                            <strong>{task.title}</strong>
+                            <button type="button" className="task-detail-trigger" aria-label={`View details for ${task.title}`} onClick={() => setDetailKey({ projectId: project.id, taskId: task.id })}>{task.title}</button>
                             <TaskDeadline deadline={task.deadline}/>
                             {task.description?.trim()&&<details className="task-description"><summary>Description</summary><p>{task.description}</p></details>}
                             <div className="task-meta-row">
@@ -482,7 +518,6 @@ function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: str
                         <td><select className="task-status-select" aria-label={`Status for ${task.title}`} value={task.status} onChange={event => changeTaskStatus(project.id, task, event.target.value as ProjectWorkItem["status"])}>
                           {kanbanColumns.map(({status}) => <option key={status} value={status}>{taskStatusLabels[status]}</option>)}
                         </select></td>
-                        <td className="task-created-cell">{new Date(task.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</td>
                         <td className="task-actions-col">
                           <details className="task-action-menu">
                             <summary aria-label={`Actions for ${task.title}`}><MoreHorizontal size={17} /></summary>
@@ -678,12 +713,16 @@ function WorkPage({ projectId, taskId }: { projectId: string | null; taskId: str
 
       <footer className="task-table-footer">
         {viewMode === "LIST" ? (
-          <span>Showing {visibleTasks.length} {visibleTasks.length === 1 ? "task" : "tasks"}</span>
+          <><span>Showing {listedTasks.length} of {visibleTasks.length} matching tasks</span>
+          {visibleTasks.length > 10 && <button type="button" className="button button-quiet" aria-expanded={expanded} onClick={() => setExpandedScope(expanded ? null : listScope)}>
+            {expanded ? "Show first 10" : `Show all ${visibleTasks.length} tasks`}
+          </button>}</>
         ) : (
           <span>Showing {Object.values(boardTasksByColumn).flat().length} tasks across {kanbanColumns.length} columns — Drag cards between columns to change status</span>
         )}
       </footer>
     </section>}
+    {detail && <TaskDetail {...detail} onClose={() => setDetailKey(null)} />}
     {canEditTask&&editingTask&&<EditTaskDialog projectId={editingTask.projectId} task={editingTask.task} onClose={()=>setEditingTask(null)}/>}
     {canCreateTask && showAssignTask && <AssignTaskDialog projects={projects} onClose={() => setShowAssignTask(false)} />}
     {blockingTask && <BlockTaskDialog title={blockingTask.task.title} initialReason={blockingTask.task.blockerReason} onClose={() => setBlockingTask(null)} onConfirm={blockerReason => {

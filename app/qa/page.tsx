@@ -12,11 +12,13 @@ import {useAssignableUsers, type AssignableUser} from "@/lib/assignees";
 import {GENERAL_TASKS_ID} from "@/lib/general-tasks";
 import {createUuid} from "@/lib/uuid";
 
-function QaForm({projects,report,onClose,onSaved}:{projects:Project[];report?:QaReport;onClose:()=>void;onSaved:()=>void}){
+function QaForm({projects,report,users,onClose,onSaved}:{projects:Project[];users:AssignableUser[];report?:QaReport;onClose:()=>void;onSaved:()=>void}){
  const {role,user,members}=useWorkspaceAuth();
  const dialog=useRef<HTMLDialogElement>(null),saving=useRef(false),pending=useRef<Parameters<typeof saveQaReport>[0]|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[projectId,setProjectId]=useState(report?.project?.external_id||"");
  const [image,setImage]=useState<CompressedImage|null>(()=>report?.image_data_url?{dataUrl:report.image_data_url,name:report.image_name||"report-image.webp",bytes:Math.floor((report.image_data_url.split(",")[1]?.replace(/=+$/,"").length||0)*3/4),width:0,height:0}:null),[imageBusy,setImageBusy]=useState(false);
+ const [assigneeId,setAssigneeId]=useState("");
+ const [savedReportId,setSavedReportId]=useState("");
  const linkedTask=Boolean(report?.task||report?.task_id||report?.general_task_id);
  const employee=role==="employee",name=members.find(member=>member.user_id===user?.id)?.display_name||user?.user_metadata?.full_name||user?.email?.split("@")[0]||"";
  const options=employee?projects.filter(project=>isProjectAssignedToUser(project,user?.id,name)):projects;
@@ -31,7 +33,15 @@ function QaForm({projects,report,onClose,onSaved}:{projects:Project[];report?:Qa
     if(projectId&&!options.some(project=>project.id===projectId))throw new Error("Choose an available project.");
     pending.current={id:report?.id||createUuid(),kind:data.get("kind") as QaKind,title:String(data.get("title")||""),details:String(data.get("details")||""),projectId,imageDataUrl:image?.dataUrl,imageName:image?.name};
    }
-   await (report?editQaReport:saveQaReport)(pending.current);
+   if (!savedReportId) await (report?editQaReport:saveQaReport)(pending.current);
+   if (!report && assigneeId) {
+    setSavedReportId(pending.current.id);
+    try { await setQaAssignee(pending.current.id,assigneeId); }
+    catch (cause) {
+     onSaved();
+     throw new Error("Report saved. Assignment failed. " + (cause instanceof Error ? cause.message : "Retry assignment."));
+    }
+   }
    onSaved();onClose();
   }catch(cause){if(report)pending.current=null;setError(cause instanceof Error?cause.message:"Could not save the report.");}
   finally{saving.current=false;setBusy(false);}
@@ -43,11 +53,17 @@ function QaForm({projects,report,onClose,onSaved}:{projects:Project[];report?:Qa
     <label className="field">Report type<select name="kind" defaultValue={report?.kind||"BUG"}>{Object.entries(qaKindLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
     <QaProjectPicker projects={options} value={projectId} onChange={setProjectId} disabled={linkedTask}/>
    </div>
+   {!report && (role==="admin" || role==="project_manager") && <label className="field">Assignee (optional)
+    <select value={assigneeId} onChange={event=>setAssigneeId(event.target.value)}>
+     <option value="">Unassigned</option>
+     {users.filter(person=>person.id).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}
+    </select>
+   </label>}
    {linkedTask&&<small>The project is fixed because this report is linked to a task.</small>}
    <label className="field required">Title<input name="title" defaultValue={report?.title} required maxLength={1000} placeholder="Give your report a short title"/></label>
    <label className="field required">Details<textarea name="details" defaultValue={report?.details} required rows={5} maxLength={5000} placeholder="Describe what happened or what you would like to improve"/></label>
    <ReportImageUpload value={image} onChange={setImage} onProcessingChange={setImageBusy}/>
-  </fieldset><div className="form-actions qa-form-actions">{error&&<p className="form-error qa-form-error" role="alert">{error}</p>}<div className="qa-form-buttons"><button type="button" className="button button-quiet" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-primary" disabled={busy||imageBusy}>{busy?"Saving…":pending.current?"Retry saving":report?"Save changes":"Save report"}</button></div></div></form>
+  </fieldset><div className="form-actions qa-form-actions">{error&&<p className="form-error qa-form-error" role="alert">{error}</p>}<div className="qa-form-buttons"><button type="button" className="button button-quiet" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-primary" disabled={busy||imageBusy}>{busy?"Saving…":savedReportId?"Retry assignment":pending.current?"Retry saving":report?"Save changes":"Save report"}</button></div></div></form>
  </dialog>;
 }
 function ReportImageDialog({report,onClose}:{report:QaReport;onClose:()=>void}){
@@ -135,14 +151,14 @@ function ReportDetails({ report, projects, canManage, users, onAssign, busy, err
       {error && <p className="form-error" role="alert">{error}</p>}
     </div>
     <footer className="qa-detail-actions">
-      {canManage && status === "OPEN" ? <label className="qa-report-status">Assigned to
-        <select aria-label="Assigned to" value={report.assignee_id || ""} disabled={busy} onChange={event => onAssign(event.target.value || null)}>
+      {canManage && status === "OPEN" ? <label className="qa-report-status">Assignee (optional)
+        <select value={report.assignee_id || ""} disabled={busy} onChange={event => onAssign(event.target.value || null)}>
           <option value="">Unassigned</option>
           {users.filter(person => person.id).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
         </select>
       </label> : <span>Assigned to {assignee?.name || (report.assignee_id === user?.id ? "you" : report.assignee_id ? "team member" : "no one")}</span>}
       <div>
-        {report.assignee_id === user?.id && report.assignee_id && status === "OPEN" && <button className="button button-primary" disabled={busy} onClick={() => onStatus("UNDER_REVIEW")}>Submit for review</button>}
+        {report.assignee_id === user?.id && report.assignee_id && status === "OPEN" && <button className="button button-primary" disabled={busy} onClick={() => onStatus("UNDER_REVIEW")}>Mark complete and submit for review</button>}
         {role === "admin" && (status === "UNDER_REVIEW" || (status === "OPEN" && !report.assignee_id)) && <button className="button button-primary" disabled={busy} onClick={() => onStatus("RESOLVED")}>{status === "UNDER_REVIEW" ? "Approve completion" : "Resolve report"}</button>}
         {role === "admin" && status !== "OPEN" && <button className="button button-quiet" disabled={busy} onClick={() => onStatus("OPEN")}>{status === "UNDER_REVIEW" ? "Request changes" : "Reopen"}</button>}
         {canManage && <button type="button" className="button button-quiet" disabled={busy} onClick={onEdit}><Pencil size={14} />Edit report</button>}
@@ -269,7 +285,9 @@ export default function QaPage() {
         const project = reportProject(report, projects);
         return <button key={report.id} type="button" className="qa-report" aria-description={qaStatuses[report.status ?? "OPEN"].label} data-status={report.status ?? "OPEN"} aria-haspopup="dialog"
           onClick={() => { setActionError(""); setReportId(report.id); }}>
-          <span className="qa-card-meta">{qaKindLabels[report.kind]}</span>
+          <span className="qa-card-meta"><span>{qaKindLabels[report.kind]}</span><span>{report.assignee_id
+            ? users.find(person => person.id === report.assignee_id)?.name || (report.assignee_id === user?.id ? "Assigned to you" : "Assigned")
+            : "Unassigned"}</span></span>
           <strong className="qa-card-title">{report.title}</strong>
           <span className="qa-card-project"><FolderOpen size={15} aria-hidden="true" /><span className="qa-card-identity"><span>{project.title}</span>{project.organization && <small>{project.organization}</small>}</span><ArrowUpRight size={15} aria-hidden="true" /></span>
         </button>;
@@ -278,7 +296,7 @@ export default function QaPage() {
       onClose={() => setReportId(null)} onStatus={status => void changeStatus(selected, status)}
       onEdit={() => setEditing(selected)} onDelete={() => void removeReport(selected)} onImage={() => setPreview(selected)} />}
     {preview && <ReportImageDialog report={preview} onClose={() => setPreview(null)} />}
-    {form && <QaForm projects={projects} onClose={() => setForm(false)} onSaved={() => void refresh()} />}
-    {canManage && editing && <QaForm projects={projects} report={editing} onClose={() => setEditing(null)} onSaved={() => void refresh()} />}
+    {form && <QaForm users={users} projects={projects} onClose={() => setForm(false)} onSaved={() => void refresh()} />}
+    {canManage && editing && <QaForm users={users} projects={projects} report={editing} onClose={() => setEditing(null)} onSaved={() => void refresh()} />}
   </div>;
 }

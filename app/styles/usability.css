@@ -2251,14 +2251,24 @@ html body .app-shell #workspace-content .dashboard-task-calendar .task-calendar-
 }
 .task-calendar-agenda-task :is(strong, small) { display: block; }
 .task-calendar-agenda-task small { margin-top: 2px; font-size: 11px; }
-.task-calendar-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e4e4e7; }
+.task-calendar-detail { margin-top: 18px; padding-top: 18px; border-top: 1px solid #e4e4e7; }
 .task-calendar-detail p { margin-top: 6px; white-space: pre-wrap; }
-.task-calendar-detail dl { display: grid; gap: 5px; margin: 10px 0; font-size: 12px; }
-.task-calendar-detail dl div { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px; }
-.task-calendar-detail dl { grid-template-columns: max-content minmax(0, 1fr); }
-.task-calendar-detail dl div { grid-column: 1 / -1; grid-template-columns: subgrid; }
+.task-calendar-detail dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 14px clamp(16px, 2vw, 28px);
+  margin: 20px 0 24px;
+  font-size: 12px;
+}
+.task-calendar-detail dl div {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  column-gap: inherit;
+  align-items: baseline;
+}
 .task-calendar-detail dt { white-space: nowrap; color: #52525b; }
-.task-calendar-detail dd { margin: 0; }
+.task-calendar-detail dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 1050px) {
   .task-calendar-layout { grid-template-columns: minmax(0, 1fr); }
 }
@@ -2289,7 +2299,7 @@ html body .app-shell #workspace-content .dashboard-task-calendar button[data-eve
 @media (max-width: 1050px) {
   .task-calendar-agenda { max-height: 65dvh; flex: auto; }
 }
-.task-calendar-detail > button { margin-bottom: 10px; }
+.task-calendar-detail > button { margin-bottom: 18px; }
 
 .auth-card .login-password-control { position: relative; }
 .auth-card .login-password-control input { width: 100%; padding-right: 44px !important; }
@@ -2321,7 +2331,7 @@ html body .app-shell #workspace-content .qa-detail-dialog { width:min(710px,calc
 .qa-detail-actions > div { flex-wrap:wrap; }
 html body .app-shell #workspace-content .task-calendar-day > .task-calendar-date { position: static; }
 html body .app-shell #workspace-content .task-calendar-detail h4 { text-transform:none !important; font-size:17px; line-height:1.35; }
-.task-calendar-detail .calendar-task-summary { margin:4px 0 12px; font-size:12px; }
+.task-calendar-detail .calendar-task-summary { margin:8px 0 16px; font-size:12px; }
 
 .task-calendar-toolbar > div { align-items: center; gap: 6px; }
 html body .app-shell #workspace-content :is(.task-table-search,.task-filter-select,.work-assignee-filter,.invoice-table-search,.pipeline-search,.task-target-search,.qa-project-search):focus-within {
@@ -2329,4 +2339,49 @@ html body .app-shell #workspace-content :is(.task-table-search,.task-filter-sele
 }
 html body .app-shell #workspace-content :is(.task-table-search,.task-filter-select,.work-assignee-filter,.invoice-table-search,.pipeline-search,.task-target-search,.qa-project-search) :is(input,select,input:focus-visible,select:focus-visible) {
   border: 0 !important; outline: 0 !important; box-shadow: none !important; background-color: transparent !important;
+}
+
+.task-name-inner .task-detail-trigger {
+  display: block; width: fit-content; height: auto; min-height: 0; padding: 0;
+  background: transparent; border: 0; color: inherit; font: inherit;
+  font-weight: 650; text-align: left; white-space: normal; cursor: pointer;
+}
+.work-task-detail {
+  width: min(540px, calc(100vw - 32px)); max-height: 85dvh; margin: auto;
+  padding: 0; border: 1px solid #cbd5e1; color: #0f172a; overflow: auto;
+}
+.work-task-detail::backdrop { background: rgb(15 23 42 / 45%); }
+.work-task-detail article { padding: 24px; overflow-wrap: anywhere; }
+.work-task-detail header { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.work-task-detail p { margin: 16px 0; white-space: pre-wrap; }
+.work-task-detail dl { display: grid; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+.work-task-detail dl div { display: grid; grid-template-columns: minmax(90px, 1fr) 2fr; gap: 12px; }
+.work-task-detail dt { color: #52525b; }
+.work-task-detail dd { margin: 0; white-space: pre-wrap; }
+
+/* Keep all QA fields and actions in the same scroll area on short screens. */
+html body .app-shell #workspace-content .qa-dialog[open] {
+  display: block !important;
+  box-sizing: border-box;
+  width: min(700px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+}
+html body .app-shell #workspace-content .qa-dialog > form {
+  display: block;
+  overflow: visible;
+}
+html body .app-shell #workspace-content .qa-dialog > header,
+html body .app-shell #workspace-content .qa-dialog .qa-form-actions {
+  position: static;
+  padding: 12px clamp(14px, 3vw, 24px);
+}
+html body .app-shell #workspace-content .qa-dialog .qa-form-fields {
+  overflow: visible;
+  gap: 14px;
+  padding: 16px clamp(14px, 3vw, 24px);
+}
+@media (max-width: 560px) {
+  .qa-dialog .qa-form-row { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .qa-dialog .qa-form-buttons > button { flex: 1 1 auto; }
 }
